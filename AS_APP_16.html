@@ -1,0 +1,2617 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="format-detection" content="telephone=no">
+    <title>AS Field Console - InBody</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+/* ===== AS FIELD APP - STYLES.CSS ===== */
+/* InBody Brand · AS Field Console */
+
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700&display=swap');
+
+:root {
+    --inbody-red: #9A2A2A;
+    --inbody-red-dark: #7A1F1F;
+    --inbody-red-light: #B23A3A;
+    --inbody-red-pale: #F5E8E8;
+    --inbody-accent: #C14545;
+
+    --tech-color-1: #9A2A2A;
+    --tech-color-2: #D97706;
+    --tech-color-3: #059669;
+    --tech-color-4: #2563EB;
+    --tech-color-5: #7C3AED;
+
+    --bg-primary: #FFFFFF;
+    --bg-secondary: #F7F3EF;
+    --bg-tertiary: #EADFDA;
+    --border-light: #E0D5D0;
+    --border-medium: #C8B8B0;
+
+    --text-primary: #2D1B1B;
+    --text-secondary: #5A4A4A;
+    --text-tertiary: #8A7A7A;
+    --text-inverse: #FFFFFF;
+
+    --status-waiting: #F59E0B;
+    --status-progress: #10B981;
+    --status-complete: #6366F1;
+
+    --shadow-sm: 0 1px 3px rgba(154,42,42,0.08);
+    --shadow-md: 0 4px 12px rgba(154,42,42,0.12);
+    --shadow-lg: 0 8px 24px rgba(154,42,42,0.16);
+    --shadow-floating: 0 12px 32px rgba(154,42,42,0.2);
+    --shadow-today: 0 0 0 3px rgba(154,42,42,0.3);
+
+    --radius-sm: 8px;
+    --radius-md: 14px;
+    --radius-lg: 20px;
+    --radius-xl: 28px;
+
+    --spacing-xs: 4px;
+    --spacing-sm: 8px;
+    --spacing-md: 16px;
+    --spacing-lg: 24px;
+    --spacing-xl: 32px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+body {
+    font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    width: 100%;
+    max-width: 100vw;
+}
+
+.app-container {
+    padding: 0;
+    max-width: 100%;
+    margin: 0 auto;
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
+    background: var(--bg-primary);
+    box-shadow: var(--shadow-md);
+    position: relative;
+}
+
+.app-header {
+    background: linear-gradient(135deg, var(--inbody-red) 0%, var(--inbody-red-dark) 100%);
+    padding: 12px 16px;
+    color: white;
+    position: -webkit-sticky;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.header-compact { display: flex; gap: 12px; align-items: flex-start; }
+.header-left { flex: 0 0 auto; }
+.app-logo { margin-bottom: 6px; }
+.logo-title { font-size: 22px; font-weight: 700; font-family: 'Outfit', sans-serif; line-height: 1; }
+.logo-subtitle { font-size: 9px; letter-spacing: 0.5px; opacity: 0.7; text-transform: uppercase; }
+.user-compact { display: flex; align-items: center; gap: 6px; font-size: 12px; flex-wrap: wrap; }
+.user-name-compact { font-weight: 600; }
+.user-divider { opacity: 0.5; }
+.user-branch-compact { opacity: 0.8; }
+.role-badge-compact { padding: 2px 8px; background: rgba(255,255,255,0.2); border-radius: 10px; font-size: 10px; font-weight: 600; }
+.header-right { flex: 1; min-width: 0; }
+
+.notice-compact { background: rgba(255,255,255,0.15); border-radius: 10px; padding: 8px 10px; border: 1px solid rgba(255,255,255,0.2); }
+.notice-compact-header { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+.notice-icon-compact { font-size: 14px; }
+.notice-title-compact { font-size: 12px; font-weight: 600; flex: 1; }
+.notice-toggle-btn { background: rgba(255,255,255,0.2); border: none; padding: 4px 8px; border-radius: 6px; cursor: pointer; font-size: 12px; }
+.notice-text-compact { font-size: 11px; line-height: 1.5; opacity: 0.95; margin-bottom: 4px; }
+.notice-period-compact { font-size: 10px; opacity: 0.7; }
+
+/* ===== FILTER CHIPS - REDESIGNED ===== */
+.search-section { padding: var(--spacing-md); background: white; border-bottom: 1px solid var(--border-light); }
+
+.search-box { position: relative; margin-bottom: var(--spacing-md); }
+.search-input { width: 100%; padding: var(--spacing-md) var(--spacing-md) var(--spacing-md) 45px; border: 2px solid var(--border-light); border-radius: var(--radius-md); font-size: 14px; font-family: 'Noto Sans KR', sans-serif; transition: all 0.2s ease; }
+.search-input:focus { outline: none; border-color: var(--inbody-red); }
+.search-icon { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); font-size: 18px; color: var(--text-tertiary); }
+
+/* New Filter Design */
+.filter-chips {
+    display: flex;
+    gap: 0;
+    align-items: stretch;
+    background: var(--bg-secondary);
+    border-radius: var(--radius-md);
+    padding: 4px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+.filter-chips::-webkit-scrollbar { display: none; }
+
+/* "전체" chip - Level 1 style */
+.filter-chip-all {
+    padding: 8px 18px;
+    border-radius: var(--radius-sm);
+    border: none;
+    background: transparent;
+    font-size: 13px;
+    font-weight: 700;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    color: var(--text-secondary);
+    letter-spacing: 0.3px;
+    flex-shrink: 0;
+}
+.filter-chip-all.active {
+    background: var(--inbody-red);
+    color: white;
+    box-shadow: 0 2px 8px rgba(154,42,42,0.35);
+}
+
+/* Divider between 전체 and sub-filters */
+.filter-divider {
+    width: 1px;
+    background: var(--border-medium);
+    margin: 4px 4px;
+    flex-shrink: 0;
+}
+
+/* Sub category chips - Level 2 */
+.filter-chips-sub {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.filter-chip-sub {
+    padding: 6px 14px;
+    border-radius: 20px;
+    border: 1.5px solid var(--border-medium);
+    background: white;
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    color: var(--text-secondary);
+    flex-shrink: 0;
+}
+.filter-chip-sub.active {
+    background: #2D1B1B;
+    color: white;
+    border-color: #2D1B1B;
+}
+.filter-chip-sub:active { transform: scale(0.95); }
+
+/* Legacy support */
+.filter-chip { padding: 8px 16px; border-radius: var(--radius-lg); border: 2px solid var(--border-medium); background: white; font-size: 13px; font-weight: 600; white-space: nowrap; cursor: pointer; transition: all 0.2s ease; color: var(--text-secondary); }
+.filter-chip.active { background: var(--inbody-red); color: white; border-color: var(--inbody-red); }
+.filter-chip:active { transform: scale(0.95); }
+
+/* ===== CALENDAR ===== */
+.calendar-section { padding: var(--spacing-lg) var(--spacing-md); }
+.calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-lg); }
+.month-selector { display: flex; align-items: center; gap: var(--spacing-md); }
+.nav-button { width: 36px; height: 36px; border-radius: 50%; border: none; background: var(--bg-tertiary); color: var(--text-primary); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 18px; transition: all 0.2s ease; }
+.nav-button:active { transform: scale(0.9); background: var(--inbody-red-pale); }
+.current-month { font-size: 24px; font-weight: 700; font-family: 'Outfit', 'Noto Sans KR', sans-serif; color: var(--text-primary); cursor: pointer; padding: 8px 16px; border-radius: var(--radius-md); transition: all 0.2s ease; }
+.today-button { padding: 8px 16px; border: 2px solid var(--inbody-red); background: transparent; color: var(--inbody-red); border-radius: var(--radius-sm); font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s ease; }
+.today-button:active { background: var(--inbody-red); color: white; }
+
+.calendar-legend { display: flex; gap: var(--spacing-md); flex-wrap: wrap; margin-bottom: var(--spacing-md); padding: var(--spacing-sm); background: var(--bg-secondary); border-radius: var(--radius-sm); }
+.legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-secondary); }
+.legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+.calendar-grid { background: white; border-radius: var(--radius-lg); padding: var(--spacing-md); box-shadow: var(--shadow-sm); }
+.weekdays { display: grid; grid-template-columns: repeat(7,1fr); gap: var(--spacing-xs); margin-bottom: var(--spacing-sm); }
+.weekday { text-align: center; font-size: 12px; font-weight: 600; color: var(--text-tertiary); padding: var(--spacing-sm) 0; }
+.weekday.sunday { color: #DC2626; }
+.weekday.saturday { color: #2563EB; }
+.days-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: var(--spacing-xs); }
+
+.day-cell { aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: var(--radius-sm); cursor: pointer; position: relative; transition: all 0.2s ease; background: #FFFFFF; border: 2px solid transparent; padding: 4px; }
+.day-cell.other-month { opacity: 0.3; }
+.day-cell.today { background: var(--inbody-red); color: white; font-weight: 700; }
+.day-cell.today.selected { box-shadow: var(--shadow-today); }
+.day-cell.has-schedule { border-color: var(--inbody-red-light); background: #FFEAEA; }
+.day-cell.selected:not(.today) { border-color: var(--inbody-red); background: var(--inbody-red-pale); }
+.day-cell:active { transform: scale(0.95); }
+.day-number { font-size: 14px; font-weight: 600; line-height: 1; margin-bottom: 2px; color: #1A1A1A; }
+.day-schedules { font-size: 9px; line-height: 1.2; text-align: center; width: 100%; }
+.day-schedule-item { display: flex; align-items: center; justify-content: center; gap: 2px; margin: 1px 0; }
+.day-schedule-dot { width: 4px; height: 4px; border-radius: 50%; flex-shrink: 0; }
+.day-schedule-name { font-weight: 700; flex-shrink: 0; color: #2D1B1B; }
+.day-schedule-count { font-weight: 600; color: #2D1B1B; }
+
+.day-tooltip { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%) translateY(-8px); background: rgba(45,27,27,0.95); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); color: white; padding: 8px 12px; border-radius: var(--radius-sm); font-size: 11px; white-space: nowrap; pointer-events: none; opacity: 0; transition: opacity 0.2s ease; z-index: 10; box-shadow: var(--shadow-lg); }
+.day-cell:hover .day-tooltip { opacity: 1; }
+.tooltip-item { display: flex; align-items: center; gap: 6px; margin: 2px 0; }
+.tooltip-dot { width: 6px; height: 6px; border-radius: 50%; }
+
+/* ===== SCHEDULE LIST ===== */
+.schedule-section { padding: 0 var(--spacing-md); padding-bottom: calc(90px + env(safe-area-inset-bottom, 20px)); }
+.section-title { font-size: 18px; font-weight: 700; color: var(--text-primary); margin-bottom: var(--spacing-md); display: flex; align-items: center; gap: var(--spacing-sm); }
+.section-date { color: var(--inbody-red); }
+.time-section { margin-bottom: var(--spacing-lg); }
+.time-header { font-size: 14px; font-weight: 600; color: var(--text-secondary); margin-bottom: var(--spacing-md); display: flex; align-items: center; gap: var(--spacing-sm); }
+.time-icon { width: 20px; height: 20px; border-radius: 50%; background: var(--inbody-red-pale); display: flex; align-items: center; justify-content: center; font-size: 12px; }
+
+.schedule-card { background: white; border-radius: var(--radius-md); padding: var(--spacing-md); margin-bottom: var(--spacing-md); box-shadow: var(--shadow-sm); cursor: pointer; transition: all 0.3s ease; border-left: 4px solid transparent; position: relative; }
+.schedule-card:active { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+
+/* Route button in schedule card header area */
+.card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: var(--spacing-sm); }
+.card-time { background: var(--inbody-red); color: white; padding: 4px 10px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 600; font-family: 'Outfit', sans-serif; }
+.card-header-right { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.status-badge { padding: 4px 10px; border-radius: var(--radius-sm); font-size: 11px; font-weight: 600; }
+.status-waiting { background: #FEF3C7; color: var(--status-waiting); }
+.status-progress { background: #D1FAE5; color: var(--status-progress); }
+.status-complete { background: #E0E7FF; color: var(--status-complete); }
+.card-company { font-size: 16px; font-weight: 700; color: var(--text-primary); margin-bottom: var(--spacing-xs); }
+.card-info { display: flex; flex-direction: column; gap: 4px; }
+.info-row { display: flex; align-items: center; gap: var(--spacing-sm); font-size: 13px; color: var(--text-secondary); }
+.info-label { color: var(--text-tertiary); min-width: 60px; }
+.info-value { color: var(--text-primary); font-weight: 500; }
+
+/* ===== SCHEDULE FILTERS ===== */
+.schedule-filters-wrapper { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.schedule-filters { display: flex; gap: 8px; flex-wrap: wrap; flex: 1; }
+.schedule-filter-btn { padding: 8px 16px; border-radius: 8px; border: 2px solid var(--inbody-red); background: white; color: var(--inbody-red); font-weight: 600; cursor: pointer; transition: all 0.2s ease; font-size: 13px; font-family: 'Noto Sans KR', sans-serif; }
+.schedule-filter-btn.active { background: var(--inbody-red); color: white; }
+.schedule-filter-btn:active { transform: scale(0.95); }
+
+/* Route Button */
+.route-btn {
+    padding: 8px 16px;
+    border-radius: 8px;
+    border: 2px solid #059669;
+    background: white;
+    color: #059669;
+    font-weight: 700;
+    cursor: pointer;
+    font-size: 13px;
+    font-family: 'Noto Sans KR', sans-serif;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+.route-btn:active { background: #059669; color: white; transform: scale(0.97); }
+
+/* ===== MODAL ===== */
+.modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); z-index: 1000; display: none; opacity: 0; transition: opacity 0.3s ease; }
+.modal-overlay.active { display: flex; opacity: 1; align-items: flex-end; justify-content: center; }
+.modal-content { background: white; width: 100%; max-width: 100%; max-height: 90vh; border-radius: var(--radius-xl) var(--radius-xl) 0 0; overflow-y: auto; -webkit-overflow-scrolling: touch; transform: translateY(100%); transition: transform 0.4s cubic-bezier(0.4,0,0.2,1); }
+.modal-overlay.active .modal-content { transform: translateY(0); }
+
+.modal-header { position: -webkit-sticky; position: sticky; top: 0; background: white; padding: var(--spacing-lg) var(--spacing-md) var(--spacing-md); border-bottom: 1px solid var(--border-light); z-index: 10; }
+.modal-handle { width: 40px; height: 4px; background: var(--border-medium); border-radius: 2px; margin: 0 auto var(--spacing-md); }
+
+/* Modal title row - back button left, title center, close button right */
+.modal-title-row { display: flex; justify-content: space-between; align-items: center; position: relative; }
+.modal-title { font-size: 20px; font-weight: 700; color: var(--text-primary); position: absolute; left: 50%; transform: translateX(-50%); white-space: nowrap; }
+.modal-title-spacer { width: 32px; flex-shrink: 0; }
+
+.back-button {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: none;
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+    z-index: 1;
+}
+.back-button:active { background: var(--border-light); transform: scale(0.9); }
+
+.close-button { width: 32px; height: 32px; border-radius: 50%; border: none; background: var(--bg-tertiary); color: var(--text-secondary); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 20px; transition: all 0.2s ease; flex-shrink: 0; z-index: 1; }
+.close-button:active { background: var(--border-light); transform: scale(0.9); }
+
+.modal-body { padding: var(--spacing-lg) var(--spacing-md) var(--spacing-xl); }
+
+/* ===== DETAIL SECTIONS ===== */
+.detail-section { margin-bottom: var(--spacing-lg); padding: var(--spacing-md); background: var(--bg-secondary); border-radius: var(--radius-md); }
+.detail-section-title { font-size: 12px; font-weight: 700; color: var(--inbody-red); text-transform: uppercase; letter-spacing: 1px; margin-bottom: var(--spacing-md); display: flex; align-items: center; gap: var(--spacing-sm); }
+.section-icon { font-size: 16px; }
+.detail-row { display: flex; justify-content: space-between; padding: var(--spacing-sm) 0; border-bottom: 1px solid var(--border-light); align-items: center; }
+.detail-row:last-child { border-bottom: none; }
+.detail-label { font-size: 14px; color: var(--text-tertiary); font-weight: 500; }
+.detail-value { font-size: 14px; color: var(--text-primary); font-weight: 600; text-align: right; }
+.warranty-badge { padding: 4px 8px; border-radius: var(--radius-sm); font-size: 11px; font-weight: 700; }
+.warranty-free { background: #D1FAE5; color: #059669; }
+.warranty-paid { background: #FEE2E2; color: #DC2626; }
+.detail-full { padding: var(--spacing-md); background: white; border-radius: var(--radius-sm); margin-top: var(--spacing-sm); }
+.detail-full-label { font-size: 12px; color: var(--text-tertiary); font-weight: 600; margin-bottom: var(--spacing-sm); }
+.detail-full-value { font-size: 14px; color: var(--text-primary); line-height: 1.6; }
+
+/* ===== ACTION BUTTONS ===== */
+.action-buttons { display: grid; grid-template-columns: repeat(3,1fr); gap: var(--spacing-md); margin-top: var(--spacing-lg); }
+.action-button { padding: var(--spacing-md); border-radius: var(--radius-md); border: 2px solid var(--border-medium); background: white; cursor: pointer; transition: all 0.2s ease; display: flex; flex-direction: column; align-items: center; gap: var(--spacing-sm); font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.action-button:active { transform: scale(0.95); border-color: var(--inbody-red); }
+.action-icon { font-size: 24px; }
+
+/* ===== FORM ELEMENTS ===== */
+.form-group { margin-bottom: var(--spacing-lg); }
+.form-label { font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: var(--spacing-sm); display: block; }
+.form-label-required::after { content: ' *'; color: #DC2626; }
+.form-select { width: 100%; padding: var(--spacing-md); border: 2px solid var(--border-light); border-radius: var(--radius-sm); font-size: 14px; font-family: 'Noto Sans KR', sans-serif; background: white; transition: all 0.2s ease; }
+.form-select:focus { outline: none; border-color: var(--inbody-red); }
+.form-input { width: 100%; padding: var(--spacing-md); border: 2px solid var(--border-light); border-radius: var(--radius-sm); font-size: 14px; font-family: 'Noto Sans KR', sans-serif; transition: all 0.2s ease; }
+.form-input:focus { outline: none; border-color: var(--inbody-red); }
+.form-input-with-icon { position: relative; }
+.form-input-icon { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-size: 20px; color: var(--inbody-red); cursor: pointer; transition: all 0.2s ease; }
+.form-input-icon:active { transform: translateY(-50%) scale(0.9); }
+.form-textarea { width: 100%; min-height: 120px; padding: var(--spacing-md); border: 2px solid var(--border-light); border-radius: var(--radius-sm); font-size: 14px; font-family: 'Noto Sans KR', sans-serif; resize: vertical; transition: all 0.2s ease; }
+.form-textarea:focus { outline: none; border-color: var(--inbody-red); }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-md); }
+.form-row-3 { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: var(--spacing-md); }
+
+/* Camera button inline */
+.section-title-with-camera {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.camera-btn-inline {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    border: none;
+    background: var(--inbody-red-pale);
+    color: var(--inbody-red);
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+.camera-btn-inline:active { background: var(--inbody-red); color: white; transform: scale(0.9); }
+
+/* Version camera */
+.version-input-row { display: flex; gap: 8px; align-items: center; }
+.version-input-row .form-input { flex: 1; }
+.qr-scan-btn { padding: 0 14px; height: 48px; border-radius: var(--radius-sm); border: 2px solid var(--inbody-red); background: var(--inbody-red-pale); color: var(--inbody-red); cursor: pointer; font-size: 18px; flex-shrink: 0; display: flex; align-items: center; transition: all 0.2s ease; }
+.qr-scan-btn:active { background: var(--inbody-red); color: white; }
+
+/* ===== MATERIAL ITEMS ===== */
+.material-item { background: var(--bg-secondary); padding: var(--spacing-md); border-radius: var(--radius-sm); margin-bottom: var(--spacing-md); }
+.material-item-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-sm); }
+.material-remove { color: #DC2626; cursor: pointer; font-size: 20px; }
+.add-material-btn { width: 100%; padding: var(--spacing-md); border: 2px dashed var(--border-medium); background: white; border-radius: var(--radius-sm); font-size: 14px; font-weight: 600; color: var(--inbody-red); cursor: pointer; transition: all 0.2s ease; font-family: 'Noto Sans KR', sans-serif; }
+.add-material-btn:active { transform: scale(0.98); background: var(--inbody-red-pale); }
+
+/* ===== BUTTON GROUPS ===== */
+.button-group { display: flex; gap: var(--spacing-md); margin-top: var(--spacing-lg); }
+.btn-secondary { flex: 1; padding: var(--spacing-md); background: white; color: var(--text-primary); border: 2px solid var(--border-medium); border-radius: var(--radius-md); font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.2s ease; font-family: 'Noto Sans KR', sans-serif; }
+.btn-secondary:active { transform: scale(0.98); background: var(--bg-tertiary); }
+.btn-primary { flex: 1; padding: var(--spacing-md); background: var(--inbody-red); color: white; border: none; border-radius: var(--radius-md); font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.2s ease; font-family: 'Noto Sans KR', sans-serif; }
+.btn-primary:active { transform: scale(0.98); background: var(--inbody-red-dark); }
+
+/* ===== INQUIRY ===== */
+.inquiry-list { margin-top: var(--spacing-lg); }
+.inquiry-list-title { font-size: 14px; font-weight: 700; color: var(--text-secondary); margin-bottom: var(--spacing-md); }
+.inquiry-card { background: var(--bg-secondary); border-radius: var(--radius-md); padding: var(--spacing-md); margin-bottom: var(--spacing-sm); cursor: pointer; border-left: 3px solid var(--inbody-red); transition: all 0.2s ease; }
+.inquiry-card:active { transform: translateX(4px); }
+.inquiry-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: var(--spacing-sm); }
+.inquiry-title { font-size: 15px; font-weight: 700; color: var(--text-primary); }
+.inquiry-date { font-size: 11px; color: var(--text-tertiary); }
+.inquiry-meta { font-size: 12px; color: var(--text-secondary); line-height: 1.4; }
+.priority-badge { display: inline-block; padding: 2px 8px; border-radius: var(--radius-sm); font-size: 10px; font-weight: 700; margin-left: var(--spacing-sm); }
+.priority-high { background: #FEE2E2; color: #DC2626; }
+.priority-medium { background: #FEF3C7; color: #F59E0B; }
+.priority-low { background: #DBEAFE; color: #2563EB; }
+
+/* ===== PHOTO UPLOAD ===== */
+.photo-upload-area { border: 2px dashed var(--border-medium); border-radius: var(--radius-md); padding: var(--spacing-lg); text-align: center; cursor: pointer; transition: all 0.2s ease; background: var(--bg-secondary); }
+.photo-upload-area:active { background: var(--inbody-red-pale); border-color: var(--inbody-red); }
+.photo-icon { font-size: 48px; margin-bottom: var(--spacing-sm); color: var(--text-tertiary); }
+.photo-text { font-size: 14px; color: var(--text-secondary); }
+.photo-preview { display: grid; grid-template-columns: repeat(3,1fr); gap: var(--spacing-sm); margin-top: var(--spacing-md); }
+.photo-item { position: relative; aspect-ratio: 1; border-radius: var(--radius-sm); overflow: hidden; }
+.photo-item img { width: 100%; height: 100%; object-fit: cover; }
+.photo-remove { position: absolute; top: 4px; right: 4px; width: 24px; height: 24px; border-radius: 50%; background: rgba(0,0,0,0.6); color: white; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 16px; }
+
+/* ===== QUICK ACTIONS ===== */
+.quick-actions-fixed { position: fixed; bottom: 0; left: 0; right: 0; background: white; padding: var(--spacing-md); padding-bottom: calc(var(--spacing-md) + env(safe-area-inset-bottom, 0px)); box-shadow: 0 -4px 12px rgba(0,0,0,0.1); z-index: 90; max-width: 100%; margin: 0 auto; }
+.quick-action-btn { padding: var(--spacing-md); border-radius: var(--radius-md); border: 2px solid var(--inbody-red); background: white; color: var(--inbody-red); font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center; justify-content: center; gap: var(--spacing-sm); font-family: 'Noto Sans KR', sans-serif; }
+.quick-action-btn:active { transform: scale(0.97); background: var(--inbody-red); color: white; }
+.action-btn-icon { font-size: 18px; }
+
+/* ===== PICKER MODAL ===== */
+.picker-modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); z-index: 1100; display: none; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.3s ease; }
+.picker-modal.active { display: flex; opacity: 1; }
+.picker-content { background: white; width: 90%; max-width: 400px; border-radius: var(--radius-lg); padding: var(--spacing-lg); transform: scale(0.9); transition: transform 0.3s cubic-bezier(0.4,0,0.2,1); }
+.picker-modal.active .picker-content { transform: scale(1); }
+.picker-title { font-size: 18px; font-weight: 700; text-align: center; margin-bottom: var(--spacing-lg); color: var(--text-primary); }
+.picker-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: var(--spacing-md); }
+.picker-item { padding: var(--spacing-md); border-radius: var(--radius-sm); border: 2px solid var(--border-light); background: white; cursor: pointer; text-align: center; font-size: 16px; font-weight: 600; transition: all 0.2s ease; font-family: 'Noto Sans KR', sans-serif; }
+.picker-item:active { transform: scale(0.95); }
+.picker-item.selected { background: var(--inbody-red); color: white; border-color: var(--inbody-red); }
+
+/* ===== EMPTY STATE ===== */
+.empty-state { text-align: center; padding: var(--spacing-xl); color: var(--text-tertiary); }
+.empty-icon { font-size: 64px; margin-bottom: var(--spacing-md); opacity: 0.3; }
+.empty-text { font-size: 16px; font-weight: 500; }
+
+/* ===== ROUTE MODAL ===== */
+.route-modal-content {
+    background: white;
+    width: 100%;
+    max-height: 90vh;
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+.route-map-placeholder {
+    background: #E8F5E9;
+    border-radius: var(--radius-md);
+    padding: 24px;
+    text-align: center;
+    min-height: 200px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    border: 2px dashed #A5D6A7;
+    margin-bottom: 16px;
+}
+.route-stop-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px;
+    background: white;
+    border-radius: var(--radius-sm);
+    margin-bottom: 8px;
+    border-left: 3px solid var(--inbody-red);
+}
+.route-stop-num {
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    background: var(--inbody-red);
+    color: white;
+    font-size: 12px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+}
+.route-stop-info { flex: 1; }
+.route-stop-company { font-size: 14px; font-weight: 700; }
+.route-stop-address { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+.origin-input-section { background: var(--bg-secondary); border-radius: var(--radius-md); padding: 16px; margin-bottom: 16px; }
+.saved-origins { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.origin-tag { padding: 6px 12px; border-radius: 20px; border: 1.5px solid var(--border-medium); background: white; font-size: 12px; cursor: pointer; transition: all 0.2s; font-family: 'Noto Sans KR', sans-serif; }
+.origin-tag.active { background: var(--inbody-red); color: white; border-color: var(--inbody-red); }
+
+/* ===== 유상무상 보고용 POPUP ===== */
+.warranty-report-popup {
+    background: white;
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+    max-height: 90vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    width: 100%;
+}
+.report-header-bar {
+    background: linear-gradient(135deg, var(--inbody-red), var(--inbody-red-dark));
+    color: white;
+    padding: 16px 20px;
+    text-align: center;
+}
+.report-header-bar h3 { font-size: 16px; font-weight: 700; margin-bottom: 2px; }
+.report-header-bar p { font-size: 11px; opacity: 0.8; }
+.report-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+}
+.report-cell {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border-light);
+    border-right: 1px solid var(--border-light);
+}
+.report-cell:nth-child(even) { border-right: none; }
+.report-cell-label { font-size: 10px; color: var(--text-tertiary); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+.report-cell-value { font-size: 13px; color: var(--text-primary); font-weight: 600; margin-top: 2px; }
+.report-cell-full {
+    grid-column: 1 / -1;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border-light);
+}
+
+/* ===== 처리방법 가이드 ===== */
+.guide-section {
+    background: linear-gradient(135deg, #FFF8E1, #FFF3E0);
+    border: 2px solid #FFB300;
+    border-radius: var(--radius-md);
+    padding: 0;
+    margin-bottom: var(--spacing-md);
+    overflow: hidden;
+}
+.guide-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: #FFB300;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.guide-section-header:active { background: #F9A800; }
+.guide-title-badge { display: flex; align-items: center; gap: 8px; }
+.guide-badge { background: white; color: #E65100; padding: 2px 8px; border-radius: 12px; font-size: 10px; font-weight: 700; letter-spacing: 0.5px; }
+.guide-title-text { font-size: 14px; font-weight: 700; color: white; }
+.guide-toggle-icon { font-size: 16px; color: white; transition: transform 0.2s; }
+.guide-toggle-icon.open { transform: rotate(180deg); }
+.guide-body { padding: 16px; display: none; }
+.guide-body.open { display: block; }
+
+.guide-item {
+    background: white;
+    border-radius: var(--radius-sm);
+    margin-bottom: 12px;
+    overflow: hidden;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+}
+.guide-item-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    background: #FFF8E1;
+    border-bottom: 1px solid #FFE082;
+}
+.guide-item-num {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: #FF8F00;
+    color: white;
+    font-size: 11px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+}
+.guide-item-title { font-size: 13px; font-weight: 700; color: #4E342E; }
+.guide-item-content { padding: 10px 12px; font-size: 13px; color: var(--text-secondary); line-height: 1.6; }
+.guide-media-placeholder { background: var(--bg-secondary); border-radius: 6px; padding: 12px; text-align: center; color: var(--text-tertiary); font-size: 12px; margin-top: 8px; border: 1px dashed var(--border-medium); cursor: pointer; }
+.guide-tag-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.guide-tag { padding: 3px 10px; background: #FFF3E0; border-radius: 12px; font-size: 11px; color: #E65100; font-weight: 600; }
+
+/* ===== AI ASSISTANT ===== */
+.ai-section {
+    background: linear-gradient(135deg, #E8EAF6, #EDE7F6);
+    border: 2px solid #7986CB;
+    border-radius: var(--radius-md);
+    padding: 0;
+    margin-bottom: var(--spacing-md);
+    overflow: hidden;
+}
+.ai-section-header {
+    background: linear-gradient(135deg, #3F51B5, #5C35B5);
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.ai-badge { background: rgba(255,255,255,0.2); padding: 2px 8px; border-radius: 12px; font-size: 10px; font-weight: 700; color: white; letter-spacing: 0.5px; }
+.ai-section-title { font-size: 14px; font-weight: 700; color: white; }
+.ai-body { padding: 14px; }
+.ai-input-row { display: flex; gap: 8px; }
+.ai-input { flex: 1; padding: 10px 14px; border: 2px solid #C5CAE9; border-radius: 22px; font-size: 14px; font-family: 'Noto Sans KR', sans-serif; background: white; transition: all 0.2s; }
+.ai-input:focus { outline: none; border-color: #3F51B5; }
+.ai-send-btn { padding: 0 16px; border-radius: 22px; border: none; background: #3F51B5; color: white; font-size: 16px; cursor: pointer; transition: all 0.2s; }
+.ai-send-btn:active { background: #303F9F; }
+.ai-response-area { margin-top: 12px; min-height: 60px; background: white; border-radius: var(--radius-sm); padding: 12px; font-size: 13px; color: var(--text-primary); line-height: 1.7; border: 1px solid #C5CAE9; display: none; }
+.ai-response-area.visible { display: block; }
+.ai-thinking { color: var(--text-tertiary); font-style: italic; font-size: 12px; display: flex; align-items: center; gap: 6px; }
+.ai-dot-anim { display: inline-flex; gap: 3px; }
+.ai-dot-anim span { width: 5px; height: 5px; border-radius: 50%; background: #7986CB; animation: aiDot 1.2s infinite; }
+.ai-dot-anim span:nth-child(2) { animation-delay: 0.2s; }
+.ai-dot-anim span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes aiDot { 0%,60%,100%{opacity:0.2;transform:scale(0.8)} 30%{opacity:1;transform:scale(1)} }
+
+/* ===== CHECKLIST ===== */
+.checklist-section {
+    background: #F1F8E9;
+    border: 2px solid #8BC34A;
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    margin-bottom: var(--spacing-md);
+}
+.checklist-header {
+    background: #558B2F;
+    padding: 10px 14px;
+    display: flex; align-items: center; gap: 8px;
+}
+.checklist-title { font-size: 14px; font-weight: 700; color: white; }
+.checklist-body { padding: 12px; }
+.checklist-empty { text-align: center; color: var(--text-tertiary); font-size: 13px; padding: 8px 0; font-style: italic; }
+.check-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 8px 10px;
+    background: white;
+    border-radius: 8px;
+    margin-bottom: 6px;
+    border: 1px solid #C5E1A5;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.check-item.checked { background: #E8F5E9; border-color: #66BB6A; }
+.check-item-box {
+    width: 20px; height: 20px;
+    border-radius: 5px;
+    border: 2px solid #8BC34A;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    margin-top: 1px;
+    transition: all 0.2s;
+}
+.check-item.checked .check-item-box { background: #4CAF50; border-color: #4CAF50; color: white; }
+.check-item-label { font-size: 13px; color: var(--text-primary); flex: 1; line-height: 1.4; }
+.check-item.checked .check-item-label { color: var(--text-secondary); text-decoration: line-through; }
+.checklist-hint { font-size: 11px; color: #558B2F; margin-top: 8px; text-align: center; font-style: italic; }
+
+/* ===== HIDDEN ===== */
+.hidden-file-input { display: none; }
+
+/* ===== COPY / CAPTURE BUTTONS ===== */
+.btn-copy {
+    flex: 1;
+    padding: var(--spacing-md);
+    background: #059669;
+    color: white;
+    border: none;
+    border-radius: var(--radius-md);
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: 'Noto Sans KR', sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+.btn-copy:active { transform: scale(0.97); background: #047857; }
+
+.btn-capture {
+    flex: 1;
+    padding: var(--spacing-md);
+    background: #2563EB;
+    color: white;
+    border: none;
+    border-radius: var(--radius-md);
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: 'Noto Sans KR', sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+.btn-capture:active { transform: scale(0.97); background: #1d4ed8; }
+
+/* ===== METHOD CHIP GROUP (신규접수) ===== */
+.method-chip-group {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.method-chip {
+    flex: 1;
+    min-width: 52px;
+    padding: 9px 4px;
+    border: 2px solid var(--border-light);
+    border-radius: 20px;
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    font-size: 13px;
+    font-weight: 600;
+    font-family: 'Noto Sans KR', sans-serif;
+    cursor: pointer;
+    transition: all 0.18s ease;
+    text-align: center;
+    -webkit-tap-highlight-color: transparent;
+}
+.method-chip:active { transform: scale(0.95); }
+.method-chip-active {
+    background: var(--inbody-red);
+    border-color: var(--inbody-red);
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(154,42,42,0.28);
+}
+/* ===== iOS COMPATIBILITY ===== */
+html { -webkit-text-size-adjust: 100%; height: -webkit-fill-available; }
+body { min-height: 100vh; min-height: -webkit-fill-available; }
+.app-header {
+    padding-top: max(12px, env(safe-area-inset-top));
+}
+.form-input, .form-select, .form-textarea, .ai-input, .search-input {
+    font-size: 16px !important;
+    -webkit-appearance: none;
+    appearance: none;
+}
+.form-select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%235A4A4A' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-color: white;
+    padding-right: 36px;
+}
+.quick-actions-fixed {
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
+}
+.modal-content {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+button, .filter-chip-all, .filter-chip-sub, .filter-chip,
+.schedule-filter-btn, .method-chip, .quick-action-btn,
+.nav-button, .today-button, .back-button, .close-button,
+.notice-toggle-btn, .action-button, .picker-item,
+.schedule-card, .day-cell, .check-item, .origin-tag,
+.add-material-btn, .btn-primary, .btn-secondary, .btn-copy, .btn-capture {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: rgba(154,42,42,0.08);
+    cursor: pointer;
+}
+/* iOS Safari: transition이 있으면 첫 탭이 hover로 처리되어 두 번 눌러야 할 수 있음 - 방지 */
+.schedule-card, .day-cell, .inquiry-card {
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+}
+.filter-chip-all, .filter-chip-sub, .method-chip, .quick-action-btn {
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+/* ===== iOS-SAFE CALENDAR GRID (replace grid with flex) ===== */
+.weekdays {
+    display: -webkit-flex !important;
+    display: flex !important;
+    width: 100%;
+}
+.weekday {
+    -webkit-flex: 1;
+    flex: 1;
+    min-width: 0;
+}
+.days-grid {
+    display: -webkit-flex !important;
+    display: flex !important;
+    -webkit-flex-wrap: wrap !important;
+    flex-wrap: wrap !important;
+    width: 100%;
+}
+.day-cell {
+    -webkit-flex: 0 0 calc(100% / 7) !important;
+    flex: 0 0 calc(100% / 7) !important;
+    width: calc(100% / 7) !important;
+    aspect-ratio: unset !important;
+    min-height: 52px;
+    height: 52px;
+    display: -webkit-flex !important;
+    display: flex !important;
+    -webkit-flex-direction: column;
+    flex-direction: column;
+    -webkit-align-items: center;
+    align-items: center;
+    -webkit-justify-content: center;
+    justify-content: center;
+    box-sizing: border-box !important;
+    overflow: hidden;
+}
+
+/* ===== DEVICE TYPE BADGES ===== */
+.device-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 3px 8px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    flex-shrink: 0;
+    line-height: 1.2;
+}
+.db-inbody { background: #FEE2E2; color: #9A2A2A; border: 1px solid #FECACA; }
+.db-height  { background: #DBEAFE; color: #1D4ED8; border: 1px solid #BFDBFE; }
+.db-bp      { background: #D1FAE5; color: #065F46; border: 1px solid #A7F3D0; }
+.db-other   { background: #F3F4F6; color: #374151; border: 1px solid #D1D5DB; }
+
+/* ===== DEVICE SUMMARY BAR ===== */
+.device-summary-bar {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin: 6px 0 12px;
+    padding: 10px 12px;
+    background: var(--bg-secondary);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-light);
+}
+.device-summary-label {
+    font-size: 10px;
+    color: var(--text-tertiary);
+    font-weight: 700;
+    width: 100%;
+    margin-bottom: 2px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.device-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 11px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 700;
+    border: 1.5px solid transparent;
+}
+.dc-inbody { background: #FEE2E2; color: #9A2A2A; border-color: #FECACA; }
+.dc-height  { background: #DBEAFE; color: #1D4ED8; border-color: #BFDBFE; }
+.dc-bp      { background: #D1FAE5; color: #065F46; border-color: #A7F3D0; }
+.dc-other   { background: #F3F4F6; color: #374151; border-color: #D1D5DB; }
+.dc-num     { font-size: 13px; font-weight: 800; }
+
+/* ===== DEVICE TYPE CHIP GROUP (신규접수) ===== */
+.device-chip-group {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.device-type-chip {
+    flex: 1;
+    min-width: 60px;
+    padding: 10px 4px;
+    border: 2px solid var(--border-light);
+    border-radius: 20px;
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-weight: 600;
+    font-family: 'Noto Sans KR', sans-serif;
+    cursor: pointer;
+    text-align: center;
+    touch-action: manipulation;
+    -webkit-user-select: none;
+    user-select: none;
+}
+.device-type-chip.active {
+    background: var(--inbody-red);
+    border-color: var(--inbody-red);
+    color: white;
+}
+
+</style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-compact">
+                <div class="header-left">
+                    <div class="app-logo">
+                        <div class="logo-title">InBody</div>
+                        <div class="logo-subtitle">Customer Service Report</div>
+                    </div>
+                    <div class="user-compact">
+                        <span class="user-name-compact">김프로</span>
+                        <span class="user-divider">•</span>
+                        <span class="user-branch-compact">서울지사</span>
+                        <span class="role-badge-compact">TECH</span>
+                    </div>
+                </div>
+                <div class="header-right">
+                    <div class="notice-compact" id="noticeCompact">
+                        <div class="notice-compact-header">
+                            <span class="notice-icon-compact">📢</span>
+                            <span class="notice-title-compact">HQ CS 공지</span>
+                            <button class="notice-toggle-btn" id="noticeToggleBtn" onclick="toggleNotice()">
+                                <span id="noticeToggleIcon">🔼</span>
+                            </button>
+                        </div>
+                        <div class="notice-compact-content" id="noticeContent">
+                            <div class="notice-text-compact">
+                                3월 정기 점검 일정 안내: 3/15(금) 09:00-18:00 본사 시스템 점검으로 인해 일부 기능이 제한될 수 있습니다.
+                            </div>
+                            <div class="notice-period-compact">📅 2026.03.01 - 2026.03.31</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Search and Filter -->
+        <section class="search-section">
+            <div class="search-box">
+                <span class="search-icon">🔍</span>
+                <input type="text" class="search-input" id="searchInput" placeholder="문서번호, 제품명, S/N, 상호명으로 검색" oninput="applyFilters()">
+            </div>
+            <!-- Redesigned Filter Chips -->
+            <div class="filter-chips">
+                <!-- Level 1: 전체 -->
+                <div class="filter-chip-all active" data-filter="전체" onclick="selectFilter(this)">전체</div>
+                <!-- Divider -->
+                <div class="filter-divider"></div>
+                <!-- Level 2: Sub categories -->
+                <div class="filter-chips-sub">
+                    <div class="filter-chip-sub" data-filter="방문" onclick="selectFilter(this)">방문</div>
+                    <div class="filter-chip-sub" data-filter="원격" onclick="selectFilter(this)">원격</div>
+                    <div class="filter-chip-sub" data-filter="입고" onclick="selectFilter(this)">입고</div>
+                    <div class="filter-chip-sub" data-filter="택배" onclick="selectFilter(this)">택배</div>
+                    <div class="filter-chip-sub" data-filter="수거" onclick="selectFilter(this)">수거</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Calendar Section -->
+        <section class="calendar-section">
+            <div class="calendar-header">
+                <div class="month-selector">
+                    <button class="nav-button" onclick="changeMonth(-1)">‹</button>
+                    <div class="current-month" onclick="showMonthPicker()">
+                        <span id="currentMonth">2026년 2월</span>
+                    </div>
+                    <button class="nav-button" onclick="changeMonth(1)">›</button>
+                </div>
+                <button class="today-button" onclick="goToToday()">오늘</button>
+            </div>
+            <div class="calendar-legend" id="calendarLegend"></div>
+            <div class="calendar-grid">
+                <div class="weekdays">
+                    <div class="weekday sunday">일</div>
+                    <div class="weekday">월</div>
+                    <div class="weekday">화</div>
+                    <div class="weekday">수</div>
+                    <div class="weekday">목</div>
+                    <div class="weekday">금</div>
+                    <div class="weekday saturday">토</div>
+                </div>
+                <div class="days-grid" id="daysGrid"></div>
+            </div>
+        </section>
+
+        <!-- Schedule List -->
+        <section class="schedule-section" id="scheduleSection">
+            <div class="section-title">
+                <span>📋</span>
+                <span>스케줄 목록</span>
+                <span class="section-date" id="selectedDateText"></span>
+            </div>
+            <div id="scheduleList"></div>
+        </section>
+    </div>
+
+    <!-- Quick Actions Fixed Bottom -->
+    <div class="quick-actions-fixed">
+        <div style="display:-webkit-box;display:-webkit-flex;display:flex;-webkit-flex-wrap:wrap;flex-wrap:wrap;gap:12px;max-width:520px;margin:0 auto;">
+            <button class="quick-action-btn" style="-webkit-flex:1;flex:1;min-width:120px;" onclick="showNewSchedule()">
+                <span class="action-btn-icon">➕</span>
+                <span>신규접수</span>
+            </button>
+            <button class="quick-action-btn" style="-webkit-flex:1;flex:1;min-width:120px;" onclick="showCSInquiry()">
+                <span class="action-btn-icon">💬</span>
+                <span>실시간 CS팀 문의</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Modal Container -->
+    <div id="modalContainer"></div>
+
+    <!-- Hidden file inputs -->
+    <input type="file" id="photoInput" class="hidden-file-input" accept="image/*" capture="camera" onchange="handlePhotoUpload(event)">
+    <input type="file" id="equipmentBarcodeInput" class="hidden-file-input" accept="image/*" capture="camera" onchange="handleEquipmentBarcode(event)">
+    <input type="file" id="qrInput" class="hidden-file-input" accept="image/*" capture="camera" onchange="handleQRScan(event)">
+
+    <script>
+// ===== AS FIELD APP - APP.JS =====
+// InBody Customer Service Field Console
+
+// ===== NOTICE TOGGLE =====
+let noticeExpanded = true;
+function toggleNotice() {
+    noticeExpanded = !noticeExpanded;
+    const content = document.getElementById('noticeContent');
+    const icon = document.getElementById('noticeToggleIcon');
+    if (noticeExpanded) { content.style.display = 'block'; icon.textContent = '🔼'; }
+    else { content.style.display = 'none'; icon.textContent = '🔽'; }
+}
+
+// ===== DATA =====
+const technicians = [
+    { id: 1, name: '김프로', color: '#9A2A2A' },
+    { id: 2, name: '이프로', color: '#D97706' },
+    { id: 3, name: '박프로', color: '#059669' },
+    { id: 4, name: '최프로', color: '#2563EB' },
+    { id: 5, name: '정프로', color: '#7C3AED' }
+];
+
+const DEVICE_TYPES = {
+    '인바디': { cls: 'db-inbody', dcls: 'dc-inbody', icon: '⚖️' },
+    '신장계': { cls: 'db-height', dcls: 'dc-height', icon: '📏' },
+    '혈압계': { cls: 'db-bp',     dcls: 'dc-bp',     icon: '💉' },
+    '기타':   { cls: 'db-other',  dcls: 'dc-other',  icon: '🔧' }
+};
+function getDeviceInfo(type) { return DEVICE_TYPES[type] || DEVICE_TYPES['기타']; }
+
+const defectDB = {
+    '측정값이상': ['체중값이상', '측정에러(재측정 메시지)', '임피던스 오류'],
+    '외부통신': ['WiFi 연결 실패', 'WiFi 끊김', 'Bluetooth 페어링 실패', 'Bluetooth 끊김'],
+    '화면터치': ['터치 불량', '오입력', '화면 멈춤'],
+    '전원문제': ['전원 안켜짐', '배터리 급방전', '충전 불량'],
+    '장비동작이상': ['날짜/시간 오류', 'DB 저장 오류', '측정 시작 안됨'],
+    '프린터': ['인쇄 안됨', '인쇄 흐림', '용지 걸림'],
+    '버튼문제': ['버튼 입력 불량', '버튼 눌림 감도 저하']
+};
+
+const serviceResultDB = {
+    '점검완료': ['부품미교체', '부품교체', '소프트웨어 업데이트', '설정 변경'],
+    '재방문필요': ['부품 발주 필요', '추가 점검 필요', '전문가 투입 필요'],
+    '회수': ['수리 불가', '교환 필요', '업그레이드 권장'],
+    '기타': ['원격지원완료', '고객취소', '부재중']
+};
+
+// 처리방법 가이드 DB (불량 소분류 → 가이드)
+const guideDB = {
+    '배터리 급방전': {
+        summary: '배터리 급속 방전 처리 가이드',
+        items: [
+            { title: '내용 및 설계변경', content: '배터리 셀 불량으로 인한 급방전. 2024년 3월 이후 생산분은 신규 배터리 팩(v2)으로 설계 변경됨.' },
+            { title: '필요자재(사진)', content: '배터리 팩 BATT-INB-770-V2 / 배터리 커넥터 CNT-BATT-02', media: true },
+            { title: '자재 호환여부', content: 'InBody 770 (S/N: SN-770-2023-XXX 이상) 호환. 그 이전 모델은 V1 배터리 팩 사용.' },
+            { title: '자재 생산 적용시점', content: '2024년 3월 15일 이후 생산분부터 적용', tags: ['2024-03-15~'] },
+            { title: '분해조립영상', content: '배터리 교체 영상 (15분)', media: true, isVideo: true },
+            { title: '메뉴얼 기반 필수 점검 항목', content: '① 충전 단자 상태 확인\n② 배터리 팽창 여부 확인\n③ 전원 회로 전압 체크\n④ 펌웨어 버전 최신 여부 확인', tags: ['전원회로', '배터리', '펌웨어'] }
+        ]
+    },
+    '체중값이상': {
+        summary: '체중 이상값 처리 가이드',
+        items: [
+            { title: '내용 및 설계변경', content: '로드셀 불량 또는 캘리브레이션 오류. v3.1 이후 자동 캘리브레이션 기능 추가.' },
+            { title: '필요자재(사진)', content: '로드셀 셋 LOAD-CELL-SET-01', media: true },
+            { title: '자재 호환여부', content: 'InBody 270/370/570/770 공통 적용 가능.' },
+            { title: '자재 생산 적용시점', content: '2023년 6월 1일 이후 생산분', tags: ['2023-06-01~'] },
+            { title: '분해조립영상', content: '로드셀 교체 영상 (25분)', media: true, isVideo: true },
+            { title: '메뉴얼 기반 필수 점검 항목', content: '① 영점 캘리브레이션 3회 반복\n② 표준추(20kg) 측정값 오차 ±0.1kg 이내 확인\n③ 발판 수평 상태 확인\n④ 로드셀 커넥터 체결 확인', tags: ['캘리브레이션', '로드셀', '수평'] }
+        ]
+    },
+    '용지 걸림': {
+        summary: '프린터 용지 걸림 처리 가이드',
+        items: [
+            { title: '내용 및 설계변경', content: '프린터 롤러 마모 또는 용지 규격 불일치. 신규 롤러 키트 출시 (2025년 1월).' },
+            { title: '필요자재(사진)', content: '프린터 롤러 키트 PRINT-ROLLER-KIT-03', media: true },
+            { title: '자재 호환여부', content: 'InBody 570/770 프린터 내장 모델 공통 적용.' },
+            { title: '자재 생산 적용시점', content: '2025년 1월 10일 이후', tags: ['2025-01-10~'] },
+            { title: '분해조립영상', content: '프린터 롤러 교체 영상 (10분)', media: true, isVideo: true },
+            { title: '메뉴얼 기반 필수 점검 항목', content: '① 용지 규격 확인 (57mm × 40m 열전사지)\n② 롤러 표면 이물질 제거\n③ 용지 장착 방향 확인\n④ 인쇄 테스트 5회 반복', tags: ['용지규격', '롤러', '인쇄테스트'] }
+        ]
+    }
+};
+
+// 체크리스트 DB (불량 소분류 → 체크항목)
+const checklistDB = {
+    '배터리 급방전': [
+        '충전 케이블 및 어댑터 정상 여부 확인',
+        '배터리 팽창 또는 변형 확인',
+        '배터리 잔량 표시 정확성 확인',
+        '전원 회로 전압 측정 (정상범위: 11.1V~12.6V)',
+        '배터리 교체 후 100% 충전 테스트',
+        '방전 시간 측정 (정상: 8시간 이상)'
+    ],
+    '체중값이상': [
+        '발판 수평 상태 확인',
+        '영점 캘리브레이션 수행',
+        '표준추 20kg 기준 오차 ±0.1kg 이내 확인',
+        '로드셀 커넥터 체결 상태 확인',
+        '측정 환경 (진동, 경사) 확인',
+        '3회 반복 측정 오차 확인'
+    ],
+    '용지 걸림': [
+        '용지 규격 확인 (57mm × 40m)',
+        '롤러 이물질 제거',
+        '용지 장착 방향 확인',
+        '프린터 커버 잠금 상태 확인',
+        '인쇄 테스트 5회 수행',
+        '용지 잔량 확인'
+    ],
+    '터치 불량': [
+        '화면 표면 이물질·오염 확인',
+        '터치 패널 케이블 체결 확인',
+        '터치 보정 실행',
+        '반응 영역 전체 테스트',
+        '화면 교체 필요 여부 판단'
+    ],
+    'WiFi 연결 실패': [
+        'AP 접속 정보 확인 (SSID, 비밀번호)',
+        '신호 강도 확인 (-70dBm 이상)',
+        'IP 설정 확인 (DHCP 또는 고정IP)',
+        '방화벽 포트 설정 확인',
+        '재연결 3회 테스트'
+    ]
+};
+
+// 저장된 출발지 목록
+let savedOrigins = ['본사(서울 강남)', '서울지사', '부산지사'];
+
+let sampleSchedules = [
+    {
+        docNo: 'DOC-20260214-001',
+        company: '서울내과의원',
+        address: '서울특별시 강남구 테헤란로 123',
+        phone: '02-1234-5678',
+        receivedAt: '2026-02-14',
+        visitPlannedAt: '2026-02-14',
+        visitRequestTime: '09:30',
+        deviceType: '인바디',
+        product: 'InBody 770',
+        version: 'v3.2.1',
+        mfgDate: '2023-05-10',
+        deliveryDate: '2023-06-01',
+        serial: 'SN-770-2023-001',
+        faultMajor: '전원문제',
+        faultMinor: '배터리 급방전',
+        receiptContent: '배터리가 빠르게 소모되며, 충전 후에도 1-2시간 내 방전됨',
+        branch: '서울지사',
+        visitor: '김프로',
+        visitorId: 1,
+        prevAction: '초기 점검 필요. 전원 연결 확인 요청.',
+        method: '방문',
+        status: '대기',
+        savedReport: null
+    },
+    {
+        docNo: 'DOC-20260214-002',
+        company: '행복한병원',
+        address: '서울특별시 송파구 올림픽로 456',
+        phone: '02-2345-6789',
+        receivedAt: '2026-02-13',
+        visitPlannedAt: '2026-02-14',
+        visitRequestTime: '14:00',
+        deviceType: '신장계',
+        product: 'BSM-170',
+        version: 'v2.1.0',
+        mfgDate: '2024-01-15',
+        deliveryDate: '2024-02-01',
+        serial: 'BSM-170-2024-045',
+        faultMajor: '프린터',
+        faultMinor: '용지 걸림',
+        receiptContent: '프린터 용지가 자주 걸림. 출력물이 찢어져 나옴',
+        branch: '서울지사',
+        visitor: '이프로',
+        visitorId: 2,
+        prevAction: '프린터 헤드 청소 필요',
+        method: '방문',
+        status: '진행중',
+        savedReport: null
+    },
+    {
+        docNo: 'DOC-20260214-003',
+        company: '건강검진센터',
+        address: '서울특별시 서초구 서초대로 789',
+        phone: '02-3456-7890',
+        receivedAt: '2026-02-14',
+        visitPlannedAt: '2026-02-14',
+        visitRequestTime: '16:30',
+        deviceType: '혈압계',
+        product: 'BPBIO320',
+        version: 'v1.8.9',
+        mfgDate: '2025-11-20',
+        deliveryDate: '2025-12-01',
+        serial: 'BP-320-2025-199',
+        faultMajor: '측정값이상',
+        faultMinor: '체중값이상',
+        receiptContent: '체중 측정값이 실제와 5kg 이상 차이남',
+        branch: '서울지사',
+        visitor: '김프로',
+        visitorId: 1,
+        prevAction: '센서 캘리브레이션 필요',
+        method: '방문',
+        status: '대기',
+        savedReport: null
+    }
+];
+
+let csInquiries = [
+    {
+        id: 'INQ-20260201',
+        date: '2026-02-01',
+        title: 'InBody 770 펌웨어 업데이트 문의',
+        priority: 'high',
+        model: 'InBody 770',
+        serial: 'SN-770-2023-001',
+        content: '최신 펌웨어 버전과 업데이트 방법을 알려주세요.',
+        photos: [],
+        hqResponse: '최신 펌웨어 v3.3.0이 배포되었습니다. 업데이트 방법은 첨부된 매뉴얼을 참고해주세요.'
+    }
+];
+
+let schedules = [...sampleSchedules];
+let currentDate = new Date(2026, 1, 14);
+let selectedDate = new Date(2026, 1, 14);
+let currentSchedule = null;
+let isRevisitScheduled = false;
+let currentFilter = '전체';
+let materials = [];
+let uploadedPhotos = [];
+let currentScheduleFilter = 'all';
+let currentCheckedItems = [];
+
+// ===== INITIALIZATION =====
+function init() {
+    renderLegend();
+    renderCalendar();
+    renderSchedules();
+}
+
+function renderLegend() {
+    const legend = document.getElementById('calendarLegend');
+    legend.innerHTML = technicians.map(tech => `
+        <div class="legend-item">
+            <div class="legend-dot" style="background:${tech.color}"></div>
+            <span>${tech.name}</span>
+        </div>
+    `).join('');
+}
+
+// ===== FILTER CHIPS =====
+function selectFilter(chip) {
+    document.querySelectorAll('[data-filter]').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    currentFilter = chip.dataset.filter;
+    applyFilters();
+}
+
+function applyFilters() {
+    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+    schedules = sampleSchedules.filter(s => {
+        const matchesSearch = !searchTerm ||
+            s.docNo.toLowerCase().includes(searchTerm) ||
+            s.company.toLowerCase().includes(searchTerm) ||
+            s.product.toLowerCase().includes(searchTerm) ||
+            s.serial.toLowerCase().includes(searchTerm);
+        const matchesFilter = currentFilter === '전체' || s.method === currentFilter;
+        return matchesSearch && matchesFilter;
+    });
+    renderCalendar();
+    renderSchedules();
+}
+
+// ===== CALENDAR =====
+function renderCalendar() {
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+    document.getElementById('currentMonth').textContent = `${year}년 ${month + 1}월`;
+    const firstDay = new Date(year, month, 1).getDay();
+    const lastDate = new Date(year, month + 1, 0).getDate();
+    const prevLastDate = new Date(year, month, 0).getDate();
+    const daysGrid = document.getElementById('daysGrid');
+    daysGrid.innerHTML = '';
+    for (let i = firstDay - 1; i >= 0; i--) {
+        daysGrid.appendChild(createDayCell(prevLastDate - i, 'other-month', new Date(year, month - 1, prevLastDate - i)));
+    }
+    for (let day = 1; day <= lastDate; day++) {
+        const date = new Date(year, month, day);
+        const isToday = isSameDay(date, new Date(2026, 1, 14));
+        const isSelected = isSameDay(date, selectedDate);
+        const daySchedules = getSchedulesForDate(date);
+        let classes = [];
+        if (isToday) classes.push('today');
+        if (isSelected) classes.push('selected');
+        if (daySchedules.length > 0) classes.push('has-schedule');
+        daysGrid.appendChild(createDayCell(day, classes.join(' '), date, daySchedules));
+    }
+    const totalCells = daysGrid.children.length;
+    for (let day = 1; day <= 42 - totalCells; day++) {
+        daysGrid.appendChild(createDayCell(day, 'other-month', new Date(year, month + 1, day)));
+    }
+}
+
+function createDayCell(day, className, date, daySchedules = []) {
+    const cell = document.createElement('div');
+    cell.className = `day-cell ${className}`;
+    let schedulesHTML = '', tooltipHTML = '';
+    if (daySchedules.length > 0) {
+        const techGroups = {};
+        daySchedules.forEach(s => { if (!techGroups[s.visitorId]) techGroups[s.visitorId] = []; techGroups[s.visitorId].push(s); });
+        schedulesHTML = '<div class="day-schedules">';
+        Object.keys(techGroups).forEach(techId => {
+            const tech = technicians.find(t => t.id == techId);
+            if (tech) schedulesHTML += `<div class="day-schedule-item"><div class="day-schedule-dot" style="background:${tech.color}"></div><span class="day-schedule-name">${tech.name}</span><span class="day-schedule-count">(${techGroups[techId].length})</span></div>`;
+        });
+        schedulesHTML += '</div>';
+        tooltipHTML = '<div class="day-tooltip">';
+        Object.keys(techGroups).forEach(techId => {
+            const tech = technicians.find(t => t.id == techId);
+            tooltipHTML += `<div class="tooltip-item"><div class="tooltip-dot" style="background:${tech.color}"></div><span>${tech.name} (${techGroups[techId].length}건)</span></div>`;
+        });
+        tooltipHTML += '</div>';
+    }
+    cell.innerHTML = `<span class="day-number">${day}</span>${schedulesHTML}${tooltipHTML}`;
+    if (!className.includes('other-month')) cell.onclick = () => selectDate(date);
+    return cell;
+}
+
+function selectDate(date) { selectedDate = date; renderCalendar(); renderSchedules(); }
+function changeMonth(delta) { currentDate.setMonth(currentDate.getMonth() + delta); renderCalendar(); }
+function goToToday() { currentDate = new Date(2026,1,14); selectedDate = new Date(2026,1,14); renderCalendar(); renderSchedules(); }
+
+function showMonthPicker() {
+    const html = `
+        <div class="picker-modal active" id="pickerModal" onclick="closePickerModal(event)">
+            <div class="picker-content" onclick="event.stopPropagation()">
+                <h3 class="picker-title">월 선택</h3>
+                <div class="picker-grid">
+                    ${['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'].map((m,i) =>
+                        `<div class="picker-item ${i===currentDate.getMonth()?'selected':''}" onclick="selectMonth(${i})">${m}</div>`
+                    ).join('')}
+                </div>
+            </div>
+        </div>`;
+    document.getElementById('modalContainer').innerHTML = html;
+}
+function selectMonth(month) { currentDate.setMonth(month); renderCalendar(); closePickerModal(); }
+function closePickerModal(event) {
+    if (event && event.target.classList.contains('picker-modal')) document.getElementById('modalContainer').innerHTML = '';
+    else if (!event) document.getElementById('modalContainer').innerHTML = '';
+}
+
+// ===== SCHEDULE FILTERS WITH ROUTE BUTTON =====
+function renderScheduleFilters() {
+    const dateStr = formatDate(selectedDate);
+    const daySchedules = schedules.filter(s => s.visitPlannedAt === dateStr);
+    const techCounts = {};
+    daySchedules.forEach(s => {
+        if (!techCounts[s.visitor]) techCounts[s.visitor] = 0;
+        techCounts[s.visitor]++;
+    });
+    const totalCount = daySchedules.length;
+
+    let html = `<div class="schedule-filters-wrapper">
+        <div class="schedule-filters">
+            <button class="schedule-filter-btn ${currentScheduleFilter==='all'?'active':''}" onclick="filterSchedules('all')">전체보기 (${totalCount})</button>`;
+    Object.keys(techCounts).forEach(visitor => {
+        html += `<button class="schedule-filter-btn ${currentScheduleFilter===visitor?'active':''}" onclick="filterSchedules('${visitor}')">${visitor} (${techCounts[visitor]})</button>`;
+    });
+    html += `</div>`;
+    if (totalCount > 0) {
+        html += `<button class="route-btn" onclick="showRouteModal()">🗺️ 루트</button>`;
+    }
+    html += `</div>`;
+
+    // 현재 필터 기준으로 장비 현황 계산 (담당자 필터 반영)
+    const filteredSchedules = currentScheduleFilter === 'all'
+        ? daySchedules
+        : daySchedules.filter(s => s.visitor === currentScheduleFilter);
+
+    const deviceCounts = {};
+    filteredSchedules.forEach(s => {
+        const dt = s.deviceType || '기타';
+        if (!deviceCounts[dt]) deviceCounts[dt] = 0;
+        deviceCounts[dt]++;
+    });
+
+    if (filteredSchedules.length > 0 && Object.keys(deviceCounts).length > 0) {
+        const label = currentScheduleFilter === 'all' ? '오늘 장비 현황' : `${currentScheduleFilter} 장비 현황`;
+        html += `<div class="device-summary-bar"><div class="device-summary-label">${label}</div>`;
+        Object.entries(deviceCounts).forEach(([dt, cnt]) => {
+            const info = getDeviceInfo(dt);
+            html += `<span class="device-chip ${info.dcls}">${info.icon} ${dt} <span class="dc-num">${cnt}건</span></span>`;
+        });
+        html += `</div>`;
+    }
+    return html;
+}
+
+function filterSchedules(filter) { currentScheduleFilter = filter; renderSchedules(); }
+
+function getSchedulesForDate(date) {
+    const dateStr = formatDate(date);
+    return schedules.filter(s => s.visitPlannedAt === dateStr);
+}
+
+// ===== SCHEDULE RENDER =====
+function renderSchedules() {
+    const dateStr = formatDate(selectedDate);
+    document.getElementById('selectedDateText').textContent = `(${selectedDate.getFullYear()}.${selectedDate.getMonth()+1}.${selectedDate.getDate()})`;
+    let daySchedules = schedules.filter(s => s.visitPlannedAt === dateStr);
+    if (currentScheduleFilter !== 'all') daySchedules = daySchedules.filter(s => s.visitor === currentScheduleFilter);
+    const morning = daySchedules.filter(s => parseInt(s.visitRequestTime.split(':')[0]) < 12).sort((a,b) => a.visitRequestTime.localeCompare(b.visitRequestTime));
+    const afternoon = daySchedules.filter(s => parseInt(s.visitRequestTime.split(':')[0]) >= 12).sort((a,b) => a.visitRequestTime.localeCompare(b.visitRequestTime));
+    const listHtml = [renderScheduleFilters()];
+    if (morning.length > 0) listHtml.push(`<div class="time-section"><div class="time-header"><div class="time-icon">🌅</div>오전</div>${morning.map(s=>renderScheduleCard(s)).join('')}</div>`);
+    if (afternoon.length > 0) listHtml.push(`<div class="time-section"><div class="time-header"><div class="time-icon">🌆</div>오후</div>${afternoon.map(s=>renderScheduleCard(s)).join('')}</div>`);
+    if (daySchedules.length === 0) listHtml.push(`<div class="empty-state"><div class="empty-icon">📭</div><div class="empty-text">이 날짜에 예정된 스케줄이 없습니다</div></div>`);
+    document.getElementById('scheduleList').innerHTML = listHtml.join('');
+}
+
+function renderScheduleCard(schedule) {
+    const statusClass = schedule.status === '대기' ? 'status-waiting' : schedule.status === '진행중' ? 'status-progress' : 'status-complete';
+    const tech = technicians.find(t => t.id === schedule.visitorId);
+    const dt = schedule.deviceType || '기타';
+    const info = getDeviceInfo(dt);
+    return `
+        <div class="schedule-card" style="border-left-color:${tech?tech.color:'#ccc'}" onclick="showDetail('${schedule.docNo}')">
+            <div class="card-header">
+                <div class="card-time">${schedule.visitRequestTime}</div>
+                <div class="card-header-right">
+                    <span class="device-badge ${info.cls}">${info.icon} ${dt}</span>
+                    <span class="status-badge ${statusClass}">${schedule.status}</span>
+                </div>
+            </div>
+            <div class="card-company">${schedule.company}</div>
+            <div class="card-info">
+                <div class="info-row"><span class="info-label">담당자</span><span class="info-value">${schedule.visitor}</span></div>
+                <div class="info-row"><span class="info-label">제품</span><span class="info-value">${schedule.product}</span></div>
+                <div class="info-row"><span class="info-label">불량구분</span><span class="info-value">${schedule.faultMajor} > ${schedule.faultMinor}</span></div>
+            </div>
+        </div>`;
+}
+
+// ===== ROUTE MODAL =====
+function showRouteModal() {
+    const dateStr = formatDate(selectedDate);
+    let daySchedules = schedules.filter(s => s.visitPlannedAt === dateStr);
+    if (currentScheduleFilter !== 'all') daySchedules = daySchedules.filter(s => s.visitor === currentScheduleFilter);
+    
+    const savedOriginsHTML = savedOrigins.map((o,i) =>
+        `<div class="origin-tag" data-idx="${i}" onclick="selectOriginTag(this, '${o}')">${o}</div>`
+    ).join('');
+    
+    const stopsHTML = daySchedules.map((s,i) => `
+        <div class="route-stop-item">
+            <div class="route-stop-num">${i+1}</div>
+            <div class="route-stop-info">
+                <div class="route-stop-company">${s.company}</div>
+                <div class="route-stop-address">${s.address}</div>
+            </div>
+        </div>`).join('');
+
+    const html = `
+        <div class="modal-overlay active" id="routeModal" onclick="closeModalOnOverlay(event,'routeModal')">
+            <div class="modal-content" onclick="event.stopPropagation()">
+                <div class="modal-header">
+                    <div class="modal-handle"></div>
+                    <div class="modal-title-row">
+                        <button class="back-button" onclick="closeModal('routeModal')">‹</button>
+                        <h2 class="modal-title">🗺️ 최적 루트</h2>
+                        <button class="close-button" onclick="closeModal('routeModal')">×</button>
+                    </div>
+                </div>
+                <div class="modal-body">
+                    <div class="origin-input-section">
+                        <label class="form-label">📍 출발지</label>
+                        <input type="text" class="form-input" id="routeOriginInput" placeholder="출발지를 입력하세요" style="margin-bottom:8px;">
+                        <div class="saved-origins">
+                            ${savedOriginsHTML}
+                            <div class="origin-tag" onclick="saveCurrentOrigin()" style="color:var(--inbody-red);border-color:var(--inbody-red);">+ 저장</div>
+                        </div>
+                    </div>
+                    <div class="detail-section">
+                        <div class="detail-section-title"><span class="section-icon">📋</span> 방문 목적지 (${daySchedules.length}곳)</div>
+                        ${stopsHTML || '<div style="color:var(--text-tertiary);font-size:13px;text-align:center;padding:8px;">스케줄이 없습니다</div>'}
+                    </div>
+                    <div class="route-map-placeholder" id="routeMapArea">
+                        <div style="font-size:40px;">🗺️</div>
+                        <div style="font-size:14px;font-weight:700;color:#2E7D32;">최적 루트를 검색하세요</div>
+                        <div style="font-size:12px;color:#558B2F;">출발지 입력 후 아래 버튼을 누르세요</div>
+                    </div>
+                    <div class="button-group">
+                        <button class="btn-secondary" onclick="closeModal('routeModal')">닫기</button>
+                        <button class="btn-primary" onclick="calcRoute()">🧭 최적 루트 검색</button>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+    document.getElementById('modalContainer').innerHTML = html;
+}
+
+function selectOriginTag(el, value) {
+    document.querySelectorAll('.origin-tag').forEach(t => t.classList.remove('active'));
+    el.classList.add('active');
+    document.getElementById('routeOriginInput').value = value;
+}
+
+function saveCurrentOrigin() {
+    const val = document.getElementById('routeOriginInput').value.trim();
+    if (!val) { alert('출발지를 입력해주세요.'); return; }
+    if (!savedOrigins.includes(val)) {
+        savedOrigins.push(val);
+        alert(`✅ "${val}" 출발지로 저장되었습니다.`);
+        showRouteModal();
+    } else {
+        alert('이미 저장된 출발지입니다.');
+    }
+}
+
+function calcRoute() {
+    const origin = document.getElementById('routeOriginInput').value.trim();
+    if (!origin) { alert('출발지를 입력해주세요.'); return; }
+    const dateStr = formatDate(selectedDate);
+    let daySchedules = schedules.filter(s => s.visitPlannedAt === dateStr);
+    if (currentScheduleFilter !== 'all') daySchedules = daySchedules.filter(s => s.visitor === currentScheduleFilter);
+    if (daySchedules.length === 0) { alert('목적지가 없습니다.'); return; }
+    
+    // 네이버지도/카카오맵 연결
+    const addresses = [origin, ...daySchedules.map(s => s.address)];
+    const waypointStr = addresses.slice(1, -1).map(a => encodeURIComponent(a)).join('|');
+    const destStr = encodeURIComponent(addresses[addresses.length - 1]);
+    const originStr = encodeURIComponent(addresses[0]);
+    const url = `https://map.naver.com/v5/directions/-/-/-/car?departure=${originStr}&destination=${destStr}`;
+    
+    const mapArea = document.getElementById('routeMapArea');
+    mapArea.innerHTML = `
+        <div style="font-size:32px;">✅</div>
+        <div style="font-size:14px;font-weight:700;color:#2E7D32;">루트 계산 완료</div>
+        <div style="font-size:12px;color:#558B2F;margin-bottom:8px;">출발: ${origin}</div>
+        <div style="font-size:12px;color:#558B2F;">총 ${daySchedules.length}개 경유지</div>
+        <button class="btn-primary" style="margin-top:12px;flex:none;padding:10px 24px;" onclick="window.open('${url}','_blank')">🗺️ 네이버지도에서 열기</button>
+    `;
+}
+
+// ===== DETAIL MODAL =====
+function showDetail(docNo) {
+    const schedule = schedules.find(s => s.docNo === docNo);
+    if (!schedule) return;
+    currentSchedule = schedule;
+    const deliveryDate = new Date(schedule.deliveryDate);
+    const receivedDate = new Date(schedule.receivedAt);
+    const usageDays = Math.floor((receivedDate - deliveryDate) / (1000 * 60 * 60 * 24));
+    const warranty = usageDays <= 365 ? '무상' : '유상';
+    const warrantyClass = usageDays <= 365 ? 'warranty-free' : 'warranty-paid';
+    const statusClass = schedule.status === '대기' ? 'status-waiting' : schedule.status === '진행중' ? 'status-progress' : 'status-complete';
+    const html = `
+        <div class="modal-overlay active" id="detailModal" onclick="closeModalOnOverlay(event,'detailModal')">
+            <div class="modal-content" onclick="event.stopPropagation()">
+                <div class="modal-header">
+                    <div class="modal-handle"></div>
+                    <div class="modal-title-row">
+                        <button class="back-button" onclick="closeModal('detailModal')">‹</button>
+                        <h2 class="modal-title">상세 정보</h2>
+                        <button class="close-button" onclick="closeModal('detailModal')">×</button>
+                    </div>
+                </div>
+                <div class="modal-body">
+                    <div class="detail-section">
+                        <div class="detail-section-title"><span class="section-icon">🏢</span> 고객 정보</div>
+                        <div class="detail-row"><span class="detail-label">상호명</span><span class="detail-value">${schedule.company}</span></div>
+                        <div class="detail-row"><span class="detail-label">주소</span><span class="detail-value">${schedule.address}</span></div>
+                        <div class="detail-row"><span class="detail-label">전화번호</span><span class="detail-value">${schedule.phone}</span></div>
+                    </div>
+                    <div class="detail-section">
+                        <div class="detail-section-title"><span class="section-icon">📅</span> 방문 정보</div>
+                        <div class="detail-row"><span class="detail-label">접수일</span><span class="detail-value">${schedule.receivedAt}</span></div>
+                        <div class="detail-row"><span class="detail-label">방문예정일</span><span class="detail-value">${schedule.visitPlannedAt}</span></div>
+                        <div class="detail-row"><span class="detail-label">방문요청시간</span><span class="detail-value">${schedule.visitRequestTime}</span></div>
+                        <div class="detail-row"><span class="detail-label">담당지사</span><span class="detail-value">${schedule.branch}</span></div>
+                        <div class="detail-row"><span class="detail-label">담당자</span><span class="detail-value">${schedule.visitor}</span></div>
+                        <div class="detail-row"><span class="detail-label">처리방법</span><span class="detail-value">${schedule.method}</span></div>
+                        <div class="detail-row"><span class="detail-label">상태</span><span class="detail-value"><span class="status-badge ${statusClass}">${schedule.status}</span></span></div>
+                    </div>
+                    <div class="detail-section">
+                        <div class="detail-section-title">
+                            <div class="section-title-with-camera">
+                                <span class="section-icon">⚙️</span> 장비 정보
+                                <button class="camera-btn-inline" onclick="scanEquipmentBarcode()" title="바코드 스캔">📷</button>
+                            </div>
+                        </div>
+                        <div class="detail-row"><span class="detail-label">문서번호</span><span class="detail-value">${schedule.docNo}</span></div>
+                        <div class="detail-row"><span class="detail-label">제품명</span><span class="detail-value">${schedule.product}</span></div>
+                        <div class="detail-row"><span class="detail-label">버전</span><span class="detail-value">${schedule.version}</span></div>
+                        <div class="detail-row"><span class="detail-label">S/N</span><span class="detail-value">${schedule.serial}</span></div>
+                        <div class="detail-row"><span class="detail-label">생산일</span><span class="detail-value">${schedule.mfgDate}</span></div>
+                        <div class="detail-row"><span class="detail-label">납품일</span><span class="detail-value">${schedule.deliveryDate}</span></div>
+                        <div class="detail-row"><span class="detail-label">사용일</span><span class="detail-value">${usageDays}일</span></div>
+                        <div class="detail-row"><span class="detail-label">유무상</span><span class="detail-value"><span class="warranty-badge ${warrantyClass}">${warranty}</span></span></div>
+                    </div>
+                    <div class="detail-section">
+                        <div class="detail-section-title"><span class="section-icon">🔧</span> 불량 정보</div>
+                        <div class="detail-row"><span class="detail-label">불량구분 대분류</span><span class="detail-value">${schedule.faultMajor}</span></div>
+                        <div class="detail-row"><span class="detail-label">불량구분 소분류</span><span class="detail-value">${schedule.faultMinor}</span></div>
+                        <div class="detail-full"><div class="detail-full-label">접수내용</div><div class="detail-full-value">${schedule.receiptContent}</div></div>
+                        ${schedule.prevAction ? `<div class="detail-full"><div class="detail-full-label">이전 처리내용</div><div class="detail-full-value">${schedule.prevAction}</div></div>` : ''}
+                    </div>
+                    <div class="action-buttons">
+                        <button class="action-button" onclick="openMap()"><div class="action-icon">📍</div><div>위치</div></button>
+                        <button class="action-button" onclick="callCustomer()"><div class="action-icon">📞</div><div>전화</div></button>
+                        <button class="action-button" onclick="showServiceReport()"><div class="action-icon">✏️</div><div>서비스 리포트</div></button>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+    document.getElementById('modalContainer').innerHTML = html;
+}
+
+function openMap() {
+    if (!currentSchedule) return;
+    window.open(`https://map.naver.com/v5/search/${encodeURIComponent(currentSchedule.address)}`, '_blank');
+}
+function callCustomer() { if (!currentSchedule) return; window.location.href = `tel:${currentSchedule.phone}`; }
+
+// ===== BARCODE SCAN =====
+function scanEquipmentBarcode() {
+    document.getElementById('equipmentBarcodeInput').click();
+}
+function handleEquipmentBarcode(event) {
+    // Demo: simulate barcode scan
+    alert('📷 장비 바코드 스캔\n\n실제 기기에서는 카메라로 바코드를 인식합니다.\n\n[데모] InBody 770 정보를 불러옵니다:\n제품명: InBody 770\nS/N: SN-770-2026-DEMO\n생산일: 2024-08-01');
+    if (currentSchedule) {
+        currentSchedule.product = 'InBody 770';
+        currentSchedule.serial = 'SN-770-2026-DEMO';
+        currentSchedule.mfgDate = '2024-08-01';
+    }
+}
+
+// ===== SERVICE REPORT MODAL =====
+function showServiceReport() {
+    if (!currentSchedule) return;
+    materials = [];
+    isRevisitScheduled = false;
+    currentCheckedItems = [];
+    
+    const majorOptions = Object.keys(defectDB).map(major =>
+        `<option value="${major}" ${currentSchedule.faultMajor===major?'selected':''}>${major}</option>`).join('');
+    const minorOptions = (defectDB[currentSchedule.faultMajor]||[]).map(minor =>
+        `<option value="${minor}" ${currentSchedule.faultMinor===minor?'selected':''}>${minor}</option>`).join('');
+    const resultMajorOptions = Object.keys(serviceResultDB).map(major =>
+        `<option value="${major}">${major}</option>`).join('');
+
+    // 처리방법 가이드
+    const guideData = guideDB[currentSchedule.faultMinor];
+    const guideHTML = guideData ? buildGuideHTML(guideData) : `<div style="color:var(--text-tertiary);font-size:13px;text-align:center;padding:8px 0;font-style:italic;">해당 불량에 대한 가이드가 없습니다</div>`;
+
+    // 체크리스트
+    const checkItems = checklistDB[currentSchedule.faultMinor] || [];
+    const checklistHTML = buildChecklistHTML(checkItems);
+
+    const html = `
+        <div class="modal-overlay active" id="reportModal" onclick="closeModalOnOverlay(event,'reportModal')">
+            <div class="modal-content" onclick="event.stopPropagation()">
+                <div class="modal-header">
+                    <div class="modal-handle"></div>
+                    <div class="modal-title-row">
+                        <button class="back-button" onclick="closeModal('reportModal'); showDetail('${currentSchedule.docNo}')">‹</button>
+                        <h2 class="modal-title">서비스 리포트</h2>
+                        <button class="close-button" onclick="closeModal('reportModal')">×</button>
+                    </div>
+                </div>
+                <div class="modal-body">
+                    <!-- AI 어시스턴트 -->
+                    <div class="ai-section">
+                        <div class="ai-section-header">
+                            <span class="ai-badge">AI</span>
+                            <span class="ai-section-title">어떤 문제가 발생했나요?</span>
+                        </div>
+                        <div class="ai-body">
+                            <div class="ai-input-row">
+                                <input type="text" class="ai-input" id="aiQuery" placeholder="증상을 입력하면 AI가 분석해드립니다..." onkeydown="if(event.key==='Enter') sendAiQuery()">
+                                <button class="ai-send-btn" onclick="sendAiQuery()">➤</button>
+                            </div>
+                            <div class="ai-response-area" id="aiResponseArea"></div>
+                        </div>
+                    </div>
+
+                    <!-- 방문 정보 -->
+                    <div class="detail-section">
+                        <div class="detail-section-title"><span class="section-icon">📅</span> 방문 정보</div>
+                        <div class="form-group" style="margin-bottom:16px;">
+                            <label class="form-label">방문일</label>
+                            <input type="date" class="form-input" id="serviceDate" value="${formatDate(new Date())}">
+                        </div>
+                        <div class="form-group" style="margin-bottom:16px;">
+                            <label class="form-label">처리일</label>
+                            <div style="display:flex;gap:12px;align-items:center;">
+                                <input type="date" class="form-input" id="serviceCompleteDate" value="${formatDate(new Date())}" style="flex:1;">
+                                <label style="display:flex;align-items:center;gap:6px;white-space:nowrap;cursor:pointer;">
+                                    <input type="checkbox" id="revisitCheckbox" onchange="toggleRevisit()" style="width:18px;height:18px;cursor:pointer;">
+                                    <span style="font-size:14px;font-weight:600;">재방문예정</span>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="form-group" style="margin-bottom:0;">
+                            <label class="form-label">담당자</label>
+                            <input type="text" class="form-input" id="serviceWorker" value="${currentSchedule.visitor}" readonly>
+                        </div>
+                    </div>
+
+                    <!-- 장비 정보 (편집 가능 + 카메라) -->
+                    <div class="detail-section">
+                        <div class="detail-section-title">
+                            <div class="section-title-with-camera">
+                                <span class="section-icon">⚙️</span> 장비 정보
+                                <button class="camera-btn-inline" onclick="scanEquipmentBarcode()" title="바코드로 장비정보 자동입력">📷</button>
+                            </div>
+                        </div>
+                        <div class="form-group" style="margin-bottom:12px;">
+                            <label class="form-label">제품명</label>
+                            <input type="text" class="form-input" id="rptProduct" value="${currentSchedule.product}">
+                        </div>
+                        <div class="form-group" style="margin-bottom:12px;">
+                            <label class="form-label">S/N</label>
+                            <input type="text" class="form-input" id="rptSerial" value="${currentSchedule.serial}">
+                        </div>
+                        <div class="form-group" style="margin-bottom:12px;">
+                            <label class="form-label">생산일</label>
+                            <input type="text" class="form-input" id="rptMfgDate" value="${currentSchedule.mfgDate}">
+                        </div>
+                        <div class="form-group" style="margin-bottom:0;">
+                            <label class="form-label" style="display:flex;align-items:center;gap:8px;">
+                                버전
+                                <button class="camera-btn-inline" onclick="scanQRCode()" title="QC코드로 버전정보 자동입력" style="font-size:12px;width:24px;height:24px;">QC</button>
+                            </label>
+                            <div class="version-input-row">
+                                <input type="text" class="form-input" id="rptVersion" value="${currentSchedule.version}" placeholder="v3.2.1">
+                            </div>
+                            <div id="qrInfoArea" style="display:none;margin-top:8px;padding:10px;background:#EDE7F6;border-radius:8px;font-size:12px;color:#4527A0;"></div>
+                        </div>
+                    </div>
+
+                    <!-- 불량 정보 -->
+                    <div class="detail-section">
+                        <div class="detail-section-title"><span class="section-icon">🔍</span> 불량 정보</div>
+                        <div class="form-group" style="margin-bottom:16px;">
+                            <label class="form-label">불량구분 대분류</label>
+                            <select class="form-select" id="faultMajor" onchange="updateFaultMinorOptions()">
+                                ${majorOptions}
+                            </select>
+                        </div>
+                        <div class="form-group" style="margin-bottom:0;">
+                            <label class="form-label">불량구분 소분류</label>
+                            <select class="form-select" id="faultMinor" onchange="onFaultMinorChange()">
+                                ${minorOptions}
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- 처리방법 가이드 -->
+                    <div class="guide-section" id="guideSection">
+                        <div class="guide-section-header" onclick="toggleGuide()">
+                            <div class="guide-title-badge">
+                                <span class="guide-badge">GUIDE</span>
+                                <span class="guide-title-text">처리방법 가이드</span>
+                            </div>
+                            <span class="guide-toggle-icon" id="guideToggleIcon">▼</span>
+                        </div>
+                        <div class="guide-body" id="guideBody">
+                            ${guideHTML}
+                        </div>
+                    </div>
+
+                    <!-- 처리 결과 -->
+                    <div class="detail-section">
+                        <div class="detail-section-title"><span class="section-icon">✅</span> 처리 결과</div>
+                        <div class="form-group" style="margin-bottom:16px;">
+                            <label class="form-label">처리결과 대분류</label>
+                            <select class="form-select" id="resultMajor" onchange="updateResultMinorOptions()">
+                                <option value="">선택하세요</option>
+                                ${resultMajorOptions}
+                            </select>
+                        </div>
+                        <div class="form-group" style="margin-bottom:16px;">
+                            <label class="form-label">처리결과 소분류</label>
+                            <select class="form-select" id="resultMinor">
+                                <option value="">대분류를 먼저 선택하세요</option>
+                            </select>
+                        </div>
+                        <!-- 체크리스트 -->
+                        <div class="checklist-section" id="checklistSection">
+                            <div class="checklist-header">
+                                <span class="checklist-title">✔ 체크리스트</span>
+                            </div>
+                            <div class="checklist-body" id="checklistBody">
+                                ${checklistHTML}
+                            </div>
+                        </div>
+                        <div class="form-group" style="margin-bottom:0;margin-top:16px;">
+                            <label class="form-label">처리내역</label>
+                            <textarea class="form-textarea" id="serviceDetail" placeholder="현장에서 수행한 작업 내용을 상세히 기록해주세요."></textarea>
+                        </div>
+                    </div>
+
+                    <!-- 자재 및 비용 -->
+                    <div class="detail-section">
+                        <div class="detail-section-title"><span class="section-icon">💰</span> 자재 및 비용</div>
+                        <div class="form-group" style="margin-bottom:16px;">
+                            <label class="form-label">사용 자재</label>
+                            <div id="materialsContainer"></div>
+                            <button class="add-material-btn" onclick="addMaterial()">+ 자재 추가</button>
+                        </div>
+                        <div class="form-group" style="margin-bottom:16px;">
+                            <label class="form-label">출장비 (원)</label>
+                            <input type="number" class="form-input" id="travelCost" value="33000" onchange="calculateTotal()">
+                        </div>
+                        <div class="form-group" style="margin-bottom:16px;">
+                            <label class="form-label">결제방법</label>
+                            <select class="form-select" id="paymentMethod">
+                                <option value="카드">카드</option>
+                                <option value="현금">현금</option>
+                                <option value="입금">입금</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="margin-bottom:0;">
+                            <label class="form-label">총 금액 (VAT 포함)</label>
+                            <input type="number" class="form-input" id="totalAmount" value="33000" readonly>
+                        </div>
+                    </div>
+
+                    <div class="button-group">
+                        <button class="btn-secondary" onclick="closeModal('reportModal'); showDetail('${currentSchedule.docNo}')">← 뒤로</button>
+                        <button class="btn-primary" onclick="submitServiceReport()">저장</button>
+                    </div>
+
+                    <!-- 유상무상 보고용 -->
+                    <div style="margin-top:16px;">
+                        <button class="btn-primary" style="width:100%;background:#4A148C;" onclick="showWarrantyReport()">📋 유상무상 보고용</button>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+    closeModal('detailModal');
+    document.getElementById('modalContainer').innerHTML = html;
+}
+
+// ===== GUIDE =====
+function buildGuideHTML(guideData) {
+    return guideData.items.map((item, i) => `
+        <div class="guide-item">
+            <div class="guide-item-header">
+                <div class="guide-item-num">${i+1}</div>
+                <div class="guide-item-title">${item.title}</div>
+            </div>
+            <div class="guide-item-content">
+                ${item.content.replace(/\n/g,'<br>')}
+                ${item.media ? `
+                    <div class="guide-media-placeholder" onclick="alert('${item.isVideo ? '📹 영상을 불러옵니다.' : '🖼️ 이미지를 불러옵니다.'}')">
+                        ${item.isVideo ? '▶ 영상 보기' : '🖼️ 이미지 보기'}
+                    </div>` : ''}
+                ${item.tags ? `<div class="guide-tag-list">${item.tags.map(t=>`<div class="guide-tag">${t}</div>`).join('')}</div>` : ''}
+            </div>
+        </div>`).join('');
+}
+
+function toggleGuide() {
+    const body = document.getElementById('guideBody');
+    const icon = document.getElementById('guideToggleIcon');
+    body.classList.toggle('open');
+    icon.classList.toggle('open');
+}
+
+function onFaultMinorChange() {
+    const minor = document.getElementById('faultMinor').value;
+    // Update guide
+    const guideData = guideDB[minor];
+    const guideBody = document.getElementById('guideBody');
+    if (guideBody) {
+        guideBody.innerHTML = guideData ? buildGuideHTML(guideData) : `<div style="color:var(--text-tertiary);font-size:13px;text-align:center;padding:8px 0;font-style:italic;">해당 불량에 대한 가이드가 없습니다</div>`;
+    }
+    // Update checklist
+    const checkItems = checklistDB[minor] || [];
+    const checklistBody = document.getElementById('checklistBody');
+    if (checklistBody) {
+        currentCheckedItems = [];
+        checklistBody.innerHTML = buildChecklistHTML(checkItems);
+    }
+}
+
+// ===== CHECKLIST =====
+function buildChecklistHTML(items) {
+    if (!items || items.length === 0) return `<div class="checklist-empty">선택된 불량 유형에 대한 체크항목이 없습니다</div>`;
+    return items.map((item,i) => `
+        <div class="check-item" id="check-${i}" onclick="toggleCheckItem(${i},'${item.replace(/'/g,"\\'")}')">
+            <div class="check-item-box" id="checkBox-${i}"></div>
+            <div class="check-item-label">${item}</div>
+        </div>`).join('') + `<div class="checklist-hint">체크한 항목이 처리내역에 자동 반영됩니다</div>`;
+}
+
+function toggleCheckItem(idx, label) {
+    const item = document.getElementById(`check-${idx}`);
+    const box = document.getElementById(`checkBox-${idx}`);
+    const isChecked = item.classList.contains('checked');
+    if (isChecked) {
+        item.classList.remove('checked');
+        box.innerHTML = '';
+        currentCheckedItems = currentCheckedItems.filter(l => l !== label);
+    } else {
+        item.classList.add('checked');
+        box.innerHTML = '✓';
+        if (!currentCheckedItems.includes(label)) currentCheckedItems.push(label);
+    }
+    // Update serviceDetail textarea
+    const ta = document.getElementById('serviceDetail');
+    if (ta) {
+        const manualText = ta.value.replace(/\[체크리스트\][\s\S]*?\n\n/, '').replace(/\[체크리스트\][\s\S]*$/, '');
+        if (currentCheckedItems.length > 0) {
+            ta.value = `[체크리스트]\n${currentCheckedItems.map(l=>`✔ ${l}`).join('\n')}\n\n${manualText}`;
+        } else {
+            ta.value = manualText;
+        }
+    }
+}
+
+// ===== AI =====
+function sendAiQuery() {
+    const query = document.getElementById('aiQuery').value.trim();
+    if (!query) return;
+    const area = document.getElementById('aiResponseArea');
+    area.classList.add('visible');
+    area.innerHTML = `<div class="ai-thinking">AI 분석 중 <div class="ai-dot-anim"><span></span><span></span><span></span></div></div>`;
+    
+    setTimeout(() => {
+        // Demo AI response based on fault minor
+        const minor = document.getElementById('faultMinor') ? document.getElementById('faultMinor').value : currentSchedule.faultMinor;
+        let response = '';
+        if (query.includes('배터리') || minor.includes('배터리')) {
+            response = `📊 <strong>AI 분석 결과</strong><br><br>증상: <em>${query}</em><br><br>유사 케이스 23건 분석 결과:<br>• 배터리 셀 불량 (52%) — 교체 권장<br>• 충전 회로 이상 (31%) — 전원부 점검<br>• 펌웨어 오류 (17%) — 업데이트 후 재확인<br><br>💡 우선 추천: 배터리 팩 교체 (BATT-INB-770-V2)`;
+        } else if (query.includes('체중') || minor.includes('체중')) {
+            response = `📊 <strong>AI 분석 결과</strong><br><br>증상: <em>${query}</em><br><br>유사 케이스 18건 분석 결과:<br>• 로드셀 불량 (44%) — 교체 권장<br>• 캘리브레이션 오류 (38%) — 영점 재조정<br>• 발판 수평 문제 (18%) — 환경 확인<br><br>💡 우선 추천: 영점 캘리브레이션 3회 수행`;
+        } else {
+            response = `📊 <strong>AI 분석 결과</strong><br><br>증상: <em>${query}</em><br><br>해당 증상의 유사 케이스 분석:<br>• 하드웨어 불량 (45%)<br>• 소프트웨어 오류 (35%)<br>• 환경적 요인 (20%)<br><br>💡 보다 정확한 분석을 위해 증상을 구체적으로 입력해 주세요.`;
+        }
+        area.innerHTML = response;
+    }, 1800);
+}
+
+// ===== QR SCAN (VERSION) =====
+function scanQRCode() {
+    document.getElementById('qrInput').click();
+}
+function handleQRScan(event) {
+    // Demo
+    const qrData = {
+        version: 'v3.3.1',
+        measurements: '1,247',
+        calibration: '2025-12-10',
+        eventCode: 'E-0023'
+    };
+    const area = document.getElementById('qrInfoArea');
+    if (area) {
+        area.style.display = 'block';
+        area.innerHTML = `
+            <strong>📱 QR 스캔 결과</strong><br>
+            Ver. ${qrData.version} / 측정횟수 ${qrData.measurements}<br>
+            Calibration: ${qrData.calibration} / EventCode: ${qrData.eventCode}
+        `;
+    }
+    const versionInput = document.getElementById('rptVersion');
+    if (versionInput) versionInput.value = qrData.version;
+}
+
+// ===== WARRANTY REPORT =====
+function showWarrantyReport() {
+    // Check if saved
+    const docNo = currentSchedule ? currentSchedule.docNo : null;
+    const saved = docNo && currentSchedule.savedReport;
+    
+    if (!saved) {
+        alert('⚠️ 먼저 서비스 리포트를 저장해주세요.\n저장 버튼을 눌러 데이터를 저장한 후 보고서를 확인할 수 있습니다.');
+        return;
+    }
+    
+    const r = currentSchedule.savedReport;
+    const deliveryDate = new Date(currentSchedule.deliveryDate);
+    const usedDate = new Date(r.serviceDate);
+    const usageDays = Math.floor((usedDate - deliveryDate) / (1000 * 60 * 60 * 24));
+    const warranty = usageDays <= 365 ? '무상' : '유상';
+    
+    const html = `
+        <div class="modal-overlay active" id="warrantyModal" onclick="closeModalOnOverlay(event,'warrantyModal')">
+            <div class="modal-content" onclick="event.stopPropagation()">
+                <div class="modal-header">
+                    <div class="modal-handle"></div>
+                    <div class="modal-title-row">
+                        <button class="back-button" onclick="closeModal('warrantyModal')">‹</button>
+                        <h2 class="modal-title">유상무상 보고용</h2>
+                        <button class="close-button" onclick="closeModal('warrantyModal')">×</button>
+                    </div>
+                </div>
+                <div class="modal-body" style="padding:0;">
+                    <div class="report-header-bar">
+                        <h3>서비스 처리 보고서</h3>
+                        <p>InBody Customer Service Report · ${r.serviceDate}</p>
+                    </div>
+                    <div style="padding:12px;">
+                        <div class="report-grid">
+                            <div class="report-cell"><div class="report-cell-label">담당지사</div><div class="report-cell-value">${currentSchedule.branch}</div></div>
+                            <div class="report-cell"><div class="report-cell-label">상호명</div><div class="report-cell-value">${currentSchedule.company}</div></div>
+                            <div class="report-cell"><div class="report-cell-label">제품명</div><div class="report-cell-value">${r.product||currentSchedule.product}</div></div>
+                            <div class="report-cell"><div class="report-cell-label">S/N</div><div class="report-cell-value">${r.serial||currentSchedule.serial}</div></div>
+                            <div class="report-cell"><div class="report-cell-label">생산일</div><div class="report-cell-value">${r.mfgDate||currentSchedule.mfgDate}</div></div>
+                            <div class="report-cell"><div class="report-cell-label">납품일</div><div class="report-cell-value">${currentSchedule.deliveryDate}</div></div>
+                            <div class="report-cell"><div class="report-cell-label">접수일</div><div class="report-cell-value">${currentSchedule.receivedAt}</div></div>
+                            <div class="report-cell"><div class="report-cell-label">처리일</div><div class="report-cell-value">${r.serviceCompleteDate}</div></div>
+                            <div class="report-cell"><div class="report-cell-label">사용일수</div><div class="report-cell-value">${usageDays}일</div></div>
+                            <div class="report-cell"><div class="report-cell-label">유무상 구분</div><div class="report-cell-value" style="color:${warranty==='무상'?'#059669':'#DC2626'};font-weight:700;">${warranty}</div></div>
+                        </div>
+                        <div class="report-cell-full">
+                            <div class="report-cell-label">접수내용</div>
+                            <div class="report-cell-value" style="font-weight:400;margin-top:4px;line-height:1.6;">${currentSchedule.receiptContent}</div>
+                        </div>
+                        <div class="report-cell-full" style="border-bottom:none;">
+                            <div class="report-cell-label">처리내용</div>
+                            <div class="report-cell-value" style="font-weight:400;margin-top:4px;line-height:1.6;">${r.serviceDetail||'-'}</div>
+                        </div>
+                        <div class="button-group" style="padding:0 0 8px;">
+                            <button class="btn-secondary" onclick="closeModal('warrantyModal')">닫기</button>
+                            <button class="btn-copy" onclick="copyWarrantyReport()">📋 복사</button>
+                            <button class="btn-capture" onclick="captureWarrantyReport()">📸 캡쳐</button>
+                        </div>
+                        <div id="copyToast" style="display:none;text-align:center;margin-top:8px;padding:8px 12px;background:#059669;color:white;border-radius:8px;font-size:13px;font-weight:600;">✅ 클립보드에 복사되었습니다!</div>
+                        <div id="captureToast" style="display:none;text-align:center;margin-top:8px;padding:8px 12px;background:#2563EB;color:white;border-radius:8px;font-size:13px;font-weight:600;">📸 이미지로 저장되었습니다!</div>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+    document.getElementById('modalContainer').innerHTML = html;
+}
+
+function copyWarrantyReport() {
+    if (!currentSchedule || !currentSchedule.savedReport) return;
+    const r = currentSchedule.savedReport;
+    const deliveryDate = new Date(currentSchedule.deliveryDate);
+    const usedDate = new Date(r.serviceDate);
+    const usageDays = Math.floor((usedDate - deliveryDate) / (1000 * 60 * 60 * 24));
+    const warranty = usageDays <= 365 ? '무상' : '유상';
+
+    const text = [
+        '[ 서비스 처리 보고서 ]',
+        `InBody Customer Service Report · ${r.serviceDate}`,
+        '',
+        `담당지사     : ${currentSchedule.branch}`,
+        `상호명       : ${currentSchedule.company}`,
+        `제품명       : ${r.product || currentSchedule.product}`,
+        `S/N         : ${r.serial || currentSchedule.serial}`,
+        `생산일       : ${r.mfgDate || currentSchedule.mfgDate}`,
+        `납품일       : ${currentSchedule.deliveryDate}`,
+        `접수일       : ${currentSchedule.receivedAt}`,
+        `처리일       : ${r.serviceCompleteDate}`,
+        `사용일수     : ${usageDays}일`,
+        `유무상 구분  : ${warranty}`,
+        '',
+        `[접수내용]`,
+        currentSchedule.receiptContent,
+        '',
+        `[처리내용]`,
+        r.serviceDetail || '-',
+    ].join('\n');
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(() => {
+            const toast = document.getElementById('copyToast');
+            if (toast) { toast.style.display = 'block'; setTimeout(() => { toast.style.display = 'none'; }, 2500); }
+        }).catch(() => {
+            fallbackCopy(text);
+        });
+    } else {
+        fallbackCopy(text);
+    }
+}
+
+function fallbackCopy(text) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    try {
+        document.execCommand('copy');
+        const toast = document.getElementById('copyToast');
+        if (toast) { toast.style.display = 'block'; setTimeout(() => { toast.style.display = 'none'; }, 2500); }
+    } catch(e) {
+        alert('복사에 실패했습니다. 텍스트를 직접 선택해 복사해주세요.');
+    }
+    document.body.removeChild(ta);
+}
+
+function captureWarrantyReport() {
+    const reportEl = document.querySelector('#warrantyModal .modal-content');
+    if (!reportEl) return;
+
+    // html2canvas 동적 로드
+    if (typeof html2canvas === 'undefined') {
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+        script.onload = () => { doCapture(reportEl); };
+        script.onerror = () => { alert('캡쳐 라이브러리 로드 실패. 인터넷 연결을 확인해주세요.'); };
+        document.head.appendChild(script);
+    } else {
+        doCapture(reportEl);
+    }
+}
+
+function doCapture(el) {
+    // 버튼 영역 숨기고 캡쳐
+    const btnGroup = el.querySelector('.button-group');
+    const toastCopy = document.getElementById('copyToast');
+    const toastCapture = document.getElementById('captureToast');
+    if (btnGroup) btnGroup.style.visibility = 'hidden';
+    if (toastCopy) toastCopy.style.display = 'none';
+    if (toastCapture) toastCapture.style.display = 'none';
+
+    html2canvas(el, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        logging: false
+    }).then(canvas => {
+        if (btnGroup) btnGroup.style.visibility = 'visible';
+
+        // 다운로드
+        const link = document.createElement('a');
+        const today = new Date();
+        const dateStr = `${today.getFullYear()}${String(today.getMonth()+1).padStart(2,'0')}${String(today.getDate()).padStart(2,'0')}`;
+        const company = (currentSchedule && currentSchedule.company) ? currentSchedule.company.replace(/\s/g,'') : 'report';
+        link.download = `유상무상보고서_${company}_${dateStr}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+
+        const toast = document.getElementById('captureToast');
+        if (toast) { toast.style.display = 'block'; setTimeout(() => { toast.style.display = 'none'; }, 2500); }
+    }).catch(err => {
+        if (btnGroup) btnGroup.style.visibility = 'visible';
+        alert('캡쳐 중 오류가 발생했습니다: ' + err.message);
+    });
+}
+
+// ===== SERVICE REPORT SUBMIT =====
+function updateFaultMinorOptions() {
+    const major = document.getElementById('faultMajor').value;
+    const minorSelect = document.getElementById('faultMinor');
+    minorSelect.innerHTML = (defectDB[major]||[]).map(m=>`<option value="${m}">${m}</option>`).join('');
+    onFaultMinorChange();
+}
+function updateResultMinorOptions() {
+    const major = document.getElementById('resultMajor').value;
+    const minorSelect = document.getElementById('resultMinor');
+    minorSelect.innerHTML = (serviceResultDB[major]||[]).map(m=>`<option value="${m}">${m}</option>`).join('') || '<option value="">선택하세요</option>';
+}
+
+function toggleRevisit() {
+    isRevisitScheduled = !isRevisitScheduled;
+    const dateInput = document.getElementById('serviceCompleteDate');
+    if (dateInput) { dateInput.disabled = isRevisitScheduled; dateInput.style.opacity = isRevisitScheduled ? '0.5' : '1'; }
+}
+
+function addMaterial() {
+    const id = Date.now();
+    materials.push({ id, code:'', name:'', qty:1, price:0 });
+    renderMaterials();
+}
+function removeMaterial(id) { materials = materials.filter(m=>m.id!==id); renderMaterials(); }
+function updateMaterial(id, field, value) {
+    const material = materials.find(m=>m.id===id);
+    if (material) material[field] = (field==='qty'||field==='price') ? parseFloat(value)||0 : value;
+}
+function renderMaterials() {
+    const container = document.getElementById('materialsContainer');
+    if (!container) return;
+    container.innerHTML = materials.map(m => `
+        <div class="material-item">
+            <div class="material-item-header">
+                <span style="font-weight:600;">자재 ${materials.indexOf(m)+1}</span>
+                <span class="material-remove" onclick="removeMaterial(${m.id})">×</span>
+            </div>
+            <div class="form-group">
+                <label class="form-label">품목코드</label>
+                <div class="form-input-with-icon">
+                    <input type="text" class="form-input" placeholder="품목코드" value="${m.code}" onchange="updateMaterial(${m.id},'code',this.value)">
+                    <span class="form-input-icon" onclick="scanBarcode(${m.id})">📷</span>
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">품목명</label>
+                <input type="text" class="form-input" placeholder="품목명" value="${m.name}" onchange="updateMaterial(${m.id},'name',this.value)">
+            </div>
+            <div class="form-row-3">
+                <div class="form-group"><label class="form-label">단가</label><input type="number" class="form-input" value="${m.price}" onchange="updateMaterial(${m.id},'price',this.value);calculateTotal();"></div>
+                <div class="form-group"><label class="form-label">수량</label><input type="number" class="form-input" value="${m.qty}" onchange="updateMaterial(${m.id},'qty',this.value);calculateTotal();"></div>
+                <div class="form-group"><label class="form-label">금액</label><input type="number" class="form-input" value="${m.price*m.qty}" readonly></div>
+            </div>
+        </div>`).join('');
+}
+
+function scanBarcode(materialId) {
+    const material = materials.find(m=>m.id===materialId);
+    if (material) { material.code='P-2024-001'; material.name='전원 케이블'; material.price=15000; renderMaterials(); calculateTotal(); }
+}
+
+function calculateTotal() {
+    const travelCost = parseFloat(document.getElementById('travelCost').value)||0;
+    const materialsCost = materials.reduce((sum,m)=>sum+(m.price*m.qty),0);
+    document.getElementById('totalAmount').value = Math.round((travelCost+materialsCost)*1.1);
+}
+
+function submitServiceReport() {
+    const data = {
+        docNo: currentSchedule.docNo,
+        serviceDate: document.getElementById('serviceDate').value,
+        serviceCompleteDate: document.getElementById('serviceCompleteDate').value,
+        serviceWorker: document.getElementById('serviceWorker').value,
+        faultMajor: document.getElementById('faultMajor').value,
+        faultMinor: document.getElementById('faultMinor').value,
+        resultMajor: document.getElementById('resultMajor').value,
+        resultMinor: document.getElementById('resultMinor').value,
+        serviceDetail: document.getElementById('serviceDetail').value,
+        product: document.getElementById('rptProduct').value,
+        serial: document.getElementById('rptSerial').value,
+        mfgDate: document.getElementById('rptMfgDate').value,
+        version: document.getElementById('rptVersion').value,
+        materials: materials,
+        travelCost: document.getElementById('travelCost').value,
+        paymentMethod: document.getElementById('paymentMethod').value,
+        totalAmount: document.getElementById('totalAmount').value
+    };
+    
+    console.log('Service Report:', data);
+    
+    // Save to schedule
+    const index = schedules.findIndex(s=>s.docNo===currentSchedule.docNo);
+    if (index !== -1) {
+        schedules[index].status = '완료';
+        schedules[index].savedReport = data;
+        sampleSchedules[index].status = '완료';
+        sampleSchedules[index].savedReport = data;
+        currentSchedule.savedReport = data;
+    }
+    
+    alert('✅ 처리내용이 저장되었습니다.\n"유상무상 보고용" 버튼으로 보고서를 확인할 수 있습니다.');
+    renderCalendar();
+    renderSchedules();
+}
+
+// ===== NEW SCHEDULE MODAL =====
+function showNewSchedule() {
+    const html = `
+        <div class="modal-overlay active" id="newScheduleModal" onclick="closeModalOnOverlay(event,'newScheduleModal')">
+            <div class="modal-content" onclick="event.stopPropagation()">
+                <div class="modal-header">
+                    <div class="modal-handle"></div>
+                    <div class="modal-title-row">
+                        <button class="back-button" onclick="closeModal('newScheduleModal')">‹</button>
+                        <h2 class="modal-title">신규접수</h2>
+                        <button class="close-button" onclick="closeModal('newScheduleModal')">×</button>
+                    </div>
+                </div>
+                <div class="modal-body">
+                    <div class="detail-section">
+                        <div class="detail-section-title"><span class="section-icon">🏢</span> 고객처 정보</div>
+                        <div class="form-group" style="margin-bottom:16px;">
+                            <label class="form-label form-label-required">상호명</label>
+                            <input type="text" class="form-input" id="newCompany" placeholder="상호명을 입력하세요">
+                        </div>
+                        <div class="form-group" style="margin-bottom:16px;">
+                            <label class="form-label form-label-required">주소</label>
+                            <input type="text" class="form-input" id="newAddress" placeholder="주소를 입력하세요">
+                        </div>
+                        <div class="form-group" style="margin-bottom:0;">
+                            <label class="form-label form-label-required">전화번호</label>
+                            <input type="tel" class="form-input" id="newPhone" placeholder="02-1234-5678">
+                        </div>
+                    </div>
+                    <div class="detail-section">
+                        <div class="detail-section-title">
+                            <div class="section-title-with-camera">
+                                <span class="section-icon">⚙️</span> 장비 정보
+                                <button class="camera-btn-inline" onclick="scanEquipmentBarcode()" title="바코드 스캔">📷</button>
+                            </div>
+                        </div>
+                        <div class="form-group" style="margin-bottom:16px;">
+                            <label class="form-label form-label-required">장비 구분</label>
+                            <div class="device-chip-group" id="newDeviceGroup">
+                                <button type="button" class="device-type-chip active" data-dt="인바디" onclick="selectDeviceTypeChip(this)">⚖️ 인바디</button>
+                                <button type="button" class="device-type-chip" data-dt="신장계" onclick="selectDeviceTypeChip(this)">📏 신장계</button>
+                                <button type="button" class="device-type-chip" data-dt="혈압계" onclick="selectDeviceTypeChip(this)">💉 혈압계</button>
+                                <button type="button" class="device-type-chip" data-dt="기타" onclick="selectDeviceTypeChip(this)">🔧 기타</button>
+                            </div>
+                        </div>
+                        <div class="form-group" style="margin-bottom:16px;">
+                            <label class="form-label form-label-required">장비명</label>
+                            <input type="text" class="form-input" id="newProduct" placeholder="InBody 770">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label form-label-required">S/N</label>
+                            <input type="text" class="form-input" id="newSerial" placeholder="SN-770-2026-001">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label form-label-required">불량 증상 대분류</label>
+                            <select class="form-select" id="newFaultMajor" onchange="updateNewFaultMinor()">
+                                <option value="">선택하세요</option>
+                                ${Object.keys(defectDB).map(major=>`<option value="${major}">${major}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div class="form-group" style="margin-bottom:16px;">
+                            <label class="form-label form-label-required">불량 증상 소분류</label>
+                            <select class="form-select" id="newFaultMinor"><option value="">대분류를 먼저 선택하세요</option></select>
+                        </div>
+                        <div class="form-group" style="margin-bottom:0;">
+                            <label class="form-label">기타 내용</label>
+                            <textarea class="form-textarea" id="newFaultDetail" placeholder="증상에 대한 상세 설명을 입력하세요"></textarea>
+                        </div>
+                    </div>
+                    <div class="detail-section">
+                        <div class="detail-section-title"><span class="section-icon">📅</span> 방문 정보</div>
+                        <div class="form-group" style="margin-bottom:16px;">
+                            <label class="form-label form-label-required">접수 유형</label>
+                            <div class="method-chip-group" id="newMethodGroup">
+                                <button type="button" class="method-chip method-chip-active" data-method="방문" onclick="selectMethodChip(this)">방문</button>
+                                <button type="button" class="method-chip" data-method="원격" onclick="selectMethodChip(this)">원격</button>
+                                <button type="button" class="method-chip" data-method="입고" onclick="selectMethodChip(this)">입고</button>
+                                <button type="button" class="method-chip" data-method="택배" onclick="selectMethodChip(this)">택배</button>
+                                <button type="button" class="method-chip" data-method="수거" onclick="selectMethodChip(this)">수거</button>
+                            </div>
+                        </div>
+                        <div class="form-group" style="margin-bottom:16px;">
+                            <label class="form-label form-label-required">방문예정일</label>
+                            <input type="date" class="form-input" id="newVisitDate" value="${formatDate(selectedDate)}">
+                        </div>
+                        <div class="form-group" style="margin-bottom:0;">
+                            <label class="form-label form-label-required">방문요청시간</label>
+                            <input type="time" class="form-input" id="newVisitTime" value="09:00">
+                        </div>
+                    </div>
+                    <div class="button-group">
+                        <button class="btn-secondary" onclick="closeModal('newScheduleModal')">닫기</button>
+                        <button class="btn-primary" onclick="submitNewSchedule()">저장</button>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+    document.getElementById('modalContainer').innerHTML = html;
+}
+
+function selectMethodChip(el) {
+    document.querySelectorAll('#newMethodGroup .method-chip').forEach(c => c.classList.remove('method-chip-active'));
+    el.classList.add('method-chip-active');
+}
+
+function selectDeviceTypeChip(el) {
+    document.querySelectorAll('#newDeviceGroup .device-type-chip').forEach(c => c.classList.remove('active'));
+    el.classList.add('active');
+}
+
+function updateNewFaultMinor() {
+    const major = document.getElementById('newFaultMajor').value;
+    const minorSelect = document.getElementById('newFaultMinor');
+    minorSelect.innerHTML = (defectDB[major]||[]).map(m=>`<option value="${m}">${m}</option>`).join('') || '<option value="">대분류를 먼저 선택하세요</option>';
+}
+
+function submitNewSchedule() {
+    const newSchedule = {
+        docNo: `DOC-${formatDate(new Date()).replace(/-/g,'')}-${String(schedules.length+1).padStart(3,'0')}`,
+        company: document.getElementById('newCompany').value,
+        address: document.getElementById('newAddress').value,
+        phone: document.getElementById('newPhone').value,
+        receivedAt: formatDate(new Date()),
+        visitPlannedAt: document.getElementById('newVisitDate').value,
+        visitRequestTime: document.getElementById('newVisitTime').value,
+        deviceType: (document.querySelector('#newDeviceGroup .device-type-chip.active') || {}).dataset?.dt || '인바디',
+        product: document.getElementById('newProduct').value,
+        version: 'v3.0.0',
+        mfgDate: '2025-01-01',
+        deliveryDate: '2025-02-01',
+        serial: document.getElementById('newSerial').value,
+        faultMajor: document.getElementById('newFaultMajor').value,
+        faultMinor: document.getElementById('newFaultMinor').value,
+        receiptContent: document.getElementById('newFaultDetail').value,
+        branch: '서울지사',
+        visitor: '김프로',
+        visitorId: 1,
+        prevAction: '',
+        method: (document.querySelector('#newMethodGroup .method-chip-active') || {}).dataset?.method || '방문',
+        status: '대기',
+        savedReport: null
+    };
+    if (!newSchedule.company||!newSchedule.address||!newSchedule.phone||!newSchedule.product||!newSchedule.serial||!newSchedule.faultMajor||!newSchedule.faultMinor) {
+        alert('⚠️ 필수 항목을 모두 입력해주세요.');
+        return;
+    }
+    schedules.push(newSchedule);
+    sampleSchedules.push(newSchedule);
+    alert('✅ 신규 접수가 등록되었습니다.');
+    closeModal('newScheduleModal');
+    renderCalendar();
+    renderSchedules();
+}
+
+// ===== CS INQUIRY MODAL =====
+function showCSInquiry() {
+    uploadedPhotos = [];
+    const currentMonthText = `${currentDate.getFullYear()}년 ${currentDate.getMonth()+1}월`;
+    const html = `
+        <div class="modal-overlay active" id="csInquiryModal" onclick="closeModalOnOverlay(event,'csInquiryModal')">
+            <div class="modal-content" onclick="event.stopPropagation()">
+                <div class="modal-header">
+                    <div class="modal-handle"></div>
+                    <div class="modal-title-row">
+                        <button class="back-button" onclick="closeModal('csInquiryModal')">‹</button>
+                        <h2 class="modal-title">CS팀 문의</h2>
+                        <button class="close-button" onclick="closeModal('csInquiryModal')">×</button>
+                    </div>
+                </div>
+                <div class="modal-body">
+                    <div class="detail-section">
+                        <div class="detail-section-title"><span class="section-icon">💬</span> 문의 등록 · ${currentMonthText}</div>
+                        <div class="form-group" style="margin-bottom:16px;">
+                            <label class="form-label form-label-required">제목</label>
+                            <input type="text" class="form-input" id="inquiryTitle" placeholder="문의 제목을 입력하세요">
+                        </div>
+                        <div class="form-group" style="margin-bottom:16px;">
+                            <label class="form-label form-label-required">우선순위</label>
+                            <select class="form-select" id="inquiryPriority">
+                                <option value="low">낮음</option>
+                                <option value="medium" selected>보통</option>
+                                <option value="high">높음</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="margin-bottom:16px;">
+                            <label class="form-label">장비 모델명</label>
+                            <input type="text" class="form-input" id="inquiryModel" placeholder="InBody 770">
+                        </div>
+                        <div class="form-group" style="margin-bottom:16px;">
+                            <label class="form-label">S/N</label>
+                            <input type="text" class="form-input" id="inquirySerial" placeholder="SN-770-2026-001">
+                        </div>
+                        <div class="form-group" style="margin-bottom:16px;">
+                            <label class="form-label form-label-required">내용</label>
+                            <textarea class="form-textarea" id="inquiryContent" placeholder="문의 내용을 상세히 입력하세요"></textarea>
+                        </div>
+                        <div class="form-group" style="margin-bottom:0;">
+                            <label class="form-label">사진 첨부</label>
+                            <div class="photo-upload-area" onclick="document.getElementById('photoInput').click()">
+                                <div class="photo-icon">📷</div>
+                                <div class="photo-text">사진을 촬영하거나 선택하세요</div>
+                            </div>
+                            <div class="photo-preview" id="photoPreview"></div>
+                        </div>
+                    </div>
+                    <div class="button-group">
+                        <button class="btn-secondary" onclick="closeModal('csInquiryModal')">닫기</button>
+                        <button class="btn-primary" onclick="submitCSInquiry()">저장</button>
+                    </div>
+                    <div class="inquiry-list">
+                        <div class="inquiry-list-title">이번 달 문의 내역</div>
+                        ${csInquiries.map(inq => `
+                            <div class="inquiry-card" onclick="showInquiryDetail('${inq.id}')">
+                                <div class="inquiry-header">
+                                    <div>
+                                        <div class="inquiry-title">${inq.title}</div>
+                                        <span class="priority-badge priority-${inq.priority}">${inq.priority==='high'?'높음':inq.priority==='medium'?'보통':'낮음'}</span>
+                                    </div>
+                                    <div class="inquiry-date">${inq.date}</div>
+                                </div>
+                                <div class="inquiry-meta">${inq.model} / ${inq.serial}<br>${inq.content.substring(0,50)}${inq.content.length>50?'...':''}</div>
+                            </div>`).join('')}
+                    </div>
+                </div>
+            </div>
+        </div>`;
+    document.getElementById('modalContainer').innerHTML = html;
+}
+
+function handlePhotoUpload(event) {
+    const files = event.target.files;
+    for (let file of files) {
+        const reader = new FileReader();
+        reader.onload = (e) => { uploadedPhotos.push(e.target.result); renderPhotoPreview(); };
+        reader.readAsDataURL(file);
+    }
+}
+
+function renderPhotoPreview() {
+    const container = document.getElementById('photoPreview');
+    if (!container) return;
+    container.innerHTML = uploadedPhotos.map((photo,i) => `
+        <div class="photo-item">
+            <img src="${photo}" alt="Photo ${i+1}">
+            <div class="photo-remove" onclick="removePhoto(${i})">×</div>
+        </div>`).join('');
+}
+function removePhoto(index) { uploadedPhotos.splice(index,1); renderPhotoPreview(); }
+
+function submitCSInquiry() {
+    const inquiry = {
+        id: `INQ-${formatDate(new Date()).replace(/-/g,'')}${String(csInquiries.length+1).padStart(2,'0')}`,
+        date: formatDate(new Date()),
+        title: document.getElementById('inquiryTitle').value,
+        priority: document.getElementById('inquiryPriority').value,
+        model: document.getElementById('inquiryModel').value,
+        serial: document.getElementById('inquirySerial').value,
+        content: document.getElementById('inquiryContent').value,
+        photos: uploadedPhotos,
+        hqResponse: ''
+    };
+    if (!inquiry.title||!inquiry.content) { alert('⚠️ 제목과 내용은 필수 입력 항목입니다.'); return; }
+    csInquiries.push(inquiry);
+    alert('✅ CS팀 문의가 등록되었습니다.');
+    showCSInquiry();
+}
+
+function showInquiryDetail(inquiryId) {
+    const inquiry = csInquiries.find(inq=>inq.id===inquiryId);
+    if (!inquiry) return;
+    const priorityText = inquiry.priority==='high'?'높음':inquiry.priority==='medium'?'보통':'낮음';
+    const html = `
+        <div class="modal-overlay active" id="inquiryDetailModal" onclick="closeModalOnOverlay(event,'inquiryDetailModal')">
+            <div class="modal-content" onclick="event.stopPropagation()">
+                <div class="modal-header">
+                    <div class="modal-handle"></div>
+                    <div class="modal-title-row">
+                        <button class="back-button" onclick="closeModal('inquiryDetailModal'); showCSInquiry();">‹</button>
+                        <h2 class="modal-title">문의 상세</h2>
+                        <button class="close-button" onclick="closeModal('inquiryDetailModal'); showCSInquiry();">×</button>
+                    </div>
+                </div>
+                <div class="modal-body">
+                    <div class="detail-section">
+                        <div class="detail-section-title"><span class="section-icon">📋</span> 문의 정보</div>
+                        <div class="detail-row"><span class="detail-label">문의번호</span><span class="detail-value">${inquiry.id}</span></div>
+                        <div class="detail-row"><span class="detail-label">등록일</span><span class="detail-value">${inquiry.date}</span></div>
+                        <div class="detail-row"><span class="detail-label">제목</span><span class="detail-value">${inquiry.title}</span></div>
+                        <div class="detail-row"><span class="detail-label">우선순위</span><span class="detail-value"><span class="priority-badge priority-${inquiry.priority}">${priorityText}</span></span></div>
+                        <div class="detail-row"><span class="detail-label">장비 모델명</span><span class="detail-value">${inquiry.model||'-'}</span></div>
+                        <div class="detail-row"><span class="detail-label">S/N</span><span class="detail-value">${inquiry.serial||'-'}</span></div>
+                        <div class="detail-full"><div class="detail-full-label">문의 내용</div><div class="detail-full-value">${inquiry.content}</div></div>
+                    </div>
+                    ${inquiry.hqResponse ? `
+                        <div class="detail-section">
+                            <div class="detail-section-title"><span class="section-icon">💬</span> HQ CS 답변</div>
+                            <div class="detail-full"><div class="detail-full-value">${inquiry.hqResponse}</div></div>
+                        </div>` : `
+                        <div class="detail-section">
+                            <div class="detail-section-title"><span class="section-icon">⏳</span> HQ CS 답변 대기 중</div>
+                            <div class="detail-full"><div class="detail-full-value" style="color:var(--text-tertiary);font-style:italic;">본사 CS팀에서 검토 중입니다.</div></div>
+                        </div>`}
+                    <div class="button-group">
+                        <button class="btn-primary" onclick="closeModal('inquiryDetailModal'); showCSInquiry();">확인</button>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+    closeModal('csInquiryModal');
+    document.getElementById('modalContainer').innerHTML = html;
+}
+
+// ===== UTILITIES =====
+function closeModal(modalId) {
+    const container = document.getElementById('modalContainer');
+    if (container) container.innerHTML = '';
+}
+function closeModalOnOverlay(event, modalId) {
+    if (event.target.id === modalId) closeModal(modalId);
+}
+function isSameDay(date1, date2) {
+    return date1.getFullYear()===date2.getFullYear() && date1.getMonth()===date2.getMonth() && date1.getDate()===date2.getDate();
+}
+function formatDate(date) {
+    return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
+}
+
+// ===== INITIALIZE =====
+init();
+
+</script>
+</body>
+</html>
