@@ -1111,7 +1111,32 @@ const guideDB = {
     }
 };
 
-// 체크리스트 DB (불량 소분류 → 체크항목)
+// 다른 AS기사 처리 사례 DB (불량 소분류 → 처리 사례)
+const peerCaseDB = {
+    '배터리 급방전': [
+        { tech: '이프로', date: '2026-01-22', product: 'InBody 770', result: '배터리 팩(V2) 교체 후 정상. 충전 어댑터도 함께 교체. 작업시간 약 40분.', tags: ['배터리교체', 'V2팩'] },
+        { tech: '박프로', date: '2025-12-10', product: 'InBody 570', result: '펌웨어 업데이트(v3.2→v3.3)로 배터리 관리 로직 개선. 교체 없이 해결. 재방문 불필요.', tags: ['펌웨어업데이트', '무교체'] },
+        { tech: '최프로', date: '2025-11-05', product: 'InBody 270', result: '전원 회로 PCB 불량으로 PCB 교체. 부품 발주 후 재방문 처리.', tags: ['PCB교체', '재방문'] }
+    ],
+    '체중값이상': [
+        { tech: '박프로', date: '2026-01-15', product: 'InBody 770', result: '로드셀 #3 불량. 로드셀 세트 교체 + 3회 캘리브레이션. 오차 ±0.05kg 이내로 정상화.', tags: ['로드셀교체', '캘리브레이션'] },
+        { tech: '정프로', date: '2025-12-20', product: 'BPBIO320', result: '발판 수평 미조정 원인. 수평 조정 및 영점 캘리브레이션으로 해결. 부품 교체 없음.', tags: ['수평조정', '영점보정'] }
+    ],
+    '용지 걸림': [
+        { tech: '이프로', date: '2026-01-30', product: 'BSM-170', result: '롤러 마모 → 롤러 키트 교체. 57mm 정품 용지로 변경 안내. 이후 정상 출력.', tags: ['롤러교체', '정품용지'] },
+        { tech: '김프로', date: '2025-12-05', product: 'InBody 770', result: '용지 비규격 사용 원인. 정품 용지로 교체 후 해결. 용지 규격 안내서 부착.', tags: ['용지교체', '안내부착'] }
+    ],
+    '터치 불량': [
+        { tech: '최프로', date: '2026-02-01', product: 'InBody 570', result: '터치 패널 케이블 접촉 불량. 커넥터 재체결로 해결. 5분 작업.', tags: ['케이블재체결', '간단수리'] },
+        { tech: '정프로', date: '2025-11-18', product: 'InBody 770', result: '터치 패널 자체 불량. 패널 교체 필요. 부품 발주 후 재방문.', tags: ['패널교체', '재방문'] }
+    ],
+    'WiFi 연결 실패': [
+        { tech: '박프로', date: '2026-01-08', product: 'InBody 770', result: 'IP 충돌 원인. 고정 IP 설정으로 변경. WiFi 모듈 정상.', tags: ['IP설정변경'] },
+        { tech: '이프로', date: '2025-12-28', product: 'BSM-170', result: 'WiFi 모듈 불량. 모듈 교체 후 정상 연결 확인.', tags: ['WiFi모듈교체'] }
+    ]
+};
+
+
 const checklistDB = {
     '배터리 급방전': [
         '충전 케이블 및 어댑터 정상 여부 확인',
@@ -1452,6 +1477,14 @@ function renderScheduleCard(schedule) {
     const tech = technicians.find(t => t.id === schedule.visitorId);
     const dt = schedule.deviceType || '기타';
     const info = getDeviceInfo(dt);
+    // 유상/무상 계산
+    const delivDate = new Date(schedule.deliveryDate);
+    const recvDate = new Date(schedule.receivedAt);
+    const usageDays = Math.floor((recvDate - delivDate) / (1000 * 60 * 60 * 24));
+    const warranty = usageDays <= 365 ? '무상' : '유상';
+    const warrantyStyle = usageDays <= 365
+        ? 'background:#D1FAE5;color:#059669;border:1px solid #A7F3D0;'
+        : 'background:#FEE2E2;color:#DC2626;border:1px solid #FECACA;';
     return `
         <div class="schedule-card" style="border-left-color:${tech?tech.color:'#ccc'}" onclick="showDetail('${schedule.docNo}')">
             <div class="card-header">
@@ -1464,7 +1497,7 @@ function renderScheduleCard(schedule) {
             <div class="card-company">${schedule.company}</div>
             <div class="card-info">
                 <div class="info-row"><span class="info-label">담당자</span><span class="info-value">${schedule.visitor}</span></div>
-                <div class="info-row"><span class="info-label">제품</span><span class="info-value">${schedule.product}</span></div>
+                <div class="info-row"><span class="info-label">제품</span><span class="info-value">${schedule.product} <span style="font-size:11px;font-weight:700;padding:2px 7px;border-radius:10px;${warrantyStyle}">${warranty}</span></span></div>
                 <div class="info-row"><span class="info-label">불량구분</span><span class="info-value">${schedule.faultMajor} > ${schedule.faultMinor}</span></div>
             </div>
         </div>`;
@@ -1604,11 +1637,21 @@ function showDetail(docNo) {
                         <div class="detail-section-title"><span class="section-icon">📅</span> 방문 정보</div>
                         <div class="detail-row"><span class="detail-label">접수일</span><span class="detail-value">${schedule.receivedAt}</span></div>
                         <div class="detail-row"><span class="detail-label">방문예정일</span><span class="detail-value">${schedule.visitPlannedAt}</span></div>
-                        <div class="detail-row"><span class="detail-label">방문요청시간</span><span class="detail-value">${schedule.visitRequestTime}</span></div>
                         <div class="detail-row"><span class="detail-label">담당지사</span><span class="detail-value">${schedule.branch}</span></div>
                         <div class="detail-row"><span class="detail-label">담당자</span><span class="detail-value">${schedule.visitor}</span></div>
                         <div class="detail-row"><span class="detail-label">처리방법</span><span class="detail-value">${schedule.method}</span></div>
                         <div class="detail-row"><span class="detail-label">상태</span><span class="detail-value"><span class="status-badge ${statusClass}">${schedule.status}</span></span></div>
+                        <!-- 방문예정시간 수정 + 문자 전송 -->
+                        <div style="background:#F0F9FF;border:1.5px solid #BAE6FD;border-radius:10px;padding:12px;margin-top:12px;">
+                            <div style="font-size:12px;font-weight:700;color:#0369A1;margin-bottom:8px;">📱 방문예정시간 안내 문자</div>
+                            <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;">
+                                <label style="font-size:13px;color:#374151;white-space:nowrap;font-weight:600;">방문예정시간</label>
+                                <input type="time" id="visitTimeEdit" value="${schedule.visitRequestTime}" style="flex:1;padding:8px 10px;border:1.5px solid #BAE6FD;border-radius:8px;font-size:15px;font-family:inherit;background:white;">
+                            </div>
+                            <button onclick="openSmsPreviewer('${schedule.docNo}')" style="width:100%;padding:10px;background:#0EA5E9;color:white;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">
+                                💬 고객 문자 미리보기 및 전송
+                            </button>
+                        </div>
                     </div>
                     <div class="detail-section">
                         <div class="detail-section-title">
@@ -1625,7 +1668,6 @@ function showDetail(docNo) {
                         <div class="detail-row"><span class="detail-label">납품일</span><span class="detail-value">${schedule.deliveryDate}</span></div>
                         <div class="detail-row"><span class="detail-label">사용일</span><span class="detail-value">${usageDays}일</span></div>
                         <div class="detail-row"><span class="detail-label">유무상</span><span class="detail-value"><span class="warranty-badge ${warrantyClass}">${warranty}</span></span></div>
-                    </div>
                     <div class="detail-section">
                         <div class="detail-section-title"><span class="section-icon">🔧</span> 불량 정보</div>
                         <div class="detail-row"><span class="detail-label">불량구분 대분류</span><span class="detail-value">${schedule.faultMajor}</span></div>
@@ -1649,6 +1691,131 @@ function openMap() {
     window.open(`https://map.naver.com/v5/search/${encodeURIComponent(currentSchedule.address)}`, '_blank');
 }
 function callCustomer() { if (!currentSchedule) return; window.location.href = `tel:${currentSchedule.phone}`; }
+
+// ===== SMS PREVIEWER =====
+function openSmsPreviewer(docNo) {
+    const schedule = schedules.find(s => s.docNo === docNo);
+    if (!schedule) return;
+    const timeInput = document.getElementById('visitTimeEdit');
+    const visitTime = timeInput ? timeInput.value : schedule.visitRequestTime;
+    // 시간 포맷 (24h → 12h 표시)
+    const [hh, mm] = visitTime.split(':');
+    const h = parseInt(hh);
+    const timeStr = `${h < 12 ? '오전' : '오후'} ${h <= 12 ? h : h - 12}시 ${mm}분`;
+    const smsText = `안녕하세요, ${schedule.company} 담당자님.\nInBody AS 담당 ${schedule.visitor}입니다.\n\n방문 예정 일정을 안내드립니다.\n\n📅 방문일: ${schedule.visitPlannedAt}\n⏰ 방문예정시간: ${timeStr}\n\n방문 전 연락드리겠습니다.\n감사합니다.`;
+    
+    const popup = `
+        <div class="modal-overlay active" id="smsPopupModal" onclick="if(event.target.id==='smsPopupModal')closeModal('smsPopupModal')" style="z-index:1100;">
+            <div class="modal-content" onclick="event.stopPropagation()" style="max-height:80vh;">
+                <div class="modal-header">
+                    <div class="modal-handle"></div>
+                    <div class="modal-title-row">
+                        <button class="back-button" onclick="closeModal('smsPopupModal')">‹</button>
+                        <h2 class="modal-title">문자 미리보기</h2>
+                        <button class="close-button" onclick="closeModal('smsPopupModal')">×</button>
+                    </div>
+                </div>
+                <div class="modal-body">
+                    <div style="background:#F0F9FF;border:1.5px solid #BAE6FD;border-radius:10px;padding:14px;margin-bottom:16px;">
+                        <div style="font-size:11px;color:#0369A1;font-weight:700;margin-bottom:8px;">수신번호: ${schedule.phone}</div>
+                        <div style="background:white;border-radius:8px;padding:14px;font-size:14px;line-height:1.8;color:#1E293B;white-space:pre-wrap;border:1px solid #E0F2FE;">${smsText}</div>
+                    </div>
+                    <div style="background:#FEF9C3;border:1px solid #FDE047;border-radius:8px;padding:10px;font-size:12px;color:#713F12;margin-bottom:16px;">
+                        ⚠️ 전송 버튼을 누르면 고객 전화번호(${schedule.phone})로 문자가 전송됩니다.
+                    </div>
+                    <div class="button-group">
+                        <button class="btn-secondary" onclick="closeModal('smsPopupModal')">취소</button>
+                        <button class="btn-primary" onclick="sendSmsToCustomer('${schedule.phone}', \`${smsText.replace(/`/g, '\\`')}\`)">📱 전송</button>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+    // SMS 팝업을 별도 div에 표시 (기존 모달 위에)
+    let smsContainer = document.getElementById('smsModalContainer');
+    if (!smsContainer) {
+        smsContainer = document.createElement('div');
+        smsContainer.id = 'smsModalContainer';
+        document.body.appendChild(smsContainer);
+    }
+    smsContainer.innerHTML = popup;
+    // 방문예정시간 업데이트
+    if (schedule && timeInput) {
+        schedule.visitRequestTime = visitTime;
+    }
+}
+
+function sendSmsToCustomer(phone, text) {
+    // SMS 전송: sms: URI 프로토콜 사용 (실제 기기에서 문자앱 열림)
+    const encoded = encodeURIComponent(text);
+    const smsUri = `sms:${phone}?body=${encoded}`;
+    window.location.href = smsUri;
+    const smsContainer = document.getElementById('smsModalContainer');
+    if (smsContainer) smsContainer.innerHTML = '';
+    // 전송 완료 토스트
+    const toast = document.createElement('div');
+    toast.style.cssText = 'position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:#059669;color:white;padding:12px 24px;border-radius:12px;font-size:14px;font-weight:700;z-index:2000;';
+    toast.textContent = '✅ 문자 앱이 열렸습니다';
+    document.body.appendChild(toast);
+    setTimeout(() => document.body.removeChild(toast), 3000);
+}
+
+// ===== PEER CASE (다른 기사 처리 사례) =====
+function buildPeerCaseHTML(faultMinor) {
+    const cases = peerCaseDB[faultMinor];
+    if (!cases || cases.length === 0) {
+        return `<div style="text-align:center;color:var(--text-tertiary);font-size:13px;padding:12px;font-style:italic;">해당 불량에 대한 처리 사례가 없습니다</div>`;
+    }
+    return cases.map((c, i) => `
+        <div style="background:white;border-radius:8px;padding:12px;margin-bottom:8px;border-left:3px solid #4ADE80;box-shadow:0 1px 4px rgba(0,0,0,0.07);">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <span style="width:26px;height:26px;border-radius:50%;background:#16A34A;color:white;font-size:11px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;">${i+1}</span>
+                    <span style="font-size:13px;font-weight:700;color:#166534;">${c.tech}</span>
+                    <span style="font-size:11px;color:var(--text-tertiary);">${c.product}</span>
+                </div>
+                <span style="font-size:11px;color:var(--text-tertiary);">${c.date}</span>
+            </div>
+            <div style="font-size:13px;color:#374151;line-height:1.6;margin-bottom:6px;">${c.result}</div>
+            <div style="display:flex;flex-wrap:wrap;gap:4px;">${c.tags.map(t=>`<span style="background:#DCFCE7;color:#166534;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;">#${t}</span>`).join('')}</div>
+        </div>`).join('');
+}
+
+function togglePeerCase() {
+    const body = document.getElementById('peerCaseBody');
+    const icon = document.getElementById('peerCaseToggleIcon');
+    if (!body) return;
+    const isOpen = body.style.display !== 'none';
+    body.style.display = isOpen ? 'none' : 'block';
+    if (icon) icon.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(180deg)';
+}
+
+// ===== 사업자등록증 업로드 =====
+let bizRegPhoto = null;
+function handleBizRegUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        bizRegPhoto = e.target.result;
+        const preview = document.getElementById('bizRegPhotoPreview');
+        if (preview) {
+            preview.innerHTML = `
+                <div style="position:relative;display:inline-block;width:100%;">
+                    <img src="${bizRegPhoto}" style="width:100%;border-radius:8px;max-height:200px;object-fit:contain;border:1px solid #FED7AA;">
+                    <button onclick="removeBizRegPhoto()" style="position:absolute;top:6px;right:6px;width:26px;height:26px;border-radius:50%;border:none;background:rgba(0,0,0,0.6);color:white;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;">×</button>
+                </div>`;
+        }
+    };
+    reader.readAsDataURL(file);
+}
+function removeBizRegPhoto() {
+    bizRegPhoto = null;
+    const preview = document.getElementById('bizRegPhotoPreview');
+    if (preview) preview.innerHTML = '';
+    const input = document.getElementById('bizRegInput');
+    if (input) input.value = '';
+}
+
 
 // ===== BARCODE SCAN =====
 function scanEquipmentBarcode() {
@@ -1799,6 +1966,20 @@ function showServiceReport() {
                         </div>
                     </div>
 
+                    <!-- 다른 AS기사 처리 사례 -->
+                    <div id="peerCaseSection" style="background:linear-gradient(135deg,#F0FDF4,#ECFDF5);border:2px solid #4ADE80;border-radius:var(--radius-md);margin-bottom:var(--spacing-md);overflow:hidden;">
+                        <div onclick="togglePeerCase()" style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:#16A34A;cursor:pointer;">
+                            <div style="display:flex;align-items:center;gap:8px;">
+                                <span style="background:rgba(255,255,255,0.25);color:white;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:700;letter-spacing:0.5px;">CASES</span>
+                                <span style="font-size:14px;font-weight:700;color:white;">다른 기사 처리 사례 참고</span>
+                            </div>
+                            <span id="peerCaseToggleIcon" style="font-size:16px;color:white;transition:transform 0.2s;">▼</span>
+                        </div>
+                        <div id="peerCaseBody" style="padding:12px;display:none;">
+                            ${buildPeerCaseHTML(currentSchedule.faultMinor)}
+                        </div>
+                    </div>
+
                     <!-- 처리 결과 -->
                     <div class="detail-section">
                         <div class="detail-section-title"><span class="section-icon">✅</span> 처리 결과</div>
@@ -1833,6 +2014,15 @@ function showServiceReport() {
                     <!-- 자재 및 비용 -->
                     <div class="detail-section">
                         <div class="detail-section-title"><span class="section-icon">💰</span> 자재 및 비용</div>
+                        <!-- 고객정보 추가: 사업자등록증 -->
+                        <div style="background:#FFF7ED;border:1.5px solid #FED7AA;border-radius:10px;padding:12px;margin-bottom:16px;">
+                            <div style="font-size:12px;font-weight:700;color:#C2410C;margin-bottom:10px;">🏢 고객정보 추가 (사업자등록증)</div>
+                            <div id="bizRegPhotoPreview" style="margin-bottom:8px;"></div>
+                            <button onclick="document.getElementById('bizRegInput').click()" style="width:100%;padding:10px;background:white;border:1.5px dashed #FB923C;border-radius:8px;color:#C2410C;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px;">
+                                📷 사업자등록증 촬영/업로드
+                            </button>
+                            <input type="file" id="bizRegInput" accept="image/*" capture="camera" style="display:none;" onchange="handleBizRegUpload(event)">
+                        </div>
                         <div class="form-group" style="margin-bottom:16px;">
                             <label class="form-label">사용 자재</label>
                             <div id="materialsContainer"></div>
@@ -1905,6 +2095,11 @@ function onFaultMinorChange() {
     const guideBody = document.getElementById('guideBody');
     if (guideBody) {
         guideBody.innerHTML = guideData ? buildGuideHTML(guideData) : `<div style="color:var(--text-tertiary);font-size:13px;text-align:center;padding:8px 0;font-style:italic;">해당 불량에 대한 가이드가 없습니다</div>`;
+    }
+    // Update peer cases
+    const peerCaseBody = document.getElementById('peerCaseBody');
+    if (peerCaseBody) {
+        peerCaseBody.innerHTML = buildPeerCaseHTML(minor);
     }
     // Update checklist
     const checkItems = checklistDB[minor] || [];
