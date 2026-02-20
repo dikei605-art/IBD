@@ -904,6 +904,124 @@ button, .filter-chip-all, .filter-chip-sub, .filter-chip,
     color: white;
 }
 
+
+/* ===== UI17 TAB BAR (스케쥴 / 신규접수 / CS문의) ===== */
+.ui17-tabbar{
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    background: #fff;
+    border-top: 1px solid var(--border-light);
+    box-shadow: 0 -6px 18px rgba(0,0,0,0.08);
+    display: flex;
+    z-index: 95;
+    padding-bottom: max(10px, env(safe-area-inset-bottom, 0px));
+}
+.ui17-tab{
+    flex: 1;
+    border: none;
+    background: transparent;
+    padding: 10px 6px 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    font-family: 'Noto Sans KR', sans-serif;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+.ui17-tab-top{
+    font-family: 'Outfit', sans-serif;
+    font-size: 13px;
+    letter-spacing: 0.8px;
+    font-weight: 700;
+    color: var(--text-tertiary);
+}
+.ui17-tab-sub{
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-secondary);
+}
+.ui17-tab.active .ui17-tab-top,
+.ui17-tab.active .ui17-tab-sub{
+    color: var(--inbody-red);
+}
+
+/* ===== Schedule Filters UI 개선 (전체보기 1줄 + 기사목록 아래줄) ===== */
+.schedule-filters-stack{ display:flex; flex-direction:column; gap:8px; flex:1; min-width:0; }
+.schedule-filters-all{ display:flex; }
+.schedule-filters-techs{ display:flex; gap:8px; flex-wrap:wrap; }
+
+
+/* ===== UI19 small fixes ===== */
+.action-button { justify-content: center; }
+.action-button > div:last-child{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  line-height:1.2;
+  min-height:28px;
+  width:100%;
+}
+.daypopup-toggle{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:6px 8px;
+  margin-bottom:6px;
+  border:1px solid rgba(0,0,0,0.06);
+  border-radius:12px;
+  background:rgba(255,255,255,0.8);
+}
+.daypopup-label{ font-size:12px; font-weight:700; color:rgba(0,0,0,0.65); }
+/* switch */
+.switch{ position:relative; display:inline-block; width:44px; height:26px; }
+.switch input{ opacity:0; width:0; height:0; }
+.slider{
+  position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0;
+  background:rgba(0,0,0,0.15); transition:.2s; border-radius:999px;
+}
+.slider:before{
+  position:absolute; content:""; height:20px; width:20px; left:3px; top:3px;
+  background:white; transition:.2s; border-radius:50%;
+  box-shadow:0 2px 6px rgba(0,0,0,0.15);
+}
+.switch input:checked + .slider{ background: rgba(220,38,38,0.75); }
+.switch input:checked + .slider:before{ transform: translateX(18px); }
+
+
+/* ===== UI20 OVERRIDES ===== */
+
+.ui20-popup-toggle-row{display:flex; justify-content:flex-end; margin: 6px 0 10px;}
+.ui20-toggle{display:flex; align-items:center; gap:8px; font-size:12px; color: var(--text-tertiary);}
+.ui20-toggle input{width:16px; height:16px;}
+
+.section-date-click{cursor:pointer; text-decoration: underline dotted rgba(0,0,0,0.25); text-underline-offset: 4px;}
+/* Fault section: value area wider on narrow screens */
+.fault-section .detail-row{gap: 10px;}
+.fault-section .detail-label{flex: 0 0 120px; max-width: 120px;}
+.fault-section .detail-value{flex: 1 1 auto; min-width: 0;}
+/* Calendar: nearly full width + minimal margins */
+.calendar-section{padding: 12px 6px !important;}
+.calendar-grid{padding: 12px !important; border-radius: 14px !important;}
+.days-grid{gap: 2px !important;}
+.day-cell{border: 1px solid rgba(0,0,0,0.08) !important;}
+.day-cell.selected{border: 2px solid var(--inbody-red) !important;}
+
+/* UI21: Fix calendar layout (7 columns) - override legacy iOS flex hack */
+.days-grid{
+  display:grid !important;
+  grid-template-columns: repeat(7, 1fr) !important;
+  flex-wrap: unset !important;
+}
+.day-cell{
+  flex: none !important;
+  width: auto !important;
+  aspect-ratio: 1 / 1 !important;
+  height: auto !important;
+}
+
 </style>
 </head>
 <body>
@@ -998,27 +1116,30 @@ button, .filter-chip-all, .filter-chip-sub, .filter-chip,
             <div class="section-title">
                 <span>📋</span>
                 <span>스케줄 목록</span>
-                <span class="section-date" id="selectedDateText"></span>
+                <span class="section-date section-date-click" id="selectedDateText" onclick="openSelectedDayPopup()"></span>
             </div>
             <div id="scheduleList"></div>
         </section>
     </div>
 
-    <!-- Quick Actions Fixed Bottom -->
-    <div class="quick-actions-fixed">
-        <div style="display:-webkit-box;display:-webkit-flex;display:flex;-webkit-flex-wrap:wrap;flex-wrap:wrap;gap:12px;max-width:520px;margin:0 auto;">
-            <button class="quick-action-btn" style="-webkit-flex:1;flex:1;min-width:120px;" onclick="showNewSchedule()">
-                <span class="action-btn-icon">➕</span>
-                <span>신규접수</span>
-            </button>
-            <button class="quick-action-btn" style="-webkit-flex:1;flex:1;min-width:120px;" onclick="showCSInquiry()">
-                <span class="action-btn-icon">💬</span>
-                <span>실시간 CS팀 문의</span>
-            </button>
-        </div>
-    </div>
+    <!-- Bottom Tab Bar -->
+    <nav class="ui17-tabbar" aria-label="하단 메뉴">
+        <button class="ui17-tab active" data-tab="schedule" onclick="showTab('schedule')">
+            <div class="ui17-tab-top">CAL</div>
+            <div class="ui17-tab-sub">스케쥴</div>
+        </button>
+        <button class="ui17-tab" data-tab="new" onclick="showTab('new')">
+            <div class="ui17-tab-top">NEW</div>
+            <div class="ui17-tab-sub">신규접수</div>
+        </button>
+        <button class="ui17-tab" data-tab="cs" onclick="showTab('cs')">
+            <div class="ui17-tab-top">CS</div>
+            <div class="ui17-tab-sub">CS문의</div>
+        </button>
+    </nav>
 
     <!-- Modal Container -->
+
     <div id="modalContainer"></div>
 
     <!-- Hidden file inputs -->
@@ -1050,11 +1171,16 @@ const technicians = [
 ];
 
 const DEVICE_TYPES = {
-    '인바디': { cls: 'db-inbody', dcls: 'dc-inbody', icon: '⚖️' },
-    '신장계': { cls: 'db-height', dcls: 'dc-height', icon: '📏' },
-    '혈압계': { cls: 'db-bp',     dcls: 'dc-bp',     icon: '💉' },
+    '인바디': { cls: 'db-inbody', dcls: 'dc-inbody', icon: '' },
+    '신장계': { cls: 'db-height', dcls: 'dc-height', icon: '' },
+    '혈압계': { cls: 'db-bp',     dcls: 'dc-bp',     icon: '' },
     '기타':   { cls: 'db-other',  dcls: 'dc-other',  icon: '🔧' }
 };
+
+
+/* Day popup is always enabled (toggle UI removed) */
+function isDayPopupEnabled(){ return true; }
+
 function getDeviceInfo(type) { return DEVICE_TYPES[type] || DEVICE_TYPES['기타']; }
 
 const defectDB = {
@@ -1289,6 +1415,30 @@ function init() {
     renderLegend();
     renderCalendar();
     renderSchedules();
+    setActiveTab('schedule');
+}
+
+// ===== Bottom Tab Bar =====
+function setActiveTab(tabName){
+    document.querySelectorAll('.ui17-tab').forEach(btn=>{
+        btn.classList.toggle('active', btn.dataset.tab === tabName);
+    });
+}
+function showTab(tabName){
+    setActiveTab(tabName);
+    if(tabName==='schedule'){
+        const el = document.getElementById('scheduleSection');
+        if(el){ el.scrollIntoView({behavior:'smooth', block:'start'}); }
+        return;
+    }
+    if(tabName==='new'){
+        if(typeof showNewSchedule==='function'){ showNewSchedule(); }
+        return;
+    }
+    if(tabName==='cs'){
+        if(typeof showCSInquiry==='function'){ showCSInquiry(); }
+        return;
+    }
 }
 
 function renderLegend() {
@@ -1357,29 +1507,127 @@ function renderCalendar() {
 function createDayCell(day, className, date, daySchedules = []) {
     const cell = document.createElement('div');
     cell.className = `day-cell ${className}`;
-    let schedulesHTML = '', tooltipHTML = '';
+
+    cell.innerHTML = `<span class="day-number">${day}</span>`;
+
     if (daySchedules.length > 0) {
         const techGroups = {};
-        daySchedules.forEach(s => { if (!techGroups[s.visitorId]) techGroups[s.visitorId] = []; techGroups[s.visitorId].push(s); });
-        schedulesHTML = '<div class="day-schedules">';
-        Object.keys(techGroups).forEach(techId => {
-            const tech = technicians.find(t => t.id == techId);
-            if (tech) schedulesHTML += `<div class="day-schedule-item"><div class="day-schedule-dot" style="background:${tech.color}"></div><span class="day-schedule-name">${tech.name}</span><span class="day-schedule-count">(${techGroups[techId].length})</span></div>`;
+        daySchedules.forEach(s => {
+            const key = s.visitorId ?? s.visitor ?? s.technicianId ?? s.techId ?? 'unknown';
+            if (!techGroups[key]) techGroups[key] = [];
+            techGroups[key].push(s);
         });
-        schedulesHTML += '</div>';
-        tooltipHTML = '<div class="day-tooltip">';
+
+        const schedulesWrap = document.createElement('div');
+        schedulesWrap.className = 'day-schedules';
+
         Object.keys(techGroups).forEach(techId => {
-            const tech = technicians.find(t => t.id == techId);
-            tooltipHTML += `<div class="tooltip-item"><div class="tooltip-dot" style="background:${tech.color}"></div><span>${tech.name} (${techGroups[techId].length}건)</span></div>`;
+            const tech = technicians.find(t => String(t.id) === String(techId) || t.name === techId);
+            const item = document.createElement('div');
+            item.className = 'day-schedule-item';
+            item.innerHTML = `
+                <div class="day-schedule-dot" style="background:${tech ? tech.color : 'rgba(0,0,0,0.18)'}"></div>
+                <span class="day-schedule-name">${tech ? tech.name : String(techId)}</span>
+                <span class="day-schedule-count">(${techGroups[techId].length})</span>
+            `;
+
+            const dateStr = formatDate(date);
+            const open = (e) => {
+                e.stopPropagation();
+                // 건수 클릭 → 팝업(스케쥴 목록)
+                openDayPopup(dateStr, techGroups[techId], tech ? tech.name : null);
+            };
+            item.addEventListener('click', open);
+            schedulesWrap.appendChild(item);
         });
-        tooltipHTML += '</div>';
+
+        cell.appendChild(schedulesWrap);
     }
-    cell.innerHTML = `<span class="day-number">${day}</span>${schedulesHTML}${tooltipHTML}`;
-    if (!className.includes('other-month')) cell.onclick = () => selectDate(date);
+
+    // 날짜 클릭은 선택만
+    if (!className.includes('other-month')) cell.onclick = () => handleDayClick(date);
     return cell;
 }
 
 function selectDate(date) { selectedDate = date; renderCalendar(); renderSchedules(); }
+
+// 캘린더에서 날짜를 눌렀을 때: 스케줄이 있으면 그날 스케줄을 팝업으로 보여줌
+function handleDayClick(date){
+  // 날짜 클릭: 선택만 (팝업은 '건수' 클릭)
+  selectDate(date);
+}
+
+
+
+function openSelectedDayPopup(){
+    const dateStr = formatDate(selectedDate);
+    let daySchedules = schedules.filter(s => s.visitPlannedAt === dateStr);
+    if (currentScheduleFilter !== 'all') daySchedules = daySchedules.filter(s => s.visitor === currentScheduleFilter);
+    if (!isDayPopupEnabled()) return;
+    if (daySchedules.length === 0) return;
+    openDayPopup(dateStr, daySchedules);
+}
+
+function getCompanyName(s){
+    return s.company ?? s.companyName ?? s.storeName ?? s.client ?? s.customer ?? s.hospital ?? s['상호명'] ?? s['고객명'] ?? '';
+}
+
+function openDayPopup(dateStr, daySchedules, techName=null){
+    const title = techName ? `${dateStr.replaceAll('-','.')} · ${techName}` : `${dateStr.replaceAll('-','.')}`;
+    const list = daySchedules
+        .slice()
+        .sort((a,b)=> (a.visitRequestTime||'').localeCompare(b.visitRequestTime||''))
+        .map(s=>{
+            const tech = technicians.find(t=> String(t.id)===String(s.visitorId) || t.name===s.visitor);
+            const left = tech ? `border-left-color:${tech.color}` : '';
+            const statusClass = s.status === '대기' ? 'status-waiting' : s.status === '진행중' ? 'status-progress' : 'status-complete';
+            const company = getCompanyName(s) || '(상호명 없음)';
+            return `
+            <div class="schedule-card" style="${left}" onclick="openFromDayPopup('${s.docNo}')">
+                <div class="card-header">
+                    <div class="card-time">${s.visitRequestTime || ''}</div>
+                    <div class="card-header-right">
+                        <span class="status-badge ${statusClass}">${s.status || ''}</span>
+                        <span class="role-badge-compact" style="background:${tech?tech.color:'rgba(0,0,0,0.08)'};">${s.visitor || (tech?tech.name:'')}</span>
+                    </div>
+                </div>
+                <div class="card-company">${company}</div>
+                <div class="card-info">
+                    <div class="info-row"><span class="info-label">주소</span><span class="info-value">${s.address || ''}</span></div>
+                    <div class="info-row"><span class="info-label">장비</span><span class="info-value">${s.product || s.deviceType || ''}</span></div>
+                    <div class="info-row"><span class="info-label">불량</span><span class="info-value">${s.faultMajor || ''}</span></div>
+                </div>
+            </div>`;
+        }).join('');
+
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.id = 'dayPopupOverlay';
+    overlay.innerHTML = `
+      <div class="modal-container day-popup-modal" role="dialog" aria-modal="true">
+        <div class="modal-header">
+          <h2>${title}</h2>
+          <button class="close-btn" onclick="closeModal('dayPopupOverlay')" aria-label="닫기">×</button>
+        </div>
+        <div class="modal-body">
+          <div class="day-popup-list">${list || '<div class="empty-state">해당 일정이 없습니다.</div>'}</div>
+        </div>
+      </div>`;
+    overlay.addEventListener('click', (e)=>{ if(e.target===overlay) closeModal('dayPopupOverlay'); });
+    document.body.appendChild(overlay);
+}
+
+function openFromDayPopup(docNo){
+    document.getElementById('modalContainer').innerHTML = '';
+    showDetail(docNo);
+}
+
+function closeDayPopup(event){
+    if(!event || (event.target && event.target.classList && event.target.classList.contains('modal-overlay'))){
+        document.getElementById('modalContainer').innerHTML = '';
+    }
+}
+
 function changeMonth(delta) { currentDate.setMonth(currentDate.getMonth() + delta); renderCalendar(); }
 function goToToday() { currentDate = new Date(2026,1,14); selectedDate = new Date(2026,1,14); renderCalendar(); renderSchedules(); }
 
@@ -1414,13 +1662,18 @@ function renderScheduleFilters() {
     });
     const totalCount = daySchedules.length;
 
+    // ✅ UI 개선: "전체보기"는 1줄, AS기사 목록은 그 아래 줄로 분리
     let html = `<div class="schedule-filters-wrapper">
-        <div class="schedule-filters">
-            <button class="schedule-filter-btn ${currentScheduleFilter==='all'?'active':''}" onclick="filterSchedules('all')">전체보기 (${totalCount})</button>`;
+        <div class="schedule-filters-stack">
+            <div class="schedule-filters-all">
+                <button class="schedule-filter-btn ${currentScheduleFilter==='all'?'active':''}" onclick="filterSchedules('all')">전체보기 (${totalCount})</button>
+            </div>
+            <div class="schedule-filters-techs">`;
     Object.keys(techCounts).forEach(visitor => {
         html += `<button class="schedule-filter-btn ${currentScheduleFilter===visitor?'active':''}" onclick="filterSchedules('${visitor}')">${visitor} (${techCounts[visitor]})</button>`;
     });
-    html += `</div>`;
+    html += `</div>
+        </div>`;
     if (totalCount > 0) {
         html += `<button class="route-btn" onclick="showRouteModal()">🗺️ 루트</button>`;
     }
@@ -1466,8 +1719,8 @@ function renderSchedules() {
     const morning = daySchedules.filter(s => parseInt(s.visitRequestTime.split(':')[0]) < 12).sort((a,b) => a.visitRequestTime.localeCompare(b.visitRequestTime));
     const afternoon = daySchedules.filter(s => parseInt(s.visitRequestTime.split(':')[0]) >= 12).sort((a,b) => a.visitRequestTime.localeCompare(b.visitRequestTime));
     const listHtml = [renderScheduleFilters()];
-    if (morning.length > 0) listHtml.push(`<div class="time-section"><div class="time-header"><div class="time-icon">🌅</div>오전</div>${morning.map(s=>renderScheduleCard(s)).join('')}</div>`);
-    if (afternoon.length > 0) listHtml.push(`<div class="time-section"><div class="time-header"><div class="time-icon">🌆</div>오후</div>${afternoon.map(s=>renderScheduleCard(s)).join('')}</div>`);
+    if (morning.length > 0) listHtml.push(`<div class="time-section"><div class="time-header">오전</div>${morning.map(s=>renderScheduleCard(s)).join('')}</div>`);
+    if (afternoon.length > 0) listHtml.push(`<div class="time-section"><div class="time-header">오후</div>${afternoon.map(s=>renderScheduleCard(s)).join('')}</div>`);
     if (daySchedules.length === 0) listHtml.push(`<div class="empty-state"><div class="empty-icon">📭</div><div class="empty-text">이 날짜에 예정된 스케줄이 없습니다</div></div>`);
     document.getElementById('scheduleList').innerHTML = listHtml.join('');
 }
@@ -1668,7 +1921,8 @@ function showDetail(docNo) {
                         <div class="detail-row"><span class="detail-label">납품일</span><span class="detail-value">${schedule.deliveryDate}</span></div>
                         <div class="detail-row"><span class="detail-label">사용일</span><span class="detail-value">${usageDays}일</span></div>
                         <div class="detail-row"><span class="detail-label">유무상</span><span class="detail-value"><span class="warranty-badge ${warrantyClass}">${warranty}</span></span></div>
-                    <div class="detail-section">
+                    </div>
+                    <div class="detail-section fault-section">
                         <div class="detail-section-title"><span class="section-icon">🔧</span> 불량 정보</div>
                         <div class="detail-row"><span class="detail-label">불량구분 대분류</span><span class="detail-value">${schedule.faultMajor}</span></div>
                         <div class="detail-row"><span class="detail-label">불량구분 소분류</span><span class="detail-value">${schedule.faultMinor}</span></div>
@@ -1971,7 +2225,7 @@ function showServiceReport() {
                         <div onclick="togglePeerCase()" style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:#16A34A;cursor:pointer;">
                             <div style="display:flex;align-items:center;gap:8px;">
                                 <span style="background:rgba(255,255,255,0.25);color:white;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:700;letter-spacing:0.5px;">CASES</span>
-                                <span style="font-size:14px;font-weight:700;color:white;">다른 기사 처리 사례 참고</span>
+                                <span style="font-size:14px;font-weight:700;color:white;">다른 직원 처리 사례 참고</span>
                             </div>
                             <span id="peerCaseToggleIcon" style="font-size:16px;color:white;transition:transform 0.2s;">▼</span>
                         </div>
@@ -2516,10 +2770,10 @@ function showNewSchedule() {
                         <div class="form-group" style="margin-bottom:16px;">
                             <label class="form-label form-label-required">장비 구분</label>
                             <div class="device-chip-group" id="newDeviceGroup">
-                                <button type="button" class="device-type-chip active" data-dt="인바디" onclick="selectDeviceTypeChip(this)">⚖️ 인바디</button>
-                                <button type="button" class="device-type-chip" data-dt="신장계" onclick="selectDeviceTypeChip(this)">📏 신장계</button>
-                                <button type="button" class="device-type-chip" data-dt="혈압계" onclick="selectDeviceTypeChip(this)">💉 혈압계</button>
-                                <button type="button" class="device-type-chip" data-dt="기타" onclick="selectDeviceTypeChip(this)">🔧 기타</button>
+                                <button type="button" class="device-type-chip active" data-dt="인바디" onclick="selectDeviceTypeChip(this)">인바디</button>
+                                <button type="button" class="device-type-chip" data-dt="신장계" onclick="selectDeviceTypeChip(this)">신장계</button>
+                                <button type="button" class="device-type-chip" data-dt="혈압계" onclick="selectDeviceTypeChip(this)">혈압계</button>
+                                <button type="button" class="device-type-chip" data-dt="기타" onclick="selectDeviceTypeChip(this)">기타</button>
                             </div>
                         </div>
                         <div class="form-group" style="margin-bottom:16px;">
@@ -2791,8 +3045,18 @@ function showInquiryDetail(inquiryId) {
 
 // ===== UTILITIES =====
 function closeModal(modalId) {
+    // If a specific modal element exists, remove it (supports SMS preview overlay, etc.)
+    if(modalId){
+        const el = document.getElementById(modalId);
+        if(el){
+            el.remove();
+            return;
+        }
+    }
     const container = document.getElementById('modalContainer');
     if (container) container.innerHTML = '';
+    const smsContainer = document.getElementById('smsModalContainer');
+    if (smsContainer) smsContainer.innerHTML = '';
 }
 function closeModalOnOverlay(event, modalId) {
     if (event.target.id === modalId) closeModal(modalId);
