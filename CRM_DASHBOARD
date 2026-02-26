@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CRM 경영진 보고용 대시보드 V21</title>
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .chart-container { position: relative; width: 100%; cursor: pointer; }
+        .trend-container { position: relative; height: 220px; width: 100%; }
+        .symptom-card { transition: all 0.2s; border: 2px solid transparent; cursor: pointer; }
+        .symptom-card:hover { transform: translateY(-3px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
+        .active-symptom { border-color: #2563eb !important; background-color: #eff6ff !important; box-shadow: 0 0 0 3px rgba(59,130,246,0.5) !important; transform: scale(1.02); }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 4px; }
+        .sticky-th { position: sticky; top: 0; background-color: #f1f5f9; z-index: 10; }
+
+        /* ── 인라인 아코디언 드롭다운 ──
+           position 계산 완전 없음. 버튼 바로 아래 펼침.
+           다른 카드 절대 침범 없음. ── */
+        .ms-wrap { width: 100%; }
+
+        .ms-btn {
+            width: 100%; display: flex; justify-content: space-between; align-items: center;
+            gap: 4px;
+            background: #f9fafb; border: 1px solid #d1d5db;
+            padding: 5px 10px; border-radius: 6px;
+            font-size: 12px; font-weight: 700; color: #374151;
+            cursor: pointer; user-select: none;
+            transition: border-color 0.15s, background 0.15s;
+        }
+        .ms-btn:hover { background: #f1f5f9; border-color: #9ca3af; }
+
+        /* 열린 상태 */
+        .ms-btn.ms-open {
+            border-radius: 6px 6px 0 0;
+            border-color: #2563eb;
+            background: #eff6ff;
+            color: #1d4ed8;
+        }
+
+        /* 선택된 항목 있을 때 (닫힌 상태에서도 파란 테두리) */
+        .ms-btn.has-selection:not(.ms-open) {
+            border-color: #3b82f6;
+            background: #f0f7ff;
+            color: #1e40af;
+        }
+
+        .ms-btn .arr { font-size: 9px; transition: transform 0.2s; display: inline-block; flex-shrink: 0; }
+        .ms-btn.ms-open .arr { transform: rotate(180deg); }
+
+        /* 선택 개수 배지 */
+        .ms-btn .sel-badge {
+            display: none;
+            background: #2563eb; color: white;
+            font-size: 10px; font-weight: 900;
+            padding: 1px 5px; border-radius: 10px;
+            flex-shrink: 0;
+        }
+        .ms-btn.has-selection .sel-badge { display: inline-block; }
+
+        /* 버튼 라벨 텍스트 (말줄임) */
+        .ms-btn .btn-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
+
+        /* 리스트 패널 */
+        .ms-list {
+            display: none; width: 100%;
+            max-height: 0; overflow: hidden;
+            background: white;
+            border: 1px solid #2563eb; border-top: none;
+            border-radius: 0 0 6px 6px;
+            box-shadow: 0 6px 16px -4px rgba(37,99,235,0.15);
+        }
+        .ms-list.ms-open {
+            display: block;
+            max-height: 210px;
+            overflow-y: auto;
+            animation: slideDown 0.15s ease-out;
+        }
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-6px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .ms-list label {
+            display: flex; align-items: center; padding: 5px 9px; cursor: pointer;
+            font-size: 11px; font-weight: 600; color: #1f2937;
+            border-bottom: 1px solid #f3f4f6; transition: background 0.1s;
+            white-space: nowrap;
+        }
+        .ms-list label:last-child { border-bottom: none; }
+        .ms-list label:hover { background: #eff6ff; color: #1d4ed8; }
+        .ms-list input[type="checkbox"] {
+            margin-right: 7px; width: 13px; height: 13px;
+            cursor: pointer; accent-color: #2563eb; flex-shrink: 0;
+        }
+        .ms-list label.all-lbl {
+            background: #f0fdf4; color: #15803d !important; font-weight: 900;
+            border-bottom: 2px solid #d1fae5; position: sticky; top: 0; z-index: 1;
+        }
+        .ms-list label.all-lbl:hover { background: #dcfce7 !important; }
+
+        .ms-btn.white-btn { background: white; }
+        .ms-btn.sm-btn { padding: 3px 7px; font-size: 11px; }
+    </style>
+</head>
+<body class="bg-slate-50 p-2 md:p-6 font-sans text-gray-800">
+<div class="max-w-[1600px] mx-auto space-y-4">
+
+    <!-- ── 헤더 ── -->
+    <div class="bg-gray-900 text-white p-5 rounded-xl shadow-lg border-b-4 border-blue-500 flex flex-col gap-4">
+        <div class="flex justify-between items-end">
+            <div>
+                <h1 class="text-3xl font-black tracking-tight">🔬 CRM Fact-Finder V21 (Multi-Select 마스터)</h1>
+                <p class="text-gray-300 mt-1 font-bold text-sm">✓ 모든 필터 체크박스 탑재 | ✓ 전체 선택/해제 토글 | ✓ 심층 교집합 분석 엔진</p>
+            </div>
+            <div>
+                <input type="file" id="excelFile" accept=".xlsx,.xls,.csv" class="hidden">
+                <button onclick="document.getElementById('excelFile').click()" class="bg-blue-600 text-white px-6 py-2.5 rounded-lg font-black hover:bg-blue-500 transition shadow-lg border border-blue-400">📁 엑셀 데이터 로드</button>
+            </div>
+        </div>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 bg-gray-800 p-3 rounded-lg border border-gray-700">
+            <div class="ms-wrap">
+                <div class="ms-btn white-btn" onclick="toggleMs(this)"><span class="btn-label">📅 연도 선택</span><span class="sel-badge">0</span><span class="arr">▼</span></div>
+                <div class="ms-list" id="dropGlobalYear"></div>
+            </div>
+            <div class="ms-wrap">
+                <div class="ms-btn white-btn" onclick="toggleMs(this)"><span class="btn-label">🏭 라인업 (DNO) 선택</span><span class="sel-badge">0</span><span class="arr">▼</span></div>
+                <div class="ms-list" id="dropGlobalDNO"></div>
+            </div>
+            <div class="ms-wrap">
+                <div class="ms-btn white-btn" onclick="toggleMs(this)"><span class="btn-label">📊 장비 제품 다중선택</span><span class="sel-badge">0</span><span class="arr">▼</span></div>
+                <div class="ms-list" id="dropGlobalProd"></div>
+            </div>
+            <div class="ms-wrap">
+                <div class="ms-btn white-btn" onclick="toggleMs(this)"><span class="btn-label">📋 대분류 증상 선택</span><span class="sel-badge">0</span><span class="arr">▼</span></div>
+                <div class="ms-list" id="dropGlobalCat"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── 대시보드 ── -->
+    <div id="dashboardWrapper" class="space-y-6">
+
+        <!-- 현재 분석 뷰 -->
+        <div class="bg-white p-4 rounded-xl shadow border border-gray-200 flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <span class="bg-slate-800 text-white px-3 py-1.5 rounded font-black text-sm">현재 분석 뷰</span>
+                <span id="currentFilterText" class="text-blue-700 font-black text-[15px] bg-blue-50 px-3 py-1 rounded">전체 데이터</span>
+            </div>
+            <div class="flex items-center gap-4 text-sm font-bold text-gray-500">
+                <span>필터링된 건수: <span id="totalDocCount" class="text-indigo-600 text-lg">0</span>건</span>
+                <button onclick="resetAll()" class="bg-red-50 text-red-700 border border-red-200 px-4 py-2 rounded-lg font-black hover:bg-red-100 transition shadow-sm">🔄 대시보드 초기화</button>
+            </div>
+        </div>
+
+        <!-- ── 증상 카드 8개 (4+4 grid) ── -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+
+            <!-- CAT1 -->
+            <div id="btn-cat1" class="bg-white p-3 rounded-xl shadow border border-gray-200 symptom-card flex flex-col justify-between h-full" onclick="setSymptomFilter('cat1')">
+                <div>
+                    <h3 class="text-gray-700 font-black text-[13px] truncate">1️⃣ 측정 결함</h3>
+                    <div class="text-2xl font-black text-blue-600 mt-1"><span id="kpi-cat1-tot">0</span><span class="text-xs text-gray-500 font-normal"> 건</span></div>
+                    <p class="text-[10px] font-bold mt-1 text-gray-600 bg-gray-100 p-1 rounded inline-block">HW교체: <span id="kpi-cat1-rate" class="text-red-500">0%</span></p>
+                </div>
+                <div class="mt-3 ms-wrap" onclick="event.stopPropagation()">
+                    <div class="ms-btn" onclick="toggleMs(this)"><span class="btn-label">📂 소분류 다중선택</span><span class="sel-badge">0</span><span class="arr">▼</span></div>
+                    <div class="ms-list" id="dropSubCat1">
+                        <label class="all-lbl"><input type="checkbox" class="sel-all-sub-cb-cat1" onchange="toggleAll(this,'sub-cb-cat1','updateDashboard')"> ☑️ 전체 선택 / 해제</label>
+                        <label><input type="checkbox" value="BWA_재측정메시지발생" class="sub-cb-cat1" onchange="checkIndividual(this,'sel-all-sub-cb-cat1','updateDashboard')"> BWA_재측정메시지발생</label>
+                        <label><input type="checkbox" value="BWA_측정 결과값 이상" class="sub-cb-cat1" onchange="checkIndividual(this,'sel-all-sub-cb-cat1','updateDashboard')"> BWA_측정 결과값 이상</label>
+                        <label><input type="checkbox" value="BWA_측정 시작안됨" class="sub-cb-cat1" onchange="checkIndividual(this,'sel-all-sub-cb-cat1','updateDashboard')"> BWA_측정 시작안됨</label>
+                        <label><input type="checkbox" value="BWA_측정중에러발생" class="sub-cb-cat1" onchange="checkIndividual(this,'sel-all-sub-cb-cat1','updateDashboard')"> BWA_측정중에러발생</label>
+                        <label><input type="checkbox" value="인바디_재측정메시지발생" class="sub-cb-cat1" onchange="checkIndividual(this,'sel-all-sub-cb-cat1','updateDashboard')"> 인바디_재측정메시지발생</label>
+                        <label><input type="checkbox" value="인바디_측정 결과값 이상" class="sub-cb-cat1" onchange="checkIndividual(this,'sel-all-sub-cb-cat1','updateDashboard')"> 인바디_측정 결과값 이상</label>
+                        <label><input type="checkbox" value="인바디_측정 시작안됨" class="sub-cb-cat1" onchange="checkIndividual(this,'sel-all-sub-cb-cat1','updateDashboard')"> 인바디_측정 시작안됨</label>
+                        <label><input type="checkbox" value="인바디_측정중에러발생" class="sub-cb-cat1" onchange="checkIndividual(this,'sel-all-sub-cb-cat1','updateDashboard')"> 인바디_측정중에러발생</label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CAT2 -->
+            <div id="btn-cat2" class="bg-white p-3 rounded-xl shadow border border-gray-200 symptom-card flex flex-col justify-between h-full" onclick="setSymptomFilter('cat2')">
+                <div>
+                    <h3 class="text-gray-700 font-black text-[13px] truncate">2️⃣ 체중/영점 이상</h3>
+                    <div class="text-2xl font-black text-emerald-600 mt-1"><span id="kpi-cat2-tot">0</span><span class="text-xs text-gray-500 font-normal"> 건</span></div>
+                    <p class="text-[10px] font-bold mt-1 text-gray-600 bg-gray-100 p-1 rounded inline-block">HW교체: <span id="kpi-cat2-rate" class="text-red-500">0%</span></p>
+                </div>
+                <div class="mt-3 ms-wrap" onclick="event.stopPropagation()">
+                    <div class="ms-btn" onclick="toggleMs(this)"><span class="btn-label">📂 소분류 다중선택</span><span class="sel-badge">0</span><span class="arr">▼</span></div>
+                    <div class="ms-list" id="dropSubCat2">
+                        <label class="all-lbl"><input type="checkbox" class="sel-all-sub-cb-cat2" onchange="toggleAll(this,'sub-cb-cat2','updateDashboard')"> ☑️ 전체 선택 / 해제</label>
+                        <label><input type="checkbox" value="인바디_Head Bar위치비정상" class="sub-cb-cat2" onchange="checkIndividual(this,'sel-all-sub-cb-cat2','updateDashboard')"> 인바디_Head Bar위치비정상</label>
+                        <label><input type="checkbox" value="인바디_Head Bar흔들림" class="sub-cb-cat2" onchange="checkIndividual(this,'sel-all-sub-cb-cat2','updateDashboard')"> 인바디_Head Bar흔들림</label>
+                        <label><input type="checkbox" value="인바디_발판물체제거메시지" class="sub-cb-cat2" onchange="checkIndividual(this,'sel-all-sub-cb-cat2','updateDashboard')"> 인바디_발판물체제거메시지</label>
+                        <label><input type="checkbox" value="인바디_신장 작게 측정" class="sub-cb-cat2" onchange="checkIndividual(this,'sel-all-sub-cb-cat2','updateDashboard')"> 인바디_신장 작게 측정</label>
+                        <label><input type="checkbox" value="인바디_신장 측정 안됨" class="sub-cb-cat2" onchange="checkIndividual(this,'sel-all-sub-cb-cat2','updateDashboard')"> 인바디_신장 측정 안됨</label>
+                        <label><input type="checkbox" value="인바디_신장 크게 측정" class="sub-cb-cat2" onchange="checkIndividual(this,'sel-all-sub-cb-cat2','updateDashboard')"> 인바디_신장 크게 측정</label>
+                        <label><input type="checkbox" value="인바디_체중값고정안됨" class="sub-cb-cat2" onchange="checkIndividual(this,'sel-all-sub-cb-cat2','updateDashboard')"> 인바디_체중값고정안됨</label>
+                        <label><input type="checkbox" value="인바디_체중값이상" class="sub-cb-cat2" onchange="checkIndividual(this,'sel-all-sub-cb-cat2','updateDashboard')"> 인바디_체중값이상</label>
+                        <label><input type="checkbox" value="인바디_체중측정안됨" class="sub-cb-cat2" onchange="checkIndividual(this,'sel-all-sub-cb-cat2','updateDashboard')"> 인바디_체중측정안됨</label>
+                        <label><input type="checkbox" value="인바디_측정 값 이상" class="sub-cb-cat2" onchange="checkIndividual(this,'sel-all-sub-cb-cat2','updateDashboard')"> 인바디_측정 값 이상</label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CAT3 -->
+            <div id="btn-cat3" class="bg-white p-3 rounded-xl shadow border border-gray-200 symptom-card flex flex-col justify-between h-full" onclick="setSymptomFilter('cat3')">
+                <div>
+                    <h3 class="text-gray-700 font-black text-[13px] truncate">3️⃣ 통신 / 네트워크</h3>
+                    <div class="text-2xl font-black text-purple-600 mt-1"><span id="kpi-cat3-tot">0</span><span class="text-xs text-gray-500 font-normal"> 건</span></div>
+                    <p class="text-[10px] font-bold mt-1 text-gray-600 bg-gray-100 p-1 rounded inline-block">HW교체: <span id="kpi-cat3-rate" class="text-red-500">0%</span></p>
+                </div>
+                <div class="mt-3 ms-wrap" onclick="event.stopPropagation()">
+                    <div class="ms-btn" onclick="toggleMs(this)"><span class="btn-label">📂 소분류 다중선택</span><span class="sel-badge">0</span><span class="arr">▼</span></div>
+                    <div class="ms-list" id="dropSubCat3">
+                        <label class="all-lbl"><input type="checkbox" class="sel-all-sub-cb-cat3" onchange="toggleAll(this,'sub-cb-cat3','updateDashboard')"> ☑️ 전체 선택 / 해제</label>
+                        <label><input type="checkbox" value="BWA_LAN 설정 안됨" class="sub-cb-cat3" onchange="checkIndividual(this,'sel-all-sub-cb-cat3','updateDashboard')"> BWA_LAN 설정 안됨</label>
+                        <label><input type="checkbox" value="BWA_LB 블루투스 연동안됨" class="sub-cb-cat3" onchange="checkIndividual(this,'sel-all-sub-cb-cat3','updateDashboard')"> BWA_LB 블루투스 연동안됨</label>
+                        <label><input type="checkbox" value="LB_InBody통신불량" class="sub-cb-cat3" onchange="checkIndividual(this,'sel-all-sub-cb-cat3','updateDashboard')"> LB_InBody통신불량</label>
+                        <label><input type="checkbox" value="인바디_LAN 설정 안됨" class="sub-cb-cat3" onchange="checkIndividual(this,'sel-all-sub-cb-cat3','updateDashboard')"> 인바디_LAN 설정 안됨</label>
+                        <label><input type="checkbox" value="인바디_LB 블루투스 연동안됨" class="sub-cb-cat3" onchange="checkIndividual(this,'sel-all-sub-cb-cat3','updateDashboard')"> 인바디_LB 블루투스 연동안됨</label>
+                        <label><input type="checkbox" value="인바디_LBWEB 로그인 안됨" class="sub-cb-cat3" onchange="checkIndividual(this,'sel-all-sub-cb-cat3','updateDashboard')"> 인바디_LBWEB 로그인 안됨</label>
+                        <label><input type="checkbox" value="인바디_WIFI 설정 안됨" class="sub-cb-cat3" onchange="checkIndividual(this,'sel-all-sub-cb-cat3','updateDashboard')"> 인바디_WIFI 설정 안됨</label>
+                        <label><input type="checkbox" value="인바디_WIFI 연결 끊어짐" class="sub-cb-cat3" onchange="checkIndividual(this,'sel-all-sub-cb-cat3','updateDashboard')"> 인바디_WIFI 연결 끊어짐</label>
+                        <label><input type="checkbox" value="인바디_앱으로 결과전송 안됨" class="sub-cb-cat3" onchange="checkIndividual(this,'sel-all-sub-cb-cat3','updateDashboard')"> 인바디_앱으로 결과전송 안됨</label>
+                        <label><input type="checkbox" value="인바디_혈압계 블루투스 연동안됨" class="sub-cb-cat3" onchange="checkIndividual(this,'sel-all-sub-cb-cat3','updateDashboard')"> 인바디_혈압계 블루투스 연동안됨</label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CAT4 -->
+            <div id="btn-cat4" class="bg-white p-3 rounded-xl shadow border border-gray-200 symptom-card flex flex-col justify-between h-full" onclick="setSymptomFilter('cat4')">
+                <div>
+                    <h3 class="text-gray-700 font-black text-[13px] truncate">4️⃣ 디스플레이/조작</h3>
+                    <div class="text-2xl font-black text-orange-500 mt-1"><span id="kpi-cat4-tot">0</span><span class="text-xs text-gray-500 font-normal"> 건</span></div>
+                    <p class="text-[10px] font-bold mt-1 text-gray-600 bg-gray-100 p-1 rounded inline-block">HW교체: <span id="kpi-cat4-rate" class="text-red-500">0%</span></p>
+                </div>
+                <div class="mt-3 ms-wrap" onclick="event.stopPropagation()">
+                    <div class="ms-btn" onclick="toggleMs(this)"><span class="btn-label">📂 소분류 다중선택</span><span class="sel-badge">0</span><span class="arr">▼</span></div>
+                    <div class="ms-list" id="dropSubCat4">
+                        <label class="all-lbl"><input type="checkbox" class="sel-all-sub-cb-cat4" onchange="toggleAll(this,'sub-cb-cat4','updateDashboard')"> ☑️ 전체 선택 / 해제</label>
+                        <label><input type="checkbox" value="BWA_LCD화면 출력이상" class="sub-cb-cat4" onchange="checkIndividual(this,'sel-all-sub-cb-cat4','updateDashboard')"> BWA_LCD화면 출력이상</label>
+                        <label><input type="checkbox" value="BWA_LCD화면줄감" class="sub-cb-cat4" onchange="checkIndividual(this,'sel-all-sub-cb-cat4','updateDashboard')"> BWA_LCD화면줄감</label>
+                        <label><input type="checkbox" value="BWA_LCD화면터치 인식안됨" class="sub-cb-cat4" onchange="checkIndividual(this,'sel-all-sub-cb-cat4','updateDashboard')"> BWA_LCD화면터치 인식안됨</label>
+                        <label><input type="checkbox" value="BWA_버튼안눌림" class="sub-cb-cat4" onchange="checkIndividual(this,'sel-all-sub-cb-cat4','updateDashboard')"> BWA_버튼안눌림</label>
+                        <label><input type="checkbox" value="인바디_LCD깜빡거림" class="sub-cb-cat4" onchange="checkIndividual(this,'sel-all-sub-cb-cat4','updateDashboard')"> 인바디_LCD깜빡거림</label>
+                        <label><input type="checkbox" value="인바디_LCD밝기불량" class="sub-cb-cat4" onchange="checkIndividual(this,'sel-all-sub-cb-cat4','updateDashboard')"> 인바디_LCD밝기불량</label>
+                        <label><input type="checkbox" value="인바디_LCD켜지나동작안됨" class="sub-cb-cat4" onchange="checkIndividual(this,'sel-all-sub-cb-cat4','updateDashboard')"> 인바디_LCD켜지나동작안됨</label>
+                        <label><input type="checkbox" value="인바디_LCD화면 출력이상" class="sub-cb-cat4" onchange="checkIndividual(this,'sel-all-sub-cb-cat4','updateDashboard')"> 인바디_LCD화면 출력이상</label>
+                        <label><input type="checkbox" value="인바디_LCD화면줄감" class="sub-cb-cat4" onchange="checkIndividual(this,'sel-all-sub-cb-cat4','updateDashboard')"> 인바디_LCD화면줄감</label>
+                        <label><input type="checkbox" value="인바디_LCD화면터치 인식안됨" class="sub-cb-cat4" onchange="checkIndividual(this,'sel-all-sub-cb-cat4','updateDashboard')"> 인바디_LCD화면터치 인식안됨</label>
+                        <label><input type="checkbox" value="인바디_버튼안눌림" class="sub-cb-cat4" onchange="checkIndividual(this,'sel-all-sub-cb-cat4','updateDashboard')"> 인바디_버튼안눌림</label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CAT5 -->
+            <div id="btn-cat5" class="bg-white p-3 rounded-xl shadow border border-gray-200 symptom-card flex flex-col justify-between h-full" onclick="setSymptomFilter('cat5')">
+                <div>
+                    <h3 class="text-gray-700 font-black text-[13px] truncate">5️⃣ 전원/외부기기</h3>
+                    <div class="text-2xl font-black text-cyan-600 mt-1"><span id="kpi-cat5-tot">0</span><span class="text-xs text-gray-500 font-normal"> 건</span></div>
+                    <p class="text-[10px] font-bold mt-1 text-gray-600 bg-gray-100 p-1 rounded inline-block">HW교체: <span id="kpi-cat5-rate" class="text-red-500">0%</span></p>
+                </div>
+                <div class="mt-3 ms-wrap" onclick="event.stopPropagation()">
+                    <div class="ms-btn" onclick="toggleMs(this)"><span class="btn-label">📂 소분류 다중선택</span><span class="sel-badge">0</span><span class="arr">▼</span></div>
+                    <div class="ms-list" id="dropSubCat5">
+                        <label class="all-lbl"><input type="checkbox" class="sel-all-sub-cb-cat5" onchange="toggleAll(this,'sub-cb-cat5','updateDashboard')"> ☑️ 전체 선택 / 해제</label>
+                        <label><input type="checkbox" value="BWA_LB통신안됨" class="sub-cb-cat5" onchange="checkIndividual(this,'sel-all-sub-cb-cat5','updateDashboard')"> BWA_LB통신안됨</label>
+                        <label><input type="checkbox" value="BWA_기타" class="sub-cb-cat5" onchange="checkIndividual(this,'sel-all-sub-cb-cat5','updateDashboard')"> BWA_기타</label>
+                        <label><input type="checkbox" value="BWA_외부장치 인식안됨" class="sub-cb-cat5" onchange="checkIndividual(this,'sel-all-sub-cb-cat5','updateDashboard')"> BWA_외부장치 인식안됨</label>
+                        <label><input type="checkbox" value="BWA_인바디통신안됨" class="sub-cb-cat5" onchange="checkIndividual(this,'sel-all-sub-cb-cat5','updateDashboard')"> BWA_인바디통신안됨</label>
+                        <label><input type="checkbox" value="BWA_장비동작중전원꺼짐" class="sub-cb-cat5" onchange="checkIndividual(this,'sel-all-sub-cb-cat5','updateDashboard')"> BWA_장비동작중전원꺼짐</label>
+                        <label><input type="checkbox" value="BWA_장비안켜짐" class="sub-cb-cat5" onchange="checkIndividual(this,'sel-all-sub-cb-cat5','updateDashboard')"> BWA_장비안켜짐</label>
+                        <label><input type="checkbox" value="인바디_LB통신안됨" class="sub-cb-cat5" onchange="checkIndividual(this,'sel-all-sub-cb-cat5','updateDashboard')"> 인바디_LB통신안됨</label>
+                        <label><input type="checkbox" value="인바디_NCT고장" class="sub-cb-cat5" onchange="checkIndividual(this,'sel-all-sub-cb-cat5','updateDashboard')"> 인바디_NCT고장</label>
+                        <label><input type="checkbox" value="인바디_결과지 출력안됨" class="sub-cb-cat5" onchange="checkIndividual(this,'sel-all-sub-cb-cat5','updateDashboard')"> 인바디_결과지 출력안됨</label>
+                        <label><input type="checkbox" value="인바디_결과지특수문자" class="sub-cb-cat5" onchange="checkIndividual(this,'sel-all-sub-cb-cat5','updateDashboard')"> 인바디_결과지특수문자</label>
+                        <label><input type="checkbox" value="인바디_기타" class="sub-cb-cat5" onchange="checkIndividual(this,'sel-all-sub-cb-cat5','updateDashboard')"> 인바디_기타</label>
+                        <label><input type="checkbox" value="인바디_신장계통신안됨" class="sub-cb-cat5" onchange="checkIndividual(this,'sel-all-sub-cb-cat5','updateDashboard')"> 인바디_신장계통신안됨</label>
+                        <label><input type="checkbox" value="인바디_써멀프린터" class="sub-cb-cat5" onchange="checkIndividual(this,'sel-all-sub-cb-cat5','updateDashboard')"> 인바디_써멀프린터</label>
+                        <label><input type="checkbox" value="인바디_외부장치 인식안됨" class="sub-cb-cat5" onchange="checkIndividual(this,'sel-all-sub-cb-cat5','updateDashboard')"> 인바디_외부장치 인식안됨</label>
+                        <label><input type="checkbox" value="인바디_인바디통신안됨" class="sub-cb-cat5" onchange="checkIndividual(this,'sel-all-sub-cb-cat5','updateDashboard')"> 인바디_인바디통신안됨</label>
+                        <label><input type="checkbox" value="인바디_장비동작중재부팅" class="sub-cb-cat5" onchange="checkIndividual(this,'sel-all-sub-cb-cat5','updateDashboard')"> 인바디_장비동작중재부팅</label>
+                        <label><input type="checkbox" value="인바디_장비동작중전원꺼짐" class="sub-cb-cat5" onchange="checkIndividual(this,'sel-all-sub-cb-cat5','updateDashboard')"> 인바디_장비동작중전원꺼짐</label>
+                        <label><input type="checkbox" value="인바디_장비안켜짐" class="sub-cb-cat5" onchange="checkIndividual(this,'sel-all-sub-cb-cat5','updateDashboard')"> 인바디_장비안켜짐</label>
+                        <label><input type="checkbox" value="인바디_프린터인쇄위치불량" class="sub-cb-cat5" onchange="checkIndividual(this,'sel-all-sub-cb-cat5','updateDashboard')"> 인바디_프린터인쇄위치불량</label>
+                        <label><input type="checkbox" value="인바디_프린터출력매수불량" class="sub-cb-cat5" onchange="checkIndividual(this,'sel-all-sub-cb-cat5','updateDashboard')"> 인바디_프린터출력매수불량</label>
+                        <label><input type="checkbox" value="인바디_프린터출력상태불량" class="sub-cb-cat5" onchange="checkIndividual(this,'sel-all-sub-cb-cat5','updateDashboard')"> 인바디_프린터출력상태불량</label>
+                        <label><input type="checkbox" value="인바디_프린터통신안됨" class="sub-cb-cat5" onchange="checkIndividual(this,'sel-all-sub-cb-cat5','updateDashboard')"> 인바디_프린터통신안됨</label>
+                        <label><input type="checkbox" value="인바디_혈압계통신안됨" class="sub-cb-cat5" onchange="checkIndividual(this,'sel-all-sub-cb-cat5','updateDashboard')"> 인바디_혈압계통신안됨</label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CAT6 -->
+            <div id="btn-cat6" class="bg-white p-3 rounded-xl shadow border border-gray-200 symptom-card flex flex-col justify-between h-full" onclick="setSymptomFilter('cat6')">
+                <div>
+                    <h3 class="text-gray-700 font-black text-[13px] truncate">6️⃣ 고객문의/기타</h3>
+                    <div class="text-2xl font-black text-slate-500 mt-1"><span id="kpi-cat6-tot">0</span><span class="text-xs text-gray-500 font-normal"> 건</span></div>
+                    <p class="text-[10px] font-bold mt-1 text-gray-600 bg-gray-100 p-1 rounded inline-block">HW교체: <span id="kpi-cat6-rate" class="text-red-500">0%</span></p>
+                </div>
+                <div class="mt-3 ms-wrap" onclick="event.stopPropagation()">
+                    <div class="ms-btn" onclick="toggleMs(this)"><span class="btn-label">📂 소분류 다중선택</span><span class="sel-badge">0</span><span class="arr">▼</span></div>
+                    <div class="ms-list" id="dropSubCat6">
+                        <label class="all-lbl"><input type="checkbox" class="sel-all-sub-cb-cat6" onchange="toggleAll(this,'sub-cb-cat6','updateDashboard')"> ☑️ 전체 선택 / 해제</label>
+                        <label><input type="checkbox" value="BWA_(수리)비용문의" class="sub-cb-cat6" onchange="checkIndividual(this,'sel-all-sub-cb-cat6','updateDashboard')"> BWA_(수리)비용문의</label>
+                        <label><input type="checkbox" value="BWA_Setup문의" class="sub-cb-cat6" onchange="checkIndividual(this,'sel-all-sub-cb-cat6','updateDashboard')"> BWA_Setup문의</label>
+                        <label><input type="checkbox" value="BWA_검사필증" class="sub-cb-cat6" onchange="checkIndividual(this,'sel-all-sub-cb-cat6','updateDashboard')"> BWA_검사필증</label>
+                        <label><input type="checkbox" value="BWA_고객클레임" class="sub-cb-cat6" onchange="checkIndividual(this,'sel-all-sub-cb-cat6','updateDashboard')"> BWA_고객클레임</label>
+                        <label><input type="checkbox" value="BWA_기구파손" class="sub-cb-cat6" onchange="checkIndividual(this,'sel-all-sub-cb-cat6','updateDashboard')"> BWA_기구파손</label>
+                        <label><input type="checkbox" value="BWA_기타" class="sub-cb-cat6" onchange="checkIndividual(this,'sel-all-sub-cb-cat6','updateDashboard')"> BWA_기타</label>
+                        <label><input type="checkbox" value="BWA_동일증상발생" class="sub-cb-cat6" onchange="checkIndividual(this,'sel-all-sub-cb-cat6','updateDashboard')"> BWA_동일증상발생</label>
+                        <label><input type="checkbox" value="BWA_로고변경" class="sub-cb-cat6" onchange="checkIndividual(this,'sel-all-sub-cb-cat6','updateDashboard')"> BWA_로고변경</label>
+                        <label><input type="checkbox" value="BWA_방문관련" class="sub-cb-cat6" onchange="checkIndividual(this,'sel-all-sub-cb-cat6','updateDashboard')"> BWA_방문관련</label>
+                        <label><input type="checkbox" value="BWA_사용방법" class="sub-cb-cat6" onchange="checkIndividual(this,'sel-all-sub-cb-cat6','updateDashboard')"> BWA_사용방법</label>
+                        <label><input type="checkbox" value="BWA_장비 외 품목구매" class="sub-cb-cat6" onchange="checkIndividual(this,'sel-all-sub-cb-cat6','updateDashboard')"> BWA_장비 외 품목구매</label>
+                        <label><input type="checkbox" value="BWA_장비Upgrade" class="sub-cb-cat6" onchange="checkIndividual(this,'sel-all-sub-cb-cat6','updateDashboard')"> BWA_장비Upgrade</label>
+                        <label><input type="checkbox" value="BWA_장비점검" class="sub-cb-cat6" onchange="checkIndividual(this,'sel-all-sub-cb-cat6','updateDashboard')"> BWA_장비점검</label>
+                        <label><input type="checkbox" value="BWA_전자부파손" class="sub-cb-cat6" onchange="checkIndividual(this,'sel-all-sub-cb-cat6','updateDashboard')"> BWA_전자부파손</label>
+                        <label><input type="checkbox" value="BWA_정도관리" class="sub-cb-cat6" onchange="checkIndividual(this,'sel-all-sub-cb-cat6','updateDashboard')"> BWA_정도관리</label>
+                        <label><input type="checkbox" value="BWA_프로그램호환문의" class="sub-cb-cat6" onchange="checkIndividual(this,'sel-all-sub-cb-cat6','updateDashboard')"> BWA_프로그램호환문의</label>
+                        <label><input type="checkbox" value="인바디_(수리)비용문의" class="sub-cb-cat6" onchange="checkIndividual(this,'sel-all-sub-cb-cat6','updateDashboard')"> 인바디_(수리)비용문의</label>
+                        <label><input type="checkbox" value="인바디_InBody DB" class="sub-cb-cat6" onchange="checkIndividual(this,'sel-all-sub-cb-cat6','updateDashboard')"> 인바디_InBody DB</label>
+                        <label><input type="checkbox" value="인바디_Setup문의" class="sub-cb-cat6" onchange="checkIndividual(this,'sel-all-sub-cb-cat6','updateDashboard')"> 인바디_Setup문의</label>
+                        <label><input type="checkbox" value="인바디_검사필증" class="sub-cb-cat6" onchange="checkIndividual(this,'sel-all-sub-cb-cat6','updateDashboard')"> 인바디_검사필증</label>
+                        <label><input type="checkbox" value="인바디_고객문서요청" class="sub-cb-cat6" onchange="checkIndividual(this,'sel-all-sub-cb-cat6','updateDashboard')"> 인바디_고객문서요청</label>
+                        <label><input type="checkbox" value="인바디_고객클레임" class="sub-cb-cat6" onchange="checkIndividual(this,'sel-all-sub-cb-cat6','updateDashboard')"> 인바디_고객클레임</label>
+                        <label><input type="checkbox" value="인바디_구매문의" class="sub-cb-cat6" onchange="checkIndividual(this,'sel-all-sub-cb-cat6','updateDashboard')"> 인바디_구매문의</label>
+                        <label><input type="checkbox" value="인바디_기구파손" class="sub-cb-cat6" onchange="checkIndividual(this,'sel-all-sub-cb-cat6','updateDashboard')"> 인바디_기구파손</label>
+                        <label><input type="checkbox" value="인바디_기타" class="sub-cb-cat6" onchange="checkIndividual(this,'sel-all-sub-cb-cat6','updateDashboard')"> 인바디_기타</label>
+                        <label><input type="checkbox" value="인바디_동일증상발생" class="sub-cb-cat6" onchange="checkIndividual(this,'sel-all-sub-cb-cat6','updateDashboard')"> 인바디_동일증상발생</label>
+                        <label><input type="checkbox" value="인바디_로고변경" class="sub-cb-cat6" onchange="checkIndividual(this,'sel-all-sub-cb-cat6','updateDashboard')"> 인바디_로고변경</label>
+                        <label><input type="checkbox" value="인바디_방문관련" class="sub-cb-cat6" onchange="checkIndividual(this,'sel-all-sub-cb-cat6','updateDashboard')"> 인바디_방문관련</label>
+                        <label><input type="checkbox" value="인바디_보상판매" class="sub-cb-cat6" onchange="checkIndividual(this,'sel-all-sub-cb-cat6','updateDashboard')"> 인바디_보상판매</label>
+                        <label><input type="checkbox" value="인바디_사용방법" class="sub-cb-cat6" onchange="checkIndividual(this,'sel-all-sub-cb-cat6','updateDashboard')"> 인바디_사용방법</label>
+                        <label><input type="checkbox" value="인바디_스크래치" class="sub-cb-cat6" onchange="checkIndividual(this,'sel-all-sub-cb-cat6','updateDashboard')"> 인바디_스크래치</label>
+                        <label><input type="checkbox" value="인바디_신장계_기구걸림" class="sub-cb-cat6" onchange="checkIndividual(this,'sel-all-sub-cb-cat6','updateDashboard')"> 인바디_신장계_기구걸림</label>
+                        <label><input type="checkbox" value="인바디_장비 외 품목구매" class="sub-cb-cat6" onchange="checkIndividual(this,'sel-all-sub-cb-cat6','updateDashboard')"> 인바디_장비 외 품목구매</label>
+                        <label><input type="checkbox" value="인바디_장비Upgrade" class="sub-cb-cat6" onchange="checkIndividual(this,'sel-all-sub-cb-cat6','updateDashboard')"> 인바디_장비Upgrade</label>
+                        <label><input type="checkbox" value="인바디_장비소음발생" class="sub-cb-cat6" onchange="checkIndividual(this,'sel-all-sub-cb-cat6','updateDashboard')"> 인바디_장비소음발생</label>
+                        <label><input type="checkbox" value="인바디_장비점검" class="sub-cb-cat6" onchange="checkIndividual(this,'sel-all-sub-cb-cat6','updateDashboard')"> 인바디_장비점검</label>
+                        <label><input type="checkbox" value="인바디_전자부파손" class="sub-cb-cat6" onchange="checkIndividual(this,'sel-all-sub-cb-cat6','updateDashboard')"> 인바디_전자부파손</label>
+                        <label><input type="checkbox" value="인바디_정도관리" class="sub-cb-cat6" onchange="checkIndividual(this,'sel-all-sub-cb-cat6','updateDashboard')"> 인바디_정도관리</label>
+                        <label><input type="checkbox" value="인바디_프로그램호환문의" class="sub-cb-cat6" onchange="checkIndividual(this,'sel-all-sub-cb-cat6','updateDashboard')"> 인바디_프로그램호환문의</label>
+                        <label><input type="checkbox" value="인바디_프린터호환리스트" class="sub-cb-cat6" onchange="checkIndividual(this,'sel-all-sub-cb-cat6','updateDashboard')"> 인바디_프린터호환리스트</label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CAT7 -->
+            <div id="btn-cat7" class="bg-white p-3 rounded-xl shadow border border-red-300 bg-red-50 symptom-card flex flex-col justify-between h-full" onclick="setSymptomFilter('cat7')">
+                <div>
+                    <h3 class="text-red-800 font-black text-[13px] truncate">🚨 7️⃣ 장비 동작 이상</h3>
+                    <div class="text-2xl font-black text-red-600 mt-1"><span id="kpi-cat7-tot">0</span><span class="text-xs text-gray-500 font-normal"> 건</span></div>
+                    <p class="text-[10px] font-bold mt-1 text-red-800 bg-red-100 p-1 rounded inline-block">HW교체: <span id="kpi-cat7-rate" class="text-red-600">0%</span></p>
+                </div>
+                <div class="mt-3 ms-wrap" onclick="event.stopPropagation()">
+                    <div class="ms-btn" style="background:white;border-color:#fca5a5;color:#991b1b" onclick="toggleMs(this)"><span class="btn-label">📂 소분류 다중선택</span><span class="sel-badge">0</span><span class="arr">▼</span></div>
+                    <div class="ms-list" id="dropSubCat7">
+                        <label class="all-lbl"><input type="checkbox" class="sel-all-sub-cb-cat7" onchange="toggleAll(this,'sub-cb-cat7','updateDashboard')"> ☑️ 전체 선택 / 해제</label>
+                        <label><input type="checkbox" value="BWA_Setup, QC 문제" class="sub-cb-cat7" onchange="checkIndividual(this,'sel-all-sub-cb-cat7','updateDashboard')"> BWA_Setup, QC 문제</label>
+                        <label><input type="checkbox" value="BWA_고객지원부연락메시지" class="sub-cb-cat7" onchange="checkIndividual(this,'sel-all-sub-cb-cat7','updateDashboard')"> BWA_고객지원부연락메시지</label>
+                        <label><input type="checkbox" value="BWA_기타" class="sub-cb-cat7" onchange="checkIndividual(this,'sel-all-sub-cb-cat7','updateDashboard')"> BWA_기타</label>
+                        <label><input type="checkbox" value="BWA_배터리불량" class="sub-cb-cat7" onchange="checkIndividual(this,'sel-all-sub-cb-cat7','updateDashboard')"> BWA_배터리불량</label>
+                        <label><input type="checkbox" value="BWA_부팅안됨" class="sub-cb-cat7" onchange="checkIndividual(this,'sel-all-sub-cb-cat7','updateDashboard')"> BWA_부팅안됨</label>
+                        <label><input type="checkbox" value="인바디_Setup, QC 문제" class="sub-cb-cat7" onchange="checkIndividual(this,'sel-all-sub-cb-cat7','updateDashboard')"> 인바디_Setup, QC 문제</label>
+                        <label><input type="checkbox" value="인바디_고객지원부연락메시지" class="sub-cb-cat7" onchange="checkIndividual(this,'sel-all-sub-cb-cat7','updateDashboard')"> 인바디_고객지원부연락메시지</label>
+                        <label><input type="checkbox" value="인바디_기타" class="sub-cb-cat7" onchange="checkIndividual(this,'sel-all-sub-cb-cat7','updateDashboard')"> 인바디_기타</label>
+                        <label><input type="checkbox" value="인바디_베터리불량" class="sub-cb-cat7" onchange="checkIndividual(this,'sel-all-sub-cb-cat7','updateDashboard')"> 인바디_베터리불량</label>
+                        <label><input type="checkbox" value="인바디_부팅안됨" class="sub-cb-cat7" onchange="checkIndividual(this,'sel-all-sub-cb-cat7','updateDashboard')"> 인바디_부팅안됨</label>
+                        <label><input type="checkbox" value="인바디_워밍업중멈춤" class="sub-cb-cat7" onchange="checkIndividual(this,'sel-all-sub-cb-cat7','updateDashboard')"> 인바디_워밍업중멈춤</label>
+                        <label><input type="checkbox" value="인바디_음성출력안됨" class="sub-cb-cat7" onchange="checkIndividual(this,'sel-all-sub-cb-cat7','updateDashboard')"> 인바디_음성출력안됨</label>
+                        <label><input type="checkbox" value="인바디_장비대기화면에서멈춤" class="sub-cb-cat7" onchange="checkIndividual(this,'sel-all-sub-cb-cat7','updateDashboard')"> 인바디_장비대기화면에서멈춤</label>
+                        <label><input type="checkbox" value="인바디_측정완료후 멈춤" class="sub-cb-cat7" onchange="checkIndividual(this,'sel-all-sub-cb-cat7','updateDashboard')"> 인바디_측정완료후 멈춤</label>
+                        <label><input type="checkbox" value="인바디_회원정보 입력안됨" class="sub-cb-cat7" onchange="checkIndividual(this,'sel-all-sub-cb-cat7','updateDashboard')"> 인바디_회원정보 입력안됨</label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CAT8 환경 노이즈 (신규) -->
+            <div id="btn-cat8" class="bg-white p-3 rounded-xl shadow border-2 border-yellow-400 symptom-card flex flex-col justify-between h-full" onclick="setSymptomFilter('cat8')">
+                <div>
+                    <h3 class="text-yellow-700 font-black text-[13px] truncate">8️⃣ 환경 노이즈</h3>
+                    <div class="text-2xl font-black text-yellow-600 mt-1"><span id="kpi-cat8-tot">0</span><span class="text-xs text-gray-500 font-normal"> 건</span></div>
+                    <p class="text-[10px] font-bold mt-1 text-yellow-800 bg-yellow-50 p-1 rounded inline-block">보완재: <span id="kpi-cat8-rate" class="text-orange-500">0%</span></p>
+                </div>
+                <div class="mt-3 ms-wrap" onclick="event.stopPropagation()">
+                    <div class="ms-btn" style="background:#fefce8;border-color:#fde047;color:#854d0e" onclick="toggleMs(this)"><span class="btn-label">📂 소분류 다중선택</span><span class="sel-badge">0</span><span class="arr">▼</span></div>
+                    <div class="ms-list" id="dropSubCat8">
+                        <label class="all-lbl"><input type="checkbox" class="sel-all-sub-cb-cat8" onchange="toggleAll(this,'sub-cb-cat8','updateDashboard')"> ☑️ 전체 선택 / 해제</label>
+                        <!-- 엑셀 로드 후 동적으로 추가됨 -->
+                    </div>
+                </div>
+            </div>
+
+        </div><!-- /카드 그리드 -->
+
+        <!-- 월별 추이 -->
+        <div class="bg-white p-6 rounded-xl shadow border border-gray-200">
+            <h3 id="titleTrend" class="font-black text-gray-800 text-lg mb-2">📈 월별 발생 추이</h3>
+            <div class="trend-container"><canvas id="chartTrend"></canvas></div>
+        </div>
+
+        <!-- 진짜 원인 -->
+        <div class="bg-white p-6 rounded-xl shadow border border-gray-200 border-t-4 border-t-blue-500 flex flex-col">
+            <h3 id="titleEnvHW" class="font-black text-gray-800 text-lg mb-4">⚖️ 1. 진짜 원인은 무엇인가? <span class="text-xs text-blue-600 font-bold">(현장 조치 기반 분석표)</span></h3>
+            <div class="flex flex-col lg:flex-row gap-6 h-[400px]">
+                <div class="w-full lg:w-1/3 relative h-full shrink-0 flex items-center justify-center"><canvas id="chartEnvHW"></canvas></div>
+                <div class="w-full lg:w-2/3 h-full overflow-visible border border-gray-200 rounded-lg flex flex-col relative z-20">
+                    <div class="overflow-y-auto overflow-x-visible flex-1 bg-white relative">
+                        <table class="w-full text-sm text-left text-gray-700">
+                            <thead class="text-gray-900 sticky-th bg-slate-100 shadow-sm border-b border-gray-300 z-30">
+                                <tr>
+                                    <th class="px-2 py-2 text-center w-[12%]">
+                                        <div class="ms-wrap"><div class="ms-btn sm-btn" onclick="toggleMs(this)"><span class="btn-label">결함상태</span><span class="sel-badge">0</span><span class="arr">▼</span></div><div class="ms-list" id="dropRStatus"></div></div>
+                                    </th>
+                                    <th class="px-2 py-2 w-[20%]">
+                                        <div class="ms-wrap"><div class="ms-btn sm-btn" onclick="toggleMs(this)"><span class="btn-label">장비명</span><span class="sel-badge">0</span><span class="arr">▼</span></div><div class="ms-list" id="dropREquip"></div></div>
+                                    </th>
+                                    <th class="px-2 py-2 w-[30%]">
+                                        <div class="ms-wrap"><div class="ms-btn sm-btn" onclick="toggleMs(this)"><span class="btn-label">상세 원인</span><span class="sel-badge">0</span><span class="arr">▼</span></div><div class="ms-list" id="dropRCause"></div></div>
+                                    </th>
+                                    <th class="px-2 py-2 text-center w-[13%]">
+                                        <div class="ms-wrap"><div class="ms-btn sm-btn" onclick="toggleMs(this)"><span class="btn-label">조치유형</span><span class="sel-badge">0</span><span class="arr">▼</span></div><div class="ms-list" id="dropRType"></div></div>
+                                    </th>
+                                    <th class="px-2 py-2 w-[15%]">
+                                        <div class="ms-wrap"><div class="ms-btn sm-btn" onclick="toggleMs(this)"><span class="btn-label">자재명</span><span class="sel-badge">0</span><span class="arr">▼</span></div><div class="ms-list" id="dropRPart"></div></div>
+                                    </th>
+                                    <th class="px-2 py-2 text-center w-[10%] text-xs font-bold">건수</th>
+                                </tr>
+                            </thead>
+                            <tbody id="reasonTableBody" class="divide-y divide-gray-100 z-10"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 장비별 / 자재 랭킹 -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+            <div class="bg-white p-6 rounded-xl shadow border border-gray-200 h-[750px] flex flex-col z-10">
+                <h3 id="titleEquip" class="font-black text-gray-800 text-lg mb-2">📊 2. 장비별 발생 현황 <span class="text-xs text-gray-500 font-normal">(클릭 시 필터링)</span></h3>
+                <div class="chart-container flex-1 overflow-y-auto pr-2"><div class="h-full w-full relative"><canvas id="chartEquip"></canvas></div></div>
+            </div>
+            <div class="bg-white p-6 rounded-xl shadow border border-gray-200 border-t-4 border-t-red-500 h-[750px] flex flex-col z-10">
+                <h3 id="titleParts" class="font-black text-gray-800 text-lg mb-4">🔧 3. 교체된 핵심 자재 랭킹 (Top 30) <span class="text-xs text-red-500 font-normal">(빨간색 = 진짜 고장)</span></h3>
+                <div id="partsListContainer" class="flex-1 overflow-y-auto pr-4 space-y-4"></div>
+            </div>
+        </div>
+
+    </div><!-- /dashboardWrapper -->
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════
+   인라인 아코디언: ms-btn 바로 다음 형제인 ms-list를 토글
+   DOM 위치 계산 전혀 없음 → 항상 버튼 바로 아래 표시
+   ═══════════════════════════════════════════════════ */
+function toggleMs(btn) {
+    const list = btn.nextElementSibling;
+    const opening = !list.classList.contains('ms-open');
+    document.querySelectorAll('.ms-list.ms-open').forEach(el => {
+        el.classList.remove('ms-open');
+        if (el.previousElementSibling) el.previousElementSibling.classList.remove('ms-open');
+    });
+    if (opening) { list.classList.add('ms-open'); btn.classList.add('ms-open'); }
+}
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('.ms-wrap')) {
+        document.querySelectorAll('.ms-list.ms-open').forEach(el => {
+            el.classList.remove('ms-open');
+            if (el.previousElementSibling) el.previousElementSibling.classList.remove('ms-open');
+        });
+    }
+});
+
+/* 배지 갱신: 선택 수를 버튼에 표시 */
+function refreshBadge(cbClass) {
+    const boxes = document.querySelectorAll('.' + cbClass);
+    if (!boxes.length) return;
+    const count = document.querySelectorAll('.' + cbClass + ':checked').length;
+    const list  = boxes[0].closest('.ms-list');
+    if (!list) return;
+    const btn   = list.previousElementSibling;
+    if (!btn)  return;
+    const badge = btn.querySelector('.sel-badge');
+    if (badge) badge.textContent = count;
+    count > 0 ? btn.classList.add('has-selection') : btn.classList.remove('has-selection');
+}
+
+/* ── 체크박스 유틸 ── */
+function renderMultiSelect(containerId, items, cbClass, cbName) {
+    const c = document.getElementById(containerId); if (!c) return;
+    c.innerHTML = '';
+    const al = document.createElement('label'); al.className='all-lbl';
+    al.innerHTML=`<input type="checkbox" class="sel-all-${cbClass}" onchange="toggleAll(this,'${cbClass}','${cbName}')"> ☑️ 전체 선택 / 해제`;
+    c.appendChild(al);
+    items.forEach(item=>{
+        const val=typeof item==='object'?item.val:item, txt=typeof item==='object'?item.txt:item;
+        const l=document.createElement('label');
+        l.innerHTML=`<input type="checkbox" value="${val}" class="${cbClass}" onchange="checkIndividual(this,'sel-all-${cbClass}','${cbName}')"> ${txt}`;
+        c.appendChild(l);
+    });
+}
+function toggleAll(allCb, cls, fn) {
+    document.querySelectorAll('.'+cls).forEach(cb=>cb.checked=allCb.checked);
+    refreshBadge(cls);
+    window[fn]();
+}
+function checkIndividual(cb, allCls, fn) {
+    const a=document.querySelector('.'+allCls);
+    if(a) a.checked=Array.from(document.querySelectorAll('.'+cb.className)).every(c=>c.checked);
+    refreshBadge(cb.className.trim().split(/\s+/)[0]);
+    window[fn]();
+}
+function getCheckedValues(cls) {
+    return Array.from(document.querySelectorAll('.'+cls+':checked')).map(cb=>cb.value);
+}
+
+/* ═══════════════════════════════════════════════════
+   데이터 / 차트 로직 (원본 동일)
+   ═══════════════════════════════════════════════════ */
+Chart.register(ChartDataLabels);
+Chart.defaults.set('plugins.datalabels',{color:'#4b5563',font:{weight:'normal',size:11}});
+
+const categoryMap={
+    cat1:['BWA_측정문제','인바디_측정문제'],
+    cat2:['인바디_체중문제','인바디_신장문제'],
+    cat3:['BWA_블루투스','BWA_인터넷','인바디_블루투스','인바디_인터넷','LB_통신'],
+    cat4:['BWA_LCD화면문제','BWA_버튼문제','인바디_LCD화면문제','인바디_버튼문제'],
+    cat5:['BWA_전원문제','BWA_외부기기','인바디_전원문제','인바디_외부기기','인바디_출력문제'],
+    cat6:['BWA_고객문의','BWA_고객클레임','BWA_소음및파손문제','인바디_고객문의','인바디_고객클레임','인바디_소음및파손문제'],
+    cat7:['BWA_장비동작 이상','인바디_장비동작 이상'],
+    cat8:['노이즈','정전기','환경노이즈']
+};
+const excludeCategories=['신장계_체중문제','혈압계_고객문의'];
+const dno2List=['BWA_InBody S10','IBD_InBody J30','IBD_InBody J50','IBD_InBody 270','IBD_InBody 270S','IBD_InBody 370S','IBD_InBody 470','IBD_InBody 570','IBD_InBody 620','IBD_InBody 770'];
+const dno3List=['BWA_BWA2.0','BWA_BWA2.0S','IBD_InBody 380','IBD_InBody 580','IBD_InBody 770S','IBD_InBody 970','IBD_InBody 970S'];
+const envColorMap={'🚨 실제 부품 교체 (HW 결함)':'#ef4444','⚠️ 보완재 장착 (매트/필터 등)':'#f97316','✅ 부품 미사용 (단순안내/환경설정)':'#10b981'};
+const ignoreParts=['점검비','출장비','공임','배송비','택배비','포장비','메인터넌스','maintenance','fee','방문','기술료'];
+const installParts=['노이즈필터','nf1500','재전매트','제전매트','보호필름','가이드'];
+
+let globalRawData=[],currentData=[],filteredData=[];
+let state={symptom:null,equipment:null};
+let charts={};
+window.currentReasonMap={};
+
+const getColValue=(row,cols)=>{
+    const keys=Object.keys(row);
+    for(const c of cols){const m=keys.find(k=>k.trim().replace(/\s/g,'')===c.replace(/\s/g,''));if(m&&row[m])return String(row[m]).trim();}
+    return '';
+};
+function parseDate(val){
+    if(!val)return{month:'미상',year:'미상'};
+    if(typeof val==='number'){const d=new Date((val-25569)*86400*1000);return{month:`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`,year:String(d.getFullYear())};}
+    const s=String(val);if(s.length>=6){const m=s.match(/(20\d{2})[-./]?(\d{1,2})/);if(m)return{month:`${m[1]}-${String(m[2]).padStart(2,'0')}`,year:m[1]};}
+    return{month:'미상',year:'미상'};
+}
+
+document.getElementById('excelFile').addEventListener('change',function(e){
+    const file=e.target.files[0];if(!file)return;
+    const reader=new FileReader();
+    reader.onload=evt=>{
+        try{const wb=XLSX.read(new Uint8Array(evt.target.result),{type:'array'});const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);if(!rows.length)return alert('데이터가 없습니다.');processData(rows);}
+        catch(err){alert('엑셀 처리 에러: '+err.message);}
+    };
+    reader.readAsArrayBuffer(file);e.target.value='';
+});
+
+function processData(rawRows){
+    const docsMap={};const uEq=new Set(),uYr=new Set(),uCat=new Set();
+    rawRows.forEach(row=>{
+        const mainCat=getColValue(row,['불량구분 대분류','불량구분대분류','대분류']);
+        if(!mainCat||excludeCategories.includes(mainCat))return;
+        const docNo=getColValue(row,['문서번호','접수번호'])||('_'+Math.random());
+        const equip=getColValue(row,['제품명','모델명'])||'미기재';
+        if(equip!=='미기재')uEq.add(equip);
+        uCat.add(mainCat);
+        const di=parseDate(getColValue(row,['접수일자','접수일','처리일자','등록일']));
+        if(di.year!=='미상')uYr.add(di.year);
+        const subCat=getColValue(row,['불량구분 소분류','불량구분소분류','소분류'])||'미분류';
+        if(!docsMap[docNo]){
+            const content=(getColValue(row,['접수내용'])+' '+getColValue(row,['처리내용'])).toLowerCase();
+            let metaCat='미분류_기타';
+            if(content.includes('노이즈')||content.includes('정전기')){metaCat='cat8';}
+            else{for(const[key,list]of Object.entries(categoryMap)){if(list.includes(mainCat)){metaCat=key;break;}}}
+            docsMap[docNo]={문서번호:docNo,제품명:equip,월별:di.month,연도:di.year,원본대분류:mainCat,소분류:subCat,메타카테고리:metaCat,풀텍스트:content,실제부품목록:[],isHW:false,isInstall:false};
+        }
+        const part=getColValue(row,['품목명','자재명','품명']);
+        if(part){const lp=part.toLowerCase();if(!ignoreParts.some(ig=>lp.includes(ig))){docsMap[docNo].실제부품목록.push(part);if(installParts.some(ins=>lp.includes(ins)))docsMap[docNo].isInstall=true;else docsMap[docNo].isHW=true;}}
+    });
+
+    renderMultiSelect('dropGlobalYear',Array.from(uYr).sort().reverse(),'g-year-cb','applyGlobalFilters');
+    renderMultiSelect('dropGlobalDNO',[{val:'DNO2',txt:'DNO2 장비 라인'},{val:'DNO3',txt:'DNO3 장비 라인'}],'g-dno-cb','applyGlobalFilters');
+    renderMultiSelect('dropGlobalProd',Array.from(uEq).sort(),'g-prod-cb','applyGlobalFilters');
+    renderMultiSelect('dropGlobalCat',Array.from(uCat).sort(),'g-cat-cb','applyGlobalFilters');
+
+    globalRawData=Object.values(docsMap).map(d=>{
+        const txt=d.풀텍스트;let cause='기타 사유 / 특이사항 없음',actionType='단순 점검';
+        if(d.isHW){
+            d.envVsHw='🚨 실제 부품 교체 (HW 결함)';actionType='자재 교체';
+            if(d.메타카테고리==='cat4'&&(txt.includes('패널')||txt.includes('액정')||txt.includes('터치')))cause='터치패널/액정 불량';
+            else if(d.메타카테고리==='cat2'&&(txt.includes('로드셀')||txt.includes('센서')))cause='로드셀 부품 고장';
+            else if(d.메타카테고리==='cat3'&&(txt.includes('모듈')||txt.includes('동글')||txt.includes('랜')))cause='통신 모듈 하드웨어 고장';
+            else if(txt.includes('보드')||txt.includes('pcb')||txt.includes('회로'))cause='메인보드 고장';
+            else if(txt.includes('단선')||txt.includes('케이블')||txt.includes('끊어'))cause='내부 케이블 불량';
+            else if(txt.includes('파손')||txt.includes('깨짐'))cause='외부 충격에 의한 물리적 파손';
+            else cause='해당 부품 노후화/불량으로 교체';
+        }else if(d.isInstall){
+            d.envVsHw='⚠️ 보완재 장착 (매트/필터 등)';actionType='보완재 설치';
+            if(txt.includes('정전기')||txt.includes('매트'))cause='현장 정전기로 인한 오작동/재측정';
+            else if(txt.includes('노이즈')||txt.includes('필터'))cause='전원 노이즈 간섭 발생';
+            else cause='환경적 요인 방어용 부자재 장착';
+        }else{
+            d.envVsHw='✅ 부품 미사용 (단순안내/환경설정)';
+            if(d.메타카테고리==='cat3'){
+                if(txt.includes('비번')||txt.includes('비밀번호')){cause='고객사 와이파이 비밀번호 변경/오류';actionType='단순 재설정';}
+                else if(txt.includes('방화벽')||txt.includes('보안')){cause='병원/기관 내 네트워크 방화벽 차단';actionType='고객사 인프라';}
+                else if(txt.includes('공유기')||txt.includes('라우터')){cause='고객사 공유기 불량';actionType='고객사 인프라';}
+                else if(txt.includes('이동')||txt.includes('자리')){cause='장비 위치 이동으로 인한 수신율 저하';actionType='환경/위치 안내';}
+                else{cause='일시적 통신 지연/재연결 후 정상';actionType='단순 재설정';}
+            }else if(d.메타카테고리==='cat2'||d.메타카테고리==='cat1'){
+                if(txt.includes('수평')||txt.includes('단단')||txt.includes('바닥')){cause='바닥 수평 이상';actionType='환경지도(수평)';}
+                else if(txt.includes('수분')||txt.includes('건조')||txt.includes('각질')||txt.includes('물티슈')){cause='측정자 손발 건조/각질로 인한 임피던스 이상';actionType='고객 사용지도';}
+                else if(txt.includes('영점')||txt.includes('캘리')){cause='단순 영점 틀어짐 현상';actionType='설정(영점보정)';}
+                else if(txt.includes('노이즈')){cause='환경 노이즈 간섭 발생';actionType='환경지도(노이즈)';}
+                else{cause='단순 측정 에러 / 점검 시 정상';actionType='단순 점검';}
+            }else if(d.메타카테고리==='cat4'){
+                if(txt.includes('이물질')||txt.includes('먼지')||txt.includes('청소')){cause='터치패널 틈새 이물질/먼지 끼임';actionType='단순 청소';}
+                else if(txt.includes('얼라이먼트')||txt.includes('보정')||txt.includes('좌표')){cause='터치 좌표 틀어짐';actionType='설정(터치보정)';}
+                else{cause='일시적 소프트웨어 멈춤 / 재부팅 정상';actionType='소프트웨어 리셋';}
+            }else{
+                if(txt.includes('콘센트')||txt.includes('빠짐')||txt.includes('어댑터')||txt.includes('잭')){cause='어댑터 잭 빠짐';actionType='단순 체결';}
+                else{cause='고객 단순 사용법 문의 및 현장 점검 완료';actionType='단순 안내';}
+            }
+        }
+        d.rootCause=cause;d.actionType=actionType;
+        d.displayPart=(d.isHW||d.isInstall)?d.실제부품목록.join(', '):'없음';
+        d.hwStatusRaw=d.isHW?'HW불량':(d.isInstall?'보완재':'단순안내');
+        return d;
+    });
+
+    // cat8 소분류는 엑셀에서 동적으로 추가 (기존 all-lbl 이후에 삽입)
+    const cat8Subs=new Set(globalRawData.filter(d=>d.메타카테고리==='cat8'&&d.소분류!=='미분류').map(d=>d.소분류));
+    const cat8Container=document.getElementById('dropSubCat8');
+    Array.from(cat8Subs).sort().forEach(sub=>{
+        const l=document.createElement('label');
+        l.innerHTML=`<input type="checkbox" value="${sub}" class="sub-cb-cat8" onchange="checkIndividual(this,'sel-all-sub-cb-cat8','updateDashboard')"> ${sub}`;
+        cat8Container.appendChild(l);
+    });
+
+    renderMultiSelect('dropRStatus',[{val:'HW불량',txt:'🚨 자재교체'},{val:'단순안내',txt:'✅ 단순방문'},{val:'보완재',txt:'⚠️ 보완재'}],'r-status-cb','renderReasonTable');
+    applyGlobalFilters();
+}
+
+function applyGlobalFilters(){
+    const fY=getCheckedValues('g-year-cb'),fD=getCheckedValues('g-dno-cb'),fP=getCheckedValues('g-prod-cb'),fC=getCheckedValues('g-cat-cb');
+    currentData=globalRawData.filter(d=>{
+        if(fY.length&&!fY.includes(d.연도))return false;
+        if(fD.length){let ok=false;if(fD.includes('DNO2')&&dno2List.some(x=>d.제품명.replace(/\s/g,'').includes(x.replace(/\s/g,''))))ok=true;if(fD.includes('DNO3')&&dno3List.some(x=>d.제품명.replace(/\s/g,'').includes(x.replace(/\s/g,''))))ok=true;if(!ok)return false;}
+        if(fP.length&&!fP.includes(d.제품명))return false;
+        if(fC.length&&!fC.includes(d.원본대분류))return false;
+        return true;
+    });
+    updateDashboard();
+}
+
+function resetAll(){
+    document.querySelectorAll('input[type="checkbox"]').forEach(cb=>cb.checked=false);
+    document.querySelectorAll('.ms-list.ms-open').forEach(el=>{el.classList.remove('ms-open');if(el.previousElementSibling)el.previousElementSibling.classList.remove('ms-open');});
+    // 모든 배지 초기화
+    document.querySelectorAll('.ms-btn .sel-badge').forEach(b=>b.textContent='0');
+    document.querySelectorAll('.ms-btn.has-selection').forEach(b=>b.classList.remove('has-selection'));
+    state.symptom=null;state.equipment=null;applyGlobalFilters();
+}
+function setSymptomFilter(cat){
+    if(state.symptom===cat){
+        state.symptom=null;
+        document.querySelectorAll(`.sub-cb-${cat},.sel-all-sub-cb-${cat}`).forEach(cb=>cb.checked=false);
+        refreshBadge(`sub-cb-${cat}`);
+    } else state.symptom=cat;
+    updateDashboard();
+}
+function setEquipmentFilter(eq){state.equipment=(state.equipment===eq)?null:eq;updateDashboard();}
+
+function updateDashboard(){
+    filteredData=currentData.filter(d=>{
+        if(state.symptom&&d.메타카테고리!==state.symptom)return false;
+        if(state.symptom){const fs=getCheckedValues(`sub-cb-${state.symptom}`);if(fs.length&&!fs.includes(d.소분류))return false;}
+        if(state.equipment&&d.제품명!==state.equipment)return false;
+        return true;
+    });
+    document.getElementById('totalDocCount').innerText=filteredData.length;
+
+    ['cat1','cat2','cat3','cat4','cat5','cat6','cat7','cat8'].forEach(c=>{
+        const btn=document.getElementById(`btn-${c}`);
+        if(btn){state.symptom===c?btn.classList.add('active-symptom'):btn.classList.remove('active-symptom');}
+        const arr=currentData.filter(d=>d.메타카테고리===c);
+        const tot=arr.length;
+        const totEl=document.getElementById(`kpi-${c}-tot`);if(totEl)totEl.innerText=tot;
+        const rateEl=document.getElementById(`kpi-${c}-rate`);
+        if(rateEl){const cnt=c==='cat8'?arr.filter(d=>d.isInstall).length:arr.filter(d=>d.isHW).length;rateEl.innerText=tot>0?Math.round(cnt/tot*100)+'%':'0%';}
+    });
+    renderCharts();
+}
+
+function destroyChart(id){if(charts[id]){charts[id].destroy();delete charts[id];}}
+
+function renderCharts(){
+    if(!filteredData.length){
+        document.getElementById('reasonTableBody').innerHTML='<tr><td colspan="6" class="text-center p-6 text-gray-400 font-bold">데이터 없음</td></tr>';
+        document.getElementById('partsListContainer').innerHTML='<div class="text-center text-gray-500 mt-10 font-bold">데이터 없음</div>';
+        ['Trend','Equip','EnvHW'].forEach(id=>destroyChart(id));return;
+    }
+    const trends={};filteredData.forEach(d=>{if(d.월별!=='미상')trends[d.월별]=(trends[d.월별]||0)+1;});
+    const trSort=Object.keys(trends).sort();
+    destroyChart('Trend');
+    charts['Trend']=new Chart(document.getElementById('chartTrend'),{type:'line',data:{labels:trSort,datasets:[{label:'발생 건수',data:trSort.map(k=>trends[k]),borderColor:'#2563eb',backgroundColor:'rgba(37,99,235,0.1)',borderWidth:3,fill:true,tension:0.3}]},options:{maintainAspectRatio:false,plugins:{datalabels:{align:'top',color:'#4b5563',font:{size:11}}}}});
+
+    const equips={};filteredData.forEach(d=>equips[d.제품명]=(equips[d.제품명]||0)+1);
+    const eqSort=Object.entries(equips).sort((a,b)=>b[1]-a[1]);
+    destroyChart('Equip');
+    charts['Equip']=new Chart(document.getElementById('chartEquip'),{type:'bar',data:{labels:eqSort.map(x=>x[0]),datasets:[{label:'건수',data:eqSort.map(x=>x[1]),backgroundColor:'#64748b',hoverBackgroundColor:'#3b82f6'}]},options:{maintainAspectRatio:false,indexAxis:'y',onClick:(e,els,ch)=>{if(els.length)setEquipmentFilter(ch.data.labels[els[0].index]);},plugins:{datalabels:{color:'#fff',font:{weight:'bold',size:14}}}}});
+
+    const envhw={};filteredData.forEach(d=>envhw[d.envVsHw]=(envhw[d.envVsHw]||0)+1);
+    const envL=Object.keys(envhw),envD=Object.values(envhw),envC=envL.map(l=>envColorMap[l]||'#9ca3af');
+    destroyChart('EnvHW');
+    charts['EnvHW']=new Chart(document.getElementById('chartEnvHW'),{type:'doughnut',data:{labels:envL,datasets:[{data:envD,backgroundColor:envC,hoverOffset:15,borderWidth:2}]},options:{maintainAspectRatio:false,layout:{padding:15},plugins:{legend:{display:true,position:'bottom',labels:{font:{size:12,weight:'bold'}}},datalabels:{color:'#fff',font:{weight:'bold',size:14},formatter:(v,ctx)=>{const s=ctx.dataset.data.reduce((a,b)=>a+b,0);return `${Math.round(v*100/s)}%\n(${v}건)`;},textAlign:'center'}}}});
+
+    const reasonMap={};const uEq2=new Set(),uCa=new Set(),uTy=new Set(),uPa=new Set();
+    filteredData.forEach(d=>{
+        const status=d.isHW?'HW불량':(d.isInstall?'보완재':'단순안내');
+        const key=`${status}||${d.제품명}||${d.rootCause}||${d.actionType}||${d.displayPart}`;
+        if(!reasonMap[key])reasonMap[key]={status,equip:d.제품명,cause:d.rootCause,type:d.actionType,part:d.displayPart,count:0};
+        reasonMap[key].count++;uEq2.add(d.제품명);uCa.add(d.rootCause);uTy.add(d.actionType);uPa.add(d.displayPart);
+    });
+    window.currentReasonMap=reasonMap;
+    renderMultiSelect('dropREquip',Array.from(uEq2).sort(),'r-equip-cb','renderReasonTable');
+    renderMultiSelect('dropRCause',Array.from(uCa).sort(),'r-cause-cb','renderReasonTable');
+    renderMultiSelect('dropRType',Array.from(uTy).sort(),'r-type-cb','renderReasonTable');
+    renderMultiSelect('dropRPart',Array.from(uPa).sort(),'r-part-cb','renderReasonTable');
+    renderReasonTable();
+
+    const parts={};filteredData.forEach(d=>d.실제부품목록.forEach(p=>parts[p]=(parts[p]||0)+1));
+    const pSort=Object.entries(parts).sort((a,b)=>b[1]-a[1]).slice(0,30);const maxV=pSort.length>0?pSort[0][1]:1;
+    document.getElementById('partsListContainer').innerHTML=pSort.length===0?'<div class="text-center text-gray-500 mt-10 font-bold">사용된 부품 내역이 없습니다.</div>':pSort.map((x,i)=>`<div class="group cursor-default"><div class="flex justify-between items-end mb-1"><span class="text-[13px] font-black text-gray-800 break-words w-4/5 leading-tight group-hover:text-red-600 transition">${i+1}. ${x[0]}</span><span class="text-[13px] font-black text-red-600 shrink-0">${x[1]}건</span></div><div class="w-full bg-gray-200 rounded-full h-2.5"><div class="bg-red-500 h-2.5 rounded-full shadow-inner transition-all duration-1000" style="width:${(x[1]/maxV)*100}%"></div></div></div>`).join('');
+}
+
+function renderReasonTable(){
+    const fS=getCheckedValues('r-status-cb'),fE=getCheckedValues('r-equip-cb'),fC=getCheckedValues('r-cause-cb'),fT=getCheckedValues('r-type-cb'),fP=getCheckedValues('r-part-cb');
+    let arr=Object.values(window.currentReasonMap||{});
+    if(fS.length)arr=arr.filter(r=>fS.includes(r.status));if(fE.length)arr=arr.filter(r=>fE.includes(r.equip));
+    if(fC.length)arr=arr.filter(r=>fC.includes(r.cause));if(fT.length)arr=arr.filter(r=>fT.includes(r.type));if(fP.length)arr=arr.filter(r=>fP.includes(r.part));
+    arr.sort((a,b)=>b.count-a.count);
+    document.getElementById('reasonTableBody').innerHTML=arr.length===0?'<tr><td colspan="6" class="text-center p-6 text-gray-400 font-bold">필터 조건에 맞는 데이터가 없습니다</td></tr>':arr.map((r,i)=>{
+        const badge=r.status==='HW불량'?'<span class="bg-red-50 text-red-600 border border-red-200 px-2 py-1 rounded text-[11px] font-black shadow-sm">자재교체</span>':r.status==='보완재'?'<span class="bg-orange-50 text-orange-600 border border-orange-200 px-2 py-1 rounded text-[11px] font-black shadow-sm">보완재설치</span>':'<span class="bg-green-50 text-green-700 border border-green-200 px-2 py-1 rounded text-[11px] font-black shadow-sm">단순방문</span>';
+        return `<tr class="hover:bg-blue-50 transition border-b ${i%2===0?'bg-white':'bg-gray-50'}"><td class="px-2 py-3 text-center whitespace-nowrap">${badge}</td><td class="px-3 py-3 font-bold text-[12px] text-gray-700 break-words">${r.equip}</td><td class="px-3 py-3 font-bold text-[13px] text-gray-800 break-words leading-relaxed">${r.cause}</td><td class="px-2 py-3 text-center text-[12px] text-gray-600 font-bold">${r.type}</td><td class="px-3 py-3 text-[12px] text-gray-600 font-bold truncate max-w-[150px]" title="${r.part}">${r.part}</td><td class="px-2 py-3 text-center text-[14px] font-black text-blue-700 bg-blue-50/50">${r.count}건</td></tr>`;
+    }).join('');
+}
+</script>
+</body>
+</html>
