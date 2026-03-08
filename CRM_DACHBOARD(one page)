@@ -1,0 +1,1485 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CRM Dashboard - Modern One-Page</title>
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* ─── 원페이지 고정 & 모던 SaaS 테마 설정 ─── */
+        :root {
+            --bg-body: #f1f5f9;
+            --bg-panel: #ffffff;
+            --border-panel: #e2e8f0;
+            --shadow-panel: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+            --radius-panel: 12px;
+            --text-main: #1e293b;
+            --text-sub: #64748b;
+        }
+
+        body { 
+            margin: 0; padding: 0; width: 100vw; height: 100vh; overflow: hidden; 
+            background-color: var(--bg-body); color: var(--text-main);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+
+        /* 내부 스크롤바 디자인 */
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background-color: #94a3b8; }
+
+        /* 패널 공통 스타일 */
+        .panel {
+            background-color: var(--bg-panel); border: 1px solid var(--border-panel);
+            box-shadow: var(--shadow-panel); border-radius: var(--radius-panel);
+            display: flex; flex-direction: column; overflow: hidden;
+        }
+        .panel-header {
+            font-size: 13px; font-weight: 800; padding: 10px 14px; 
+            border-bottom: 1px solid var(--border-panel); background: #f8fafc;
+            display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;
+        }
+        .panel-content { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 12px; position: relative; }
+
+        /* 증상 카드 */
+        .symptom-card { 
+            border: 1px solid var(--border-panel); border-radius: 8px; padding: 8px; 
+            cursor: pointer; transition: all 0.2s; background: #fff;
+            display: flex; flex-direction: column; justify-content: space-between;
+        }
+        .symptom-card:hover { border-color: #3b82f6; box-shadow: 0 2px 4px rgba(59,130,246,0.1); }
+        .active-symptom { border-color: #2563eb !important; background-color: #eff6ff !important; box-shadow: inset 0 0 0 1px #2563eb !important; }
+
+        /* 차트 컨테이너 필수 속성 */
+        .chart-container { position: relative; width: 100%; height: 100%; min-height: 0; }
+        canvas { display: block; width: 100% !important; height: 100% !important; }
+
+        /* ─── 다중 선택 드롭다운 (절대 배치) ─── */
+        .ms-wrap { position: relative; width: 100%; min-width: 140px; }
+        .ms-btn {
+            width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 4px;
+            background: #fff; border: 1px solid #cbd5e1; padding: 6px 10px; border-radius: 6px;
+            font-size: 12px; font-weight: 700; color: #334155; cursor: pointer; user-select: none;
+        }
+        .ms-btn:hover { background: #f8fafc; border-color: #94a3b8; }
+        .ms-btn.ms-open { border-radius: 6px 6px 0 0; border-color: #2563eb; color: #1d4ed8; }
+        .ms-btn.has-selection:not(.ms-open) { border-color: #3b82f6; background: #f0f7ff; color: #1e40af; }
+        .ms-btn .sel-badge { display: none; background: #2563eb; color: white; font-size: 10px; padding: 1px 5px; border-radius: 10px; }
+        .ms-btn.has-selection .sel-badge { display: inline-block; }
+        .ms-btn .btn-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
+        
+        .ms-list {
+            display: none; position: absolute; top: 100%; left: 0; width: max-content; min-width: 100%; max-width: 300px;
+            max-height: 250px; overflow-y: auto; background: white; z-index: 9999;
+            border: 1px solid #2563eb; border-top: none; border-radius: 0 0 6px 6px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+        }
+        .ms-list.ms-open { display: block; }
+        .ms-list label { display: flex; align-items: center; padding: 6px 10px; cursor: pointer; font-size: 11px; font-weight: 600; border-bottom: 1px solid #f1f5f9; }
+        .ms-list label:hover { background: #eff6ff; color: #1d4ed8; }
+        .ms-list label.all-lbl { background: #f0fdf4; color: #15803d !important; position: sticky; top: 0; z-index: 10; border-bottom: 2px solid #dcfce7; }
+        .ms-list input[type="checkbox"] { margin-right: 6px; }
+
+        /* ─── 탭 집계표 ─── */
+        .tab-nav-wrap { display: flex; overflow-x: auto; border-bottom: 2px solid #e2e8f0; flex-shrink: 0; }
+        .rn-tab-btn { padding: 8px 12px; font-size: 11px; font-weight: 800; color: #64748b; background: none; border: none; border-bottom: 3px solid transparent; cursor: pointer; white-space: nowrap; display: flex; align-items: center; gap: 4px; margin-bottom: -2px; }
+        .rn-tab-btn.active { color: #1d4ed8; border-bottom-color: #2563eb; }
+        .rn-tab-count { font-size: 10px; font-weight: 800; padding: 1px 5px; border-radius: 8px; }
+        .rn-tab-panel { display: none; height: 100%; overflow-y: auto; }
+        .rn-tab-panel.active { display: block; }
+        .agg-tbl { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 11px; }
+        .agg-tbl th { position: sticky; top: 0; background: #f8fafc; padding: 6px 8px; text-align: left; font-size: 10px; font-weight: 800; color: #64748b; border-bottom: 2px solid #e2e8f0; z-index: 5; }
+        .agg-tbl td { padding: 6px 8px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; transition: background-color 0.2s; }
+        .agg-cause-main { font-weight: 800; color: #1e293b; }
+        .agg-share-bar-wrap { height: 4px; border-radius: 2px; background: #f1f5f9; overflow: hidden; margin-top: 2px; }
+        .agg-share-bar-fill { height: 100%; border-radius: 2px; }
+        .part-tag-sm { display: inline-flex; align-items: center; font-size: 10px; background: #f1f5f9; padding: 1px 5px; border-radius: 4px; margin: 1px; font-weight: 600; }
+        
+        .action-type-btn { font-size: 10px; font-weight: 800; padding: 3px 8px; border-radius: 4px; border: 1px solid #bfdbfe; background: #eff6ff; color: #1d4ed8; cursor: pointer; transition: all .15s; white-space: nowrap; }
+        .action-type-btn:hover, .action-type-btn.active-btn { background: #2563eb; color: white; border-color: #2563eb; }
+
+        /* AI 패널 내부 스크롤 */
+        #actionDetailPanel { display: flex; flex-direction: column; overflow: hidden; }
+        #panelContent { overflow-y: auto; flex: 1; padding: 12px; }
+        .panel-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 8px; }
+        .panel-bar-label { font-size: 11px; font-weight: 700; color: #374151; margin-bottom: 2px; }
+        .panel-bar-track { height: 6px; background: #f1f5f9; border-radius: 3px; overflow: hidden; }
+        .panel-bar-fill  { height: 100%; border-radius: 3px; }
+        .panel-bar-meta  { display: flex; justify-content: space-between; margin-top: 2px; font-size: 10px; }
+    </style>
+</head>
+<body class="p-2 md:p-3 flex flex-col gap-3">
+
+    <header class="panel flex-row px-4 py-2 shrink-0 items-center justify-between overflow-visible z-50 h-14" style="border-radius: var(--radius-panel);">
+        <div class="flex items-center gap-6">
+            <h1 class="text-xl font-black tracking-tight text-blue-700">CRM Fact-Finder</h1>
+            <div class="flex items-center gap-2" style="width: 500px;">
+                <div class="ms-wrap"><div class="ms-btn" onclick="toggleMs(this)"><span class="btn-label">📅 연도 선택</span><span class="sel-badge">0</span><span class="arr">▼</span></div><div class="ms-list" id="dropGlobalYear"></div></div>
+                <div class="ms-wrap"><div class="ms-btn" onclick="toggleMs(this)"><span class="btn-label">🏭 라인업(DNO)</span><span class="sel-badge">0</span><span class="arr">▼</span></div><div class="ms-list" id="dropGlobalDNO"></div></div>
+                <div class="ms-wrap"><div class="ms-btn" onclick="toggleMs(this)"><span class="btn-label">📊 장비 제품</span><span class="sel-badge">0</span><span class="arr">▼</span></div><div class="ms-list" id="dropGlobalProd"></div></div>
+                <div class="ms-wrap"><div class="ms-btn" onclick="toggleMs(this)"><span class="btn-label">📋 대분류 증상</span><span class="sel-badge">0</span><span class="arr">▼</span></div><div class="ms-list" id="dropGlobalCat"></div></div>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-4">
+            <div id="drillBreadcrumb" class="hidden text-[11px] font-bold text-gray-500 bg-gray-100 px-3 py-1.5 rounded-md flex items-center gap-1"></div>
+            <div class="text-xs font-bold text-gray-500">필터링: <span id="totalDocCount" class="text-lg text-blue-600">0</span>건</div>
+            <button onclick="resetAll()" class="bg-red-50 text-red-600 border border-red-200 px-3 py-1.5 rounded-md text-xs font-black hover:bg-red-100">🔄 초기화</button>
+            <input type="file" id="excelFile" accept=".xlsx,.xls,.csv" class="hidden">
+            <button onclick="document.getElementById('excelFile').click()" class="bg-blue-600 text-white px-4 py-1.5 rounded-md text-xs font-black hover:bg-blue-700 shadow-sm">📁 데이터 로드</button>
+        </div>
+    </header>
+
+    <main class="flex-1 grid grid-cols-12 gap-3 min-h-0">
+
+        <div class="col-span-12 lg:col-span-3 flex flex-col gap-3 min-h-0">
+            <div class="panel h-[40%] shrink-0">
+                <div class="panel-header">🚨 불량 대분류 <span class="text-[10px] font-normal text-gray-400 ml-2">(클릭 필터)</span></div>
+                <div class="panel-content grid grid-cols-2 gap-2 p-2">
+                    <div id="btn-cat1" class="symptom-card" onclick="setSymptomFilter('cat1')">
+                        <div class="text-[11px] font-black text-gray-700 truncate">1️⃣ 측정 결함</div>
+                        <div class="flex items-end justify-between mt-1">
+                            <span class="text-lg font-black text-blue-600 leading-none"><span id="kpi-cat1-tot">0</span><span class="text-[10px] text-gray-400 ml-0.5">건</span></span>
+                            <span class="text-[9px] font-bold text-red-500 bg-red-50 px-1 rounded">HW <span id="kpi-cat1-rate">0%</span></span>
+                        </div>
+                    </div>
+                    <div id="btn-cat2" class="symptom-card" onclick="setSymptomFilter('cat2')">
+                        <div class="text-[11px] font-black text-gray-700 truncate">2️⃣ 체중/영점</div>
+                        <div class="flex items-end justify-between mt-1">
+                            <span class="text-lg font-black text-emerald-600 leading-none"><span id="kpi-cat2-tot">0</span><span class="text-[10px] text-gray-400 ml-0.5">건</span></span>
+                            <span class="text-[9px] font-bold text-red-500 bg-red-50 px-1 rounded">HW <span id="kpi-cat2-rate">0%</span></span>
+                        </div>
+                    </div>
+                    <div id="btn-cat3" class="symptom-card" onclick="setSymptomFilter('cat3')">
+                        <div class="text-[11px] font-black text-gray-700 truncate">3️⃣ 통신/네트워크</div>
+                        <div class="flex items-end justify-between mt-1">
+                            <span class="text-lg font-black text-purple-600 leading-none"><span id="kpi-cat3-tot">0</span><span class="text-[10px] text-gray-400 ml-0.5">건</span></span>
+                            <span class="text-[9px] font-bold text-red-500 bg-red-50 px-1 rounded">HW <span id="kpi-cat3-rate">0%</span></span>
+                        </div>
+                    </div>
+                    <div id="btn-cat4" class="symptom-card" onclick="setSymptomFilter('cat4')">
+                        <div class="text-[11px] font-black text-gray-700 truncate">4️⃣ 디스플레이</div>
+                        <div class="flex items-end justify-between mt-1">
+                            <span class="text-lg font-black text-orange-500 leading-none"><span id="kpi-cat4-tot">0</span><span class="text-[10px] text-gray-400 ml-0.5">건</span></span>
+                            <span class="text-[9px] font-bold text-red-500 bg-red-50 px-1 rounded">HW <span id="kpi-cat4-rate">0%</span></span>
+                        </div>
+                    </div>
+                    <div id="btn-cat5" class="symptom-card" onclick="setSymptomFilter('cat5')">
+                        <div class="text-[11px] font-black text-gray-700 truncate">5️⃣ 전원/외부기기</div>
+                        <div class="flex items-end justify-between mt-1">
+                            <span class="text-lg font-black text-cyan-600 leading-none"><span id="kpi-cat5-tot">0</span><span class="text-[10px] text-gray-400 ml-0.5">건</span></span>
+                            <span class="text-[9px] font-bold text-red-500 bg-red-50 px-1 rounded">HW <span id="kpi-cat5-rate">0%</span></span>
+                        </div>
+                    </div>
+                    <div id="btn-cat6" class="symptom-card" onclick="setSymptomFilter('cat6')">
+                        <div class="text-[11px] font-black text-gray-700 truncate">6️⃣ 고객문의</div>
+                        <div class="flex items-end justify-between mt-1">
+                            <span class="text-lg font-black text-slate-600 leading-none"><span id="kpi-cat6-tot">0</span><span class="text-[10px] text-gray-400 ml-0.5">건</span></span>
+                            <span class="text-[9px] font-bold text-red-500 bg-red-50 px-1 rounded">HW <span id="kpi-cat6-rate">0%</span></span>
+                        </div>
+                    </div>
+                    <div id="btn-cat7" class="symptom-card" onclick="setSymptomFilter('cat7')">
+                        <div class="text-[11px] font-black text-red-700 truncate">🚨 7️⃣ 장비동작이상</div>
+                        <div class="flex items-end justify-between mt-1">
+                            <span class="text-lg font-black text-red-600 leading-none"><span id="kpi-cat7-tot">0</span><span class="text-[10px] text-gray-400 ml-0.5">건</span></span>
+                            <span class="text-[9px] font-bold text-red-500 bg-red-50 px-1 rounded">HW <span id="kpi-cat7-rate">0%</span></span>
+                        </div>
+                    </div>
+                    <div id="btn-cat8" class="symptom-card" onclick="setSymptomFilter('cat8')">
+                        <div class="text-[11px] font-black text-yellow-700 truncate">8️⃣ 노이즈(환경)</div>
+                        <div class="flex items-end justify-between mt-1">
+                            <span class="text-lg font-black text-yellow-600 leading-none"><span id="kpi-cat8-tot">0</span><span class="text-[10px] text-gray-400 ml-0.5">건</span></span>
+                            <span class="text-[9px] font-bold text-orange-500 bg-orange-50 px-1 rounded">보완 <span id="kpi-cat8-rate">0%</span></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel flex-1 min-h-0">
+                <div class="panel-header">🔍 세부 분류 <span class="text-[10px] text-gray-400 font-normal ml-2">(대분류 선택시 표시)</span></div>
+                <div class="panel-content p-2 space-y-2">
+                    <div id="cat3-sub-panel" class="hidden">
+                        <div class="flex items-center justify-between mb-2 px-1">
+                            <span class="text-purple-700 font-black text-[12px]">📶 통신/네트워크</span>
+                            <span id="cat3-sub-total" class="text-[10px] font-black"></span>
+                        </div>
+                        <div id="cat3-sub-cards" class="grid grid-cols-2 gap-2 mb-2"></div>
+                        <div id="cat3-sub-table" class="hidden mt-2 border border-gray-200 rounded overflow-hidden">
+                            <table class="agg-tbl">
+                                <thead><tr><th>소분류</th><th style="text-align:right">건수</th><th>비중</th></tr></thead>
+                                <tbody id="cat3-sub-table-body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div id="cat-sub-panel-cat1" class="hidden"><div class="flex items-center justify-between mb-2 px-1"><span class="font-black text-[12px] text-blue-600">📏 측정 결함</span><span class="cat-sub-total text-[10px] font-black"></span></div><div class="cat-sub-cards grid grid-cols-2 gap-2 mb-2"></div><div class="cat-sub-table hidden mt-2 border border-gray-200 rounded overflow-hidden"><table class="agg-tbl"><thead><tr><th>소분류</th><th style="text-align:right">건수</th><th>비중</th></tr></thead><tbody class="cat-sub-table-body"></tbody></table></div></div>
+                    <div id="cat-sub-panel-cat2" class="hidden"><div class="flex items-center justify-between mb-2 px-1"><span class="font-black text-[12px] text-emerald-600">⚖️ 체중/영점 이상</span><span class="cat-sub-total text-[10px] font-black"></span></div><div class="cat-sub-cards grid grid-cols-2 gap-2 mb-2"></div><div class="cat-sub-table hidden mt-2 border border-gray-200 rounded overflow-hidden"><table class="agg-tbl"><thead><tr><th>소분류</th><th style="text-align:right">건수</th><th>비중</th></tr></thead><tbody class="cat-sub-table-body"></tbody></table></div></div>
+                    <div id="cat-sub-panel-cat4" class="hidden"><div class="flex items-center justify-between mb-2 px-1"><span class="font-black text-[12px] text-orange-500">🖥️ 디스플레이</span><span class="cat-sub-total text-[10px] font-black"></span></div><div class="cat-sub-cards grid grid-cols-2 gap-2 mb-2"></div><div class="cat-sub-table hidden mt-2 border border-gray-200 rounded overflow-hidden"><table class="agg-tbl"><thead><tr><th>소분류</th><th style="text-align:right">건수</th><th>비중</th></tr></thead><tbody class="cat-sub-table-body"></tbody></table></div></div>
+                    <div id="cat-sub-panel-cat5" class="hidden"><div class="flex items-center justify-between mb-2 px-1"><span class="font-black text-[12px] text-cyan-600">⚡ 전원/외부기기</span><span class="cat-sub-total text-[10px] font-black"></span></div><div class="cat-sub-cards grid grid-cols-2 gap-2 mb-2"></div><div class="cat-sub-table hidden mt-2 border border-gray-200 rounded overflow-hidden"><table class="agg-tbl"><thead><tr><th>소분류</th><th style="text-align:right">건수</th><th>비중</th></tr></thead><tbody class="cat-sub-table-body"></tbody></table></div></div>
+                    <div id="cat-sub-panel-cat6" class="hidden"><div class="flex items-center justify-between mb-2 px-1"><span class="font-black text-[12px] text-slate-500">👤 고객문의</span><span class="cat-sub-total text-[10px] font-black"></span></div><div class="cat-sub-cards grid grid-cols-2 gap-2 mb-2"></div><div class="cat-sub-table hidden mt-2 border border-gray-200 rounded overflow-hidden"><table class="agg-tbl"><thead><tr><th>소분류</th><th style="text-align:right">건수</th><th>비중</th></tr></thead><tbody class="cat-sub-table-body"></tbody></table></div></div>
+                    <div id="cat-sub-panel-cat7" class="hidden"><div class="flex items-center justify-between mb-2 px-1"><span class="font-black text-[12px] text-red-600">⚙️ 장비동작이상</span><span class="cat-sub-total text-[10px] font-black"></span></div><div class="cat-sub-cards grid grid-cols-2 gap-2 mb-2"></div><div class="cat-sub-table hidden mt-2 border border-gray-200 rounded overflow-hidden"><table class="agg-tbl"><thead><tr><th>소분류</th><th style="text-align:right">건수</th><th>비중</th></tr></thead><tbody class="cat-sub-table-body"></tbody></table></div></div>
+                    <div id="cat-sub-panel-cat8" class="hidden"><div class="flex items-center justify-between mb-2 px-1"><span class="font-black text-[12px] text-yellow-600">🌩️ 노이즈</span><span class="cat-sub-total text-[10px] font-black"></span></div><div class="cat-sub-cards grid grid-cols-2 gap-2 mb-2"></div><div class="cat-sub-table hidden mt-2 border border-gray-200 rounded overflow-hidden"><table class="agg-tbl"><thead><tr><th>소분류</th><th style="text-align:right">건수</th><th>비중</th></tr></thead><tbody class="cat-sub-table-body"></tbody></table></div></div>
+                    
+                    <div id="subcatGuide" class="h-full flex flex-col items-center justify-center text-gray-400 text-[11px] font-bold">
+                        <div>👆 위에서 대분류 카드를 클릭하세요</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-span-12 lg:col-span-6 flex flex-col gap-3 min-h-0">
+            <div class="panel h-[45%] shrink-0 flex flex-col">
+                <div class="panel-header" style="padding: 6px 14px;">
+                    <span id="titleTrend">📈 발생 추이</span>
+                    <div class="flex items-center gap-2">
+                        <div class="flex bg-gray-100 rounded border border-gray-200 overflow-hidden">
+                            <button class="trend-period-btn text-[10px] font-bold px-2 py-1 bg-white text-blue-600 shadow-sm" onclick="switchTrendPeriod('monthly')">월별</button>
+                            <button class="trend-period-btn text-[10px] font-bold px-2 py-1 text-gray-500" onclick="switchTrendPeriod('weekly')">주별</button>
+                            <button class="trend-period-btn text-[10px] font-bold px-2 py-1 text-gray-500" onclick="switchTrendPeriod('yearly')">연별</button>
+                        </div>
+                        <div class="flex bg-gray-100 rounded border border-gray-200 overflow-hidden">
+                            <button id="trend-tab-product" class="text-[10px] font-bold px-2 py-1 bg-white text-blue-600 shadow-sm" onclick="switchTrendTab('product')">제품별</button>
+                            <button id="trend-tab-cat" class="text-[10px] font-bold px-2 py-1 text-gray-500" onclick="switchTrendTab('cat')">불량구분</button>
+                            <button id="trend-tab-stacked" class="text-[10px] font-bold px-2 py-1 text-gray-500" onclick="switchTrendTab('stacked')">누적막대</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="panel-content flex flex-col p-2">
+                    <div id="trend-overlay-controls" class="flex flex-wrap gap-1 mb-1 items-center px-1">
+                        <label id="trend-total-toggle" style="display:flex;align-items:center;gap:3px;cursor:pointer;font-size:10px;font-weight:700;padding:2px 6px;border-radius:10px;border:1px solid #94a3b8;background:#f1f5f9;color:#475569;" onclick="toggleTrendTotal(this)">전체 막대</label>
+                        <div id="trend-checkboxes" class="flex flex-wrap gap-1"></div>
+                        <button onclick="clearTrendOverlay()" style="font-size:9px;font-weight:800;padding:2px 6px;border-radius:10px;border:1px solid #fca5a5;background:#fef2f2;color:#ef4444;cursor:pointer;" title="오버레이 전체해제">✕ 해제</button>
+                    </div>
+                    <div class="chart-container flex-1 mt-1"><canvas id="chartTrend"></canvas></div>
+                    <div id="trend-legend" class="flex flex-wrap gap-2 mt-1 px-1 justify-center"></div>
+                </div>
+            </div>
+
+            <div class="panel flex-1 min-h-0 flex flex-col relative bg-white">
+                <div class="panel-header">
+                    <span id="titleEnvHW">⚖️ 조치 기반 원인 분석</span>
+                    <div id="analysisContextBar" style="display:none; font-size:10px; align-items:center; gap:4px; font-weight:700; background:#f0fdf4; color:#15803d; padding:2px 8px; border-radius:10px; border:1px solid #bbf7d0;">
+                        <span id="contextProduct" style="display:none;"></span><span id="contextCatArrow" style="display:none;">›</span>
+                        <span id="contextCat" style="display:none;"></span><span id="contextSubArrow" style="display:none;">›</span>
+                        <span id="contextSub" style="display:none;"></span><span id="contextCount" class="ml-2 text-gray-500"></span>
+                    </div>
+                </div>
+                <div class="panel-content flex flex-col p-0 h-full">
+                    
+                    <div class="flex h-[55%] min-h-0 border-b border-gray-100">
+                        <div class="w-[210px] shrink-0 flex flex-col items-center justify-center p-2 relative">
+                            <div class="chart-container flex-1 w-full min-h-[120px]"><canvas id="chartEnvHW"></canvas></div>
+                            <div id="envHwLegend" class="flex flex-wrap justify-center gap-x-2 gap-y-1 mt-1 w-full"></div>
+                        </div>
+                        <div class="flex-1 flex flex-col min-w-0 border-l border-gray-100">
+                            <div class="tab-nav-wrap bg-gray-50" id="rnTabNav"></div>
+                            <div id="rnTabPanels" class="flex-1 overflow-y-auto"></div>
+                        </div>
+                    </div>
+
+                    <div id="actionDetailPanel" class="flex-1 min-h-0 flex flex-col bg-slate-50">
+                        <div class="px-3 py-1.5 flex items-center justify-between border-b border-blue-100 bg-blue-50 transition-colors duration-300" id="panelHeaderWrap">
+                            <div class="flex items-center gap-2">
+                                <span class="text-[12px] font-black text-blue-800" id="panelHeaderTitle">🔍 조치유형 AI 분석</span>
+                                <span id="panelModeBadge" class="hidden text-[10px] font-bold bg-blue-600 shadow-sm text-white px-2 py-0.5 rounded-full"></span>
+                            </div>
+                            <span id="panelCloseBtn" class="cursor-pointer text-blue-400 hover:text-blue-700 font-bold hidden" onclick="closePanelDetail()">✕ 닫기</span>
+                        </div>
+                        <div id="panelContent" class="flex-1 overflow-y-auto p-3">
+                            <div class="h-full flex flex-col items-center justify-center text-center text-gray-400 text-[11px] font-bold">
+                                👆 위 표에서 <span class="text-blue-600 bg-blue-50 px-1 rounded border border-blue-200">조치유형 버튼</span>을 클릭하시면<br>처리내용 텍스트 기반의 세부 패턴이 분석됩니다.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="display:none">
+                        <div id="dropRStatus"></div><div id="dropREquip"></div>
+                        <div id="dropRSubCat"></div><div id="dropRCause"></div>
+                        <div id="dropRType"></div><div id="dropRPart"></div>
+                        <table><tbody id="reasonTableBody"></tbody></table>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <div class="col-span-12 lg:col-span-3 flex flex-col gap-3 min-h-0">
+            <div class="panel h-[45%] shrink-0 flex flex-col">
+                <div class="panel-header"><span id="titleEquip">📊 장비별 발생 (클릭 필터)</span></div>
+                <div class="panel-content"><div class="chart-container"><canvas id="chartEquip"></canvas></div></div>
+            </div>
+            <div class="panel flex-1 min-h-0 flex flex-col border-t-2 border-t-red-400">
+                <div class="panel-header"><span id="titleParts">🔧 핵심 교체 자재 (Top 30)</span></div>
+                <div class="panel-content overflow-y-auto pr-1">
+                    <div id="partsListContainer" class="space-y-3"></div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        const originalSetSymptomFilter = window.setSymptomFilter;
+        document.addEventListener('click', () => {
+            const guide = document.getElementById('subcatGuide');
+            if (guide) guide.style.display = window.state && window.state.symptom ? 'none' : 'flex';
+        });
+
+function toggleMs(btn) {
+    const list = btn.nextElementSibling;
+    const opening = !list.classList.contains('ms-open');
+    document.querySelectorAll('.ms-list.ms-open').forEach(el => {
+        el.classList.remove('ms-open');
+        if (el.previousElementSibling) el.previousElementSibling.classList.remove('ms-open');
+    });
+    if (opening) { list.classList.add('ms-open'); btn.classList.add('ms-open'); }
+}
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('.ms-wrap')) {
+        document.querySelectorAll('.ms-list.ms-open').forEach(el => {
+            el.classList.remove('ms-open');
+            if (el.previousElementSibling) el.previousElementSibling.classList.remove('ms-open');
+        });
+    }
+});
+
+const _defaultBtnLabels = { 'g-year-cb': '📅 연도 선택', 'g-dno-cb': '🏭 라인업(DNO)', 'g-prod-cb': '📊 장비 제품', 'g-cat-cb': '📋 대분류 증상' };
+const _compactCbClasses = new Set(['g-prod-cb','g-cat-cb']);
+
+function refreshBadge(cbClass) {
+    const boxes = document.querySelectorAll('.' + cbClass);
+    if (!boxes.length) return;
+    const checkedBoxes = Array.from(document.querySelectorAll('.' + cbClass + ':checked'));
+    const count = checkedBoxes.length;
+    const list  = boxes[0].closest('.ms-list');
+    if (!list) return;
+    const btn   = list.previousElementSibling;
+    if (!btn)  return;
+    const badge = btn.querySelector('.sel-badge');
+    const labelEl = btn.querySelector('.btn-label');
+
+    if (badge) badge.textContent = count;
+    count > 0 ? btn.classList.add('has-selection') : btn.classList.remove('has-selection');
+
+    if (labelEl) {
+        if (count === 0) { labelEl.textContent = _defaultBtnLabels[cbClass] || '선택'; } 
+        else if (_compactCbClasses.has(cbClass)) {
+            const first = checkedBoxes[0].value;
+            labelEl.textContent = count === 1 ? first : `${first} 외 ${count - 1}개`;
+        } else {
+            const vals = checkedBoxes.map(cb => { const lbl = cb.closest('label'); return lbl ? lbl.textContent.trim() : cb.value; });
+            labelEl.textContent = vals.join(', ');
+        }
+    }
+}
+
+function renderMultiSelect(containerId, items, cbClass, cbName) {
+    const c = document.getElementById(containerId); if (!c) return;
+    c.innerHTML = '';
+    const al = document.createElement('label'); al.className='all-lbl';
+    al.innerHTML=`<input type="checkbox" class="sel-all-${cbClass}" onchange="toggleAll(this,'${cbClass}','${cbName}')"> ☑️ 전체 선택 / 해제`;
+    c.appendChild(al);
+    items.forEach(item=>{
+        const val=typeof item==='object'?item.val:item, txt=typeof item==='object'?item.txt:item;
+        const l=document.createElement('label');
+        l.innerHTML=`<input type="checkbox" value="${val}" class="${cbClass}" onchange="checkIndividual(this,'sel-all-${cbClass}','${cbName}')"> ${txt}`;
+        c.appendChild(l);
+    });
+}
+function toggleAll(allCb, cls, fn) { document.querySelectorAll('.'+cls).forEach(cb=>cb.checked=allCb.checked); refreshBadge(cls); window[fn](); }
+function checkIndividual(cb, allCls, fn) {
+    const a=document.querySelector('.'+allCls);
+    if(a) a.checked=Array.from(document.querySelectorAll('.'+cb.className)).every(c=>c.checked);
+    refreshBadge(cb.className.trim().split(/\s+/)[0]);
+    window[fn]();
+}
+function getCheckedValues(cls) { return Array.from(document.querySelectorAll('.'+cls+':checked')).map(cb=>cb.value); }
+
+Chart.register(ChartDataLabels);
+Chart.defaults.set('plugins.datalabels',{color:'#4b5563',font:{weight:'normal',size:10}});
+
+const categoryMap={ cat1:['BWA_측정문제','인바디_측정문제'], cat2:['인바디_체중문제','인바디_신장문제'], cat3:['BWA_블루투스','BWA_인터넷','인바디_블루투스','인바디_인터넷','LB_통신'], cat4:['BWA_LCD화면문제','BWA_버튼문제','인바디_LCD화면문제','인바디_버튼문제'], cat5:['BWA_전원문제','BWA_외부기기','인바디_전원문제','인바디_외부기기','인바디_출력문제'], cat6:['BWA_고객문의','BWA_고객클레임','BWA_소음및파손문제','인바디_고객문의','인바디_고객클레임','인바디_소음및파손문제'], cat7:['BWA_장비동작 이상','인바디_장비동작 이상'], cat8:['노이즈','정전기','환경노이즈'] };
+const catMeta = { cat1:{label:'📏 측정문제',bg:'#ede9fe',color:'#5b21b6'}, cat2:{label:'⚖️ 체중/신장문제',bg:'#fef9c3',color:'#854d0e'}, cat3:{label:'📶 통신문제',bg:'#e0f2fe',color:'#0369a1'}, cat4:{label:'🖥️ LCD/버튼문제',bg:'#fce7f3',color:'#9d174d'}, cat5:{label:'⚡ 전원/외부기기',bg:'#ffedd5',color:'#c2410c'}, cat6:{label:'👤 고객문의/클레임',bg:'#f1f5f9',color:'#475569'}, cat7:{label:'⚙️ 장비동작이상',bg:'#dcfce7',color:'#166534'}, cat8:{label:'🌩️ 노이즈',bg:'#fef3c7',color:'#92400e'}, '미분류_기타':{label:'❓ 미분류',bg:'#f3f4f6',color:'#9ca3af'} };
+const subCatToCat = { '인바디_측정 시작안됨':'cat1','인바디_재측정메시지발생':'cat1', '인바디_측정중에러발생':'cat1','인바디_측정완료후 멈춤':'cat1', '인바디_측정 결과값 이상':'cat1','인바디_측정 값 이상':'cat1', '인바디_워밍업중멈춤':'cat1', 'BWA_측정 시작안됨':'cat1','BWA_측정 결과값 이상':'cat1', 'BWA_재측정메시지발생':'cat1','BWA_측정중에러발생':'cat1', '인바디_발판물체제거메시지':'cat1','신장계_발판물체제거메시지':'cat1', '인바디_체중값이상':'cat2','인바디_체중측정안됨':'cat2', '인바디_체중값고정안됨':'cat2','인바디_신장 측정 안됨':'cat2', '인바디_신장 작게 측정':'cat2','인바디_신장 크게 측정':'cat2', '인바디_Head Bar위치비정상':'cat2','인바디_Head Bar흔들림':'cat2', '신장계_체중문제':'cat2', '인바디_WIFI 연결 끊어짐':'cat3','인바디_WIFI 설정 안됨':'cat3', '인바디_LAN 설정 안됨':'cat3','인바디_LB 블루투스 연동안됨':'cat3', '인바디_LB통신안됨':'cat3','인바디_인바디통신안됨':'cat3', '인바디_신장계통신안됨':'cat3','인바디_혈압계통신안됨':'cat3', '인바디_혈압계 블루투스 연동안됨':'cat3','인바디_프린터통신안됨':'cat5', '인바디_앱으로 결과전송 안됨':'cat3','인바디_LBWEB 로그인 안됨':'cat3', '인바디_InBody DB':'cat7', 'BWA_LB 블루투스 연동안됨':'cat3','BWA_LB통신안됨':'cat3', 'BWA_인바디통신안됨':'cat3','BWA_LAN 설정 안됨':'cat3', 'LB_InBody통신불량':'cat3', '인바디_LCD화면터치 인식안됨':'cat4','인바디_LCD화면 출력이상':'cat4', '인바디_LCD켜지나동작안됨':'cat4','인바디_LCD깜빡거림':'cat4', '인바디_LCD밝기불량':'cat4','인바디_LCD화면줄감':'cat4', '인바디_버튼안눌림':'cat4','인바디_회원정보 입력안됨':'cat4', 'BWA_LCD화면터치 인식안됨':'cat4','BWA_LCD화면 출력이상':'cat4', 'BWA_LCD화면줄감':'cat4','BWA_버튼안눌림':'cat4', '인바디_장비안켜짐':'cat5','인바디_부팅안됨':'cat5', '인바디_장비동작중전원꺼짐':'cat5','인바디_베터리불량':'cat5', '인바디_외부장치 인식안됨':'cat5','인바디_결과지 출력안됨':'cat5', '인바디_프린터출력상태불량':'cat5','인바디_프린터인쇄위치불량':'cat5', '인바디_프린터출력매수불량':'cat5','인바디_음성출력안됨':'cat5', '인바디_써멀프린터':'cat5', 'BWA_장비안켜짐':'cat5','BWA_부팅안됨':'cat5', 'BWA_장비동작중전원꺼짐':'cat5','BWA_배터리불량':'cat5', 'BWA_외부장치 인식안됨':'cat5', '인바디_고객문의':'cat6','인바디_고객클레임':'cat6', '인바디_고객지원부연락메시지':'cat7','인바디_고객문서요청':'cat6', '인바디_방문관련':'cat6','인바디_사용방법':'cat6', '인바디_구매문의':'cat6','인바디_(수리)비용문의':'cat6', '인바디_보상판매':'cat6','인바디_프로그램호환문의':'cat6', '인바디_프린터호환리스트':'cat6','인바디_결과지특수문자':'cat6', '인바디_장비 외 품목구매':'cat6', '혈압계_고객문의':'cat6', 'BWA_고객문의':'cat6','BWA_고객클레임':'cat6', 'BWA_고객지원부연락메시지':'cat7','BWA_방문관련':'cat6', 'BWA_사용방법':'cat6','BWA_(수리)비용문의':'cat6', 'BWA_장비 외 품목구매':'cat6','BWA_프로그램호환문의':'cat6', '인바디_장비동작 이상':'cat7','인바디_장비점검':'cat7', '인바디_장비대기화면에서멈춤':'cat7','인바디_장비동작중재부팅':'cat7', '인바디_장비소음발생':'cat7','인바디_기구파손':'cat7', '인바디_전자부파손':'cat7','인바디_소음및파손문제':'cat7', '인바디_NCT고장':'cat7','인바디_신장계_기구걸림':'cat7', '인바디_동일증상발생':'cat7', 'BWA_장비동작 이상':'cat7','BWA_장비점검':'cat7', 'BWA_장비동작중전원꺼짐':'cat7','BWA_기구파손':'cat7', 'BWA_전자부파손':'cat7','BWA_소음및파손문제':'cat7', 'BWA_동일증상발생':'cat7', '인바디_장비Upgrade':'cat6','BWA_장비Upgrade':'cat6', '인바디_Setup, QC 문제':'cat7','BWA_Setup, QC 문제':'cat7', '인바디_Setup문의':'cat6','BWA_Setup문의':'cat6', '인바디_정도관리':'cat6','BWA_정도관리':'cat6', '인바디_로고변경':'cat6','BWA_로고변경':'cat6', '인바디_스크래치':'cat7', '인바디_검사필증':'cat6','BWA_검사필증':'cat6', '인바디_기타':'cat7','BWA_기타':'cat7', '혈압계_검교정':'cat6', };
+const excludeCategories=['혈압계_고객문의']; const excludeSubCategories=['인바디_구매문의','BWA_구매문의'];
+const dno2List=['BWA_InBody S10','IBD_InBody J30','IBD_InBody J50','IBD_InBody 270','IBD_InBody 270S','IBD_InBody 370S','IBD_InBody 470','IBD_InBody 570','IBD_InBody 620','IBD_InBody 770'];
+const dno3List=['BWA_BWA2.0','BWA_BWA2.0S','IBD_InBody 380','IBD_InBody 580','IBD_InBody 770S','IBD_InBody 970','IBD_InBody 970S'];
+const envColorMap={'🚨 실제 부품 교체 (HW 결함)':'#ef4444','⚠️ 보완재 장착 (매트/필터 등)':'#f97316','✅ 부품 미사용 (단순안내/환경설정)':'#10b981'};
+const ignoreParts=['점검비','출장비','공임','배송비','택배비','포장비','메인터넌스','maintenance','fee','방문','기술료','maintenance fee(local)','delivery fee','spare parts','add maintenance','consumable','result sheet','logo change','firmware upgrade','customize','customize fee'];
+const installParts=['노이즈필터','nf1500','재전매트','제전매트','보호필름','가이드','nameplate nf'];
+
+const partsMasterRules = [
+    { label:'로드셀 / 체중센서', cause:'로드셀(체중센서) 불량', cat:'cat2', re:/load.?cell|loadcell|로드셀|transducer.*load|[Aa]ss.?y.*[Ll]oad.?[Cc]ell/i },
+    { label:'통신모듈 (WiFi/BT)', cause:'WiFi/BT 통신모듈 교체', cat:'cat3', re:/inbt[0-9]+|wifi.?module|module.?wifi|bluetooth.*dongle|dongle(?!.*barcode)|cf-811|cf-wu|cf-8188|archer.?t2u|module_wifi|module_sd(?!.*sd)/i },
+    { label:'메인보드 (DNO)', cause:'메인보드(DNO 계열) 불량', cat:'cat7', re:/board\s+dno|board.*dno[0-9]/i },
+    { label:'측정 보드 (Analog/ANO)', cause:'메인 측정보드(Analog/ANO) 불량', cat:'cat1', re:/board\s+(analog|ano[0-9])/i },
+    { label:'로드셀 보드', cause:'로드셀 보드 불량 (체중 관련)', cat:'cat2', re:/board\s+load.?cell|board\s+lno3[0-9].*970|pcb.*load/i },
+    { label:'사지 측정 보드', cause:'사지 전극 측정보드 불량', cat:'cat1', re:/board\s+(electrode\s+(hand|foot)|hand\s+electrode|foot\s+electrode)/i },
+    { label:'인터페이스 보드 (IF/INO)', cause:'인터페이스 보드(IF/INO) 불량', cat:'cat7', re:/board\s+(if\s|ino[0-9]|if\s+inbody|if\s+terminal|if\s+120|if\s+s10)/i },
+    { label:'키패드 보드', cause:'키패드/버튼 보드 불량', cat:'cat4', re:/board\s+(key\s|keypad|kno[0-9])/i },
+    { label:'화면 보드 (LNO)', cause:'LCD/화면 관련 보드(LNO) 불량', cat:'cat4', re:/board\s+lno[0-9]/i },
+    { label:'손 전극 보드', cause:'손 전극 보드 불량', cat:'cat1', re:/board\s+hand\s/i },
+    { label:'발 전극 보드', cause:'발 전극 보드 불량', cat:'cat1', re:/board\s+foot\s/i },
+    { label:'기타 보드', cause:'기타 보드 불량', cat:'cat7', re:/board\s+(candle|motor|sensor|power|headbar|noise|coin|analog.*770|analog.*bwa)/i },
+    { label:'기타 기판 (PCB)', cause:'기타 기판(Board/PCB) 불량', cat:'cat7', re:/^board\s|^pcb[\s,]/i },
+    { label:'손 전극케이블', cause:'손 전극케이블 단선/불량', cat:'cat1', re:/cable.*(hand|la\s|ra\s|la_|ra_)|cable_electrode_hand|cable.*hand.*electrode|hand.*cable.*(red|black|l\s|r\s)/i },
+    { label:'발 전극케이블', cause:'발 전극케이블 단선/불량', cat:'cat1', re:/cable.*(foot|ll\s|rl\s|ll_|rl_|ll\s+blue|rl\s+yellow)|cable_electrode_foot|cable.*foot.*electrode|cable_foot/i },
+    { label:'전원/스위치 케이블', cause:'전원/스위치 케이블 불량', cat:'cat5', re:/cable.*(power|switch.*power|switch\s+power|power.*switch)|cable_power/i },
+    { label:'LCD / 터치스크린', cause:'LCD/터치스크린 불량', cat:'cat4', re:/lcd|touch\s*(screen|panel)|panel\+touch|lcd.*touch|touch.*lcd|\[assy\].*lcd/i },
+    { label:'전원 어댑터', cause:'전원 어댑터 불량', cat:'cat5', re:/adapter|power.*adapter|power_adapter/i },
+    { label:'스피커', cause:'스피커 불량', cat:null, re:/speaker/i },
+    { label:'스위치 / 버튼', cause:'스위치/버튼 불량', cat:'cat4', re:/switch(?!.*cable)|^w_switch|pushpsb|push.*tact/i },
+    { label:'배터리', cause:'배터리 불량', cat:'cat5', re:/battery(?!.*coin)|cr2032|pcb.*battery|board.*battery|g_ib.*battery/i },
+    { label:'헤드바 (신장계)', cause:'신장계 헤드바 불량', cat:'cat2', re:/head.?bar|\[assy\].*head.?bar|board.*headbar|cable.*touch.*head/i },
+    { label:'프린터 모듈', cause:'프린터 모듈 불량', cat:'cat5', re:/printer.*module|module.*smp|smp610/i },
+    { label:'기타 케이블', cause:'기타 케이블 불량', cat:null, re:/cable/i },
+    { label:'전극 부품', cause:'전극 부품 불량', cat:null, re:/electrode(?!.*cable|.*board)|p_electrode|m_electrode/i },
+    { label:'기타 부품', cause:null, cat:null, re:/.*/i },
+];
+
+function classifyPart(partName) {
+    const p = partName.trim();
+    for (const rule of partsMasterRules) { if (rule.re.test(p)) return { label: rule.label, cause: rule.cause || `${rule.label} 불량 (${p})`, cat: rule.cat }; }
+    return { label:'기타', cause:`기타 부품 불량 (${p})`, cat:null };
+}
+
+const partPriority = ['로드셀 / 체중센서','통신모듈 (WiFi/BT)','LCD / 터치스크린','메인보드 (DNO)','측정 보드 (Analog/ANO)','로드셀 보드','사지 측정 보드','인터페이스 보드 (IF/INO)','키패드 보드','화면 보드 (LNO)','손 전극 보드','발 전극 보드','기타 보드','기타 기판 (PCB)','손 전극케이블','발 전극케이블','전원/스위치 케이블','전원 어댑터','스피커','스위치 / 버튼','배터리','헤드바 (신장계)','프린터 모듈','기타 케이블','전극 부품','기타 부품'];
+function classifyPartsAll(partsList) {
+    if (!partsList || !partsList.length) return null;
+    const results = partsList.map(p => classifyPart(p));
+    let best = results[0];
+    for (const r of results) { if (partPriority.indexOf(r.label) < partPriority.indexOf(best.label)) best = r; }
+    return best;
+}
+
+let globalRawData=[],currentData=[],filteredData=[];
+let state={symptom:null,equipment:null,drillSubs:new Map()}; 
+let charts={};
+window.currentReasonMap={};
+
+const getColValue=(row,cols)=>{ const keys=Object.keys(row); for(const c of cols){const m=keys.find(k=>k.trim().replace(/\s/g,'')===c.replace(/\s/g,''));if(m&&row[m])return String(row[m]).trim();} return ''; };
+function parseDate(val){
+    if(!val)return{month:'미상',year:'미상'};
+    if(typeof val==='number'){const d=new Date((val-25569)*86400*1000);return{month:`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`,year:String(d.getFullYear())};}
+    const s=String(val);if(s.length>=6){const m=s.match(/(20\d{2})[-./]?(\d{1,2})/);if(m)return{month:`${m[1]}-${String(m[2]).padStart(2,'0')}`,year:m[1]};}
+    return{month:'미상',year:'미상'};
+}
+
+document.getElementById('excelFile').addEventListener('click',function(){this.value='';});
+document.getElementById('excelFile').addEventListener('change',function(e){
+    const file=e.target.files[0];if(!file)return;
+    const reader=new FileReader();
+    reader.onload=evt=>{
+        try{const wb=XLSX.read(new Uint8Array(evt.target.result),{type:'array'});const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);if(!rows.length)return alert('데이터가 없습니다.');processData(rows);}
+        catch(err){alert('엑셀 처리 에러: '+err.message);}
+    };
+    reader.readAsArrayBuffer(file);
+});
+
+function processData(rawRows){
+    const docsMap={};const uEq=new Set(),uYr=new Set(),uCat=new Set();
+    rawRows.forEach(row=>{
+        const mainCat=getColValue(row,['불량구분 대분류','불량구분대분류','대분류']);
+        if(!mainCat||excludeCategories.includes(mainCat))return;
+        const subCatRaw=getColValue(row,['불량구분 소분류','불량구분소분류','소분류'])||'미분류';
+        if(excludeSubCategories.includes(subCatRaw))return;
+        const docNo=getColValue(row,['문서번호','접수번호'])||('_'+Math.random());
+        const equip=getColValue(row,['제품명','모델명'])||'미기재';
+        if(equip!=='미기재')uEq.add(equip);
+        uCat.add(mainCat);
+        const di=parseDate(getColValue(row,['접수일자','접수일','처리일자','등록일']));
+        const 접수일raw=getColValue(row,['접수일자','접수일','처리일자','등록일']);
+        if(di.year!=='미상')uYr.add(di.year);
+        const subCat=subCatRaw; 
+        if(!docsMap[docNo]){
+            const content=(getColValue(row,['접수내용'])+' '+getColValue(row,['처리내용'])).toLowerCase();
+            let metaCat = subCatToCat[subCat] || null;
+            if(!metaCat){
+                const noiseActionPat=/노이즈필터\s*(설치|연결|장착)|nf1500.{0,10}(설치|연결)|장비\s*이동\s*(진행|완료|함|후|하여|했)|장비이동\s*(진행|완료|함|후|하여|했)|이동\s*후\s*(설치|모니터링|테스트|정상)/;
+                if(noiseActionPat.test(content)){metaCat='cat8';}
+                else{for(const[key,list]of Object.entries(categoryMap)){if(list.includes(mainCat)){metaCat=key;break;}}}
+            }
+            metaCat = metaCat || '미분류_기타';
+            docsMap[docNo]={문서번호:docNo,제품명:equip,월별:di.month,연도:di.year,
+                _접수일raw:접수일raw,
+                원본대분류:mainCat,소분류:subCat,메타카테고리:metaCat,
+                풀텍스트:content,실제부품목록:[],
+                isHW:false,isInstall:false,isMonitoring:false};
+        } else {
+            const existing = docsMap[docNo];
+            const newCat = subCatToCat[subCat];
+            if(newCat && existing.메타카테고리==='미분류_기타') existing.메타카테고리=newCat;
+        }
+        const part=getColValue(row,['품목명','자재명','품명']);
+        if(part){const lp=part.toLowerCase();if(!ignoreParts.some(ig=>lp.includes(ig))){docsMap[docNo].실제부품목록.push(part);if(installParts.some(ins=>lp.includes(ins)))docsMap[docNo].isInstall=true;else docsMap[docNo].isHW=true;}}
+    });
+
+    renderMultiSelect('dropGlobalYear',Array.from(uYr).sort().reverse(),'g-year-cb','applyGlobalFilters');
+    renderMultiSelect('dropGlobalDNO',[{val:'DNO2',txt:'DNO2 장비 라인'},{val:'DNO3',txt:'DNO3 장비 라인'}],'g-dno-cb','applyGlobalFilters');
+    renderMultiSelect('dropGlobalProd',Array.from(uEq).sort(),'g-prod-cb','applyGlobalFilters');
+    renderMultiSelect('dropGlobalCat',Array.from(uCat).sort(),'g-cat-cb','applyGlobalFilters');
+
+    globalRawData=Object.values(docsMap).map(d=>{
+        const txt=d.풀텍스트; const sub=d.소분류||''; const mc=d.메타카테고리;
+        let cause='기타 / 특이사항 없음', actionType='단순 점검';
+        d.isMonitoring = txt.includes('모니터링') && !d.isHW && !d.isInstall;
+
+        if(d.isHW){
+            d.envVsHw='🚨 실제 부품 교체 (HW 결함)'; actionType='자재 교체';
+            const partsJoined = d.실제부품목록.join(' ').toLowerCase();
+            const isNoiseFilter = /nf1500|노이즈필터|noise.?filter/.test(partsJoined);
+            if(isNoiseFilter){
+                d.메타카테고리 = 'cat8'; d.cat8SubType = 'static';
+                cause = '전원 노이즈 → 노이즈필터 설치'; actionType = '보완재 설치';
+                d.isHW = false; d.isInstall = true; d.envVsHw = '⚠️ 보완재 장착 (매트/필터 등)';
+            } else {
+                const partsLower = d.실제부품목록.map(p => p.toLowerCase());
+                const isUpgrade = partsLower.some(p => /inbt[123]00/.test(p)) && partsLower.some(p => /inbt[45]00/.test(p));
+                if(isUpgrade){ cause='통신모듈 교체 (WiFi/BT 모듈)'; actionType='자재 교체'; d.메타카테고리 = 'cat3'; }
+                else {
+                    const classified = classifyPartsAll(d.실제부품목록);
+                    if(classified){ cause = classified.cause; if(classified.cat) d.메타카테고리 = classified.cat; }
+                    else { cause = '부품 불량 (' + d.실제부품목록.slice(0,2).join(', ') + ')'; }
+                }
+            }
+        }else if(d.isInstall){
+            d.envVsHw='⚠️ 보완재 장착 (매트/필터 등)'; actionType='보완재 설치';
+            const partsJoinedI = d.실제부품목록.join(' ').toLowerCase();
+            if(/nf1500|노이즈필터|noise.?filter/.test(partsJoinedI)){
+                d.메타카테고리 = 'cat8'; d.cat8SubType = 'static'; cause='전원 노이즈 → 노이즈필터 설치';
+            } else if(txt.includes('정전기')||txt.includes('매트')||txt.includes('제전')) {
+                d.메타카테고리 = 'cat8'; d.cat8SubType = 'static'; cause='현장 정전기 → 제전매트 설치';
+            } else { cause='환경적 요인 방어 → 보완재 장착'; }
+        }else{
+            d.envVsHw='✅ 부품 미사용 (단순안내/환경설정)';
+            const noiseActionPat2=/노이즈필터\s*(설치|연결|장착)|nf1500.{0,10}(설치|연결)|장비\s*이동\s*(진행|완료|함|후|하여|했)|장비이동\s*(진행|완료|함|후|하여|했)|이동\s*후\s*(설치|모니터링|테스트|정상)/;
+            if(noiseActionPat2.test(txt)){
+                d.메타카테고리 = 'cat8'; d.cat8SubType = 'env'; d.envVsHw = '⚠️ 보완재 장착 (매트/필터 등)';
+                cause = '외부 노이즈 환경 → 장비이동/환경개선'; actionType = '환경지도(노이즈)';
+            } else {
+                if(d.isMonitoring){ cause='모니터링 방문 (원격/현장 점검)'; actionType='단순 점검'; }
+                else if(mc==='cat3'){
+                    if(sub.includes('블루투스')||sub.includes('bluetooth')||sub.includes('LB 블루투스')){
+                        if(txt.includes('inbt')||txt.includes('모듈')) { cause='BT 모듈 교체 필요'; actionType='자재 교체'; }
+                        else if(txt.includes('페어링')||txt.includes('pairing')) { cause='블루투스 페어링 재설정'; actionType='단순 재설정'; }
+                        else if(txt.includes('삭제')||txt.includes('재설치')) { cause='프로그램 삭제 후 재설치'; actionType='소프트웨어 리셋'; }
+                        else if(txt.includes('앱')) { cause='앱 재설치 후 정상'; actionType='소프트웨어 리셋'; }
+                        else { cause='블루투스 연동 오류 → 재설정 후 정상'; actionType='단순 재설정'; }
+                    }
+                    else if(sub.includes('WIFI')||sub.includes('인터넷')||sub.includes('LAN')){
+                        if(txt.includes('방화벽')||txt.includes('보안')||txt.includes('차단')) { cause='고객사 방화벽/보안 정책 차단'; actionType='고객사 인프라'; }
+                        else if(txt.includes('공유기')||txt.includes('라우터')||txt.includes('iptime')) { cause='고객사 공유기 불량/설정 오류'; actionType='고객사 인프라'; }
+                        else if(txt.includes('비번')||txt.includes('비밀번호')) { cause='WiFi 비밀번호 변경으로 재입력'; actionType='단순 재설정'; }
+                        else if(txt.includes('이동')||txt.includes('자리')||txt.includes('신호')||txt.includes('수신')) { cause='장비 위치 이동 → 신호 개선'; actionType='환경/위치 안내'; }
+                        else if(txt.includes('클라우드')||txt.includes('cloud')||txt.includes('lbcloud')) { cause='클라우드 연동/설정 오류'; actionType='클라우드'; }
+                        else if(txt.includes('lan')||txt.includes('랜선')||txt.includes('유선')) { cause='LAN 케이블/포트 재체결'; actionType='단순 재설정'; }
+                        else if(txt.includes('펌웨어')||txt.includes('업그레이드')||txt.includes('업데이트')) { cause='펌웨어 업그레이드 후 정상'; actionType='펌웨어 업그레이드'; }
+                        else if(txt.includes('핫스팟')||txt.includes('hotspot')) { cause='개인핫스팟으로 임시 연결'; actionType='환경/위치 안내'; }
+                        else { cause='일시적 네트워크 오류 → 재연결 후 정상'; actionType='단순 재설정'; }
+                    }
+                    else if(sub.includes('lbweb')||sub.includes('LBWEB')||sub.includes('로그인')){
+                        if(txt.includes('클라우드')||txt.includes('cloud')) { cause='클라우드 계정/연동 오류'; actionType='클라우드'; }
+                        else if(txt.includes('비번')||txt.includes('비밀번호')||txt.includes('계정')) { cause='계정/비밀번호 오류 → 재설정'; actionType='단순 재설정'; }
+                        else { cause='LBWeb 접속 오류 → 재로그인'; actionType='단순 재설정'; }
+                    }
+                    else if(sub.includes('LB통신')||sub.includes('LB 블루투스')||sub.includes('인바디통신')||sub.includes('통신안됨')||sub.includes('통신불량')){
+                        if(txt.includes('inbt')||txt.includes('모듈')) { cause='통신 모듈(InBT) 교체'; actionType='자재 교체'; }
+                        else if(txt.includes('케이블')||txt.includes('단선')||txt.includes('포트')) { cause='통신 케이블/포트 불량'; actionType='자재 교체'; }
+                        else if(txt.includes('거리')||txt.includes('멀')) { cause='장비-PC 거리 초과 → 위치 조정'; actionType='환경/위치 안내'; }
+                        else if(txt.includes('삭제')||txt.includes('재설치')) { cause='프로그램 삭제 후 재설치'; actionType='소프트웨어 리셋'; }
+                        else if(txt.includes('핫스팟')||txt.includes('공유기')) { cause='네트워크 환경 변경으로 재연결'; actionType='단순 재설정'; }
+                        else if(txt.includes('펌웨어')||txt.includes('업그레이드')) { cause='펌웨어 업그레이드 후 정상'; actionType='펌웨어 업그레이드'; }
+                        else if(txt.includes('하드락')||txt.includes('hardlock')||txt.includes('dongle')) { cause='하드락/동글 인식 오류'; actionType='자재 교체'; }
+                        else { cause='통신 오류 → 재연결 후 정상'; actionType='단순 재설정'; }
+                    }
+                    else if(sub.includes('앱으로 결과전송')){
+                        if(txt.includes('클라우드')||txt.includes('lbcloud')) { cause='클라우드 전송 설정 오류'; actionType='클라우드'; }
+                        else { cause='결과 전송 앱 설정 오류 → 재설정'; actionType='단순 재설정'; }
+                    }
+                    else {
+                        if(txt.includes('펌웨어')||txt.includes('업그레이드')) { cause='펌웨어 업그레이드'; actionType='펌웨어 업그레이드'; }
+                        else if(txt.includes('삭제')||txt.includes('재설치')) { cause='프로그램 삭제 후 재설치'; actionType='소프트웨어 리셋'; }
+                        else { cause='통신 오류 → 설정 확인 후 정상'; actionType='단순 재설정'; }
+                    }
+                }
+                else if(mc==='cat1'){
+                    if(sub.includes('재측정메시지')||sub.includes('발판물체')){
+                        if(txt.includes('수평')||txt.includes('바닥')) { cause='바닥 수평 불량 → 수평 조정'; actionType='환경지도(수평)'; }
+                        else if(txt.includes('정전기')||txt.includes('노이즈')) { cause='정전기/노이즈로 재측정 메시지 발생'; actionType='환경지도(노이즈)'; }
+                        else { cause='발판 이물질 또는 환경 원인 → 안내 후 정상'; actionType='고객 사용지도'; }
+                    }
+                    else if(sub.includes('측정 시작안됨')||sub.includes('워밍업')){
+                        if(txt.includes('전원')||txt.includes('콘센트')) { cause='전원 공급 불안정'; actionType='단순 체결'; }
+                        else if(txt.includes('펌웨어')||txt.includes('업그레이드')) { cause='펌웨어 업그레이드 후 정상'; actionType='펌웨어 업그레이드'; }
+                        else { cause='일시적 시작 오류 → 재부팅 후 정상'; actionType='소프트웨어 리셋'; }
+                    }
+                    else if(sub.includes('측정 결과값')||sub.includes('측정 값 이상')||sub.includes('재측정')){
+                        if(txt.includes('수분')||txt.includes('건조')||txt.includes('각질')) { cause='측정자 피부 상태 이상 (건조/각질)'; actionType='고객 사용지도'; }
+                        else if(txt.includes('수평')||txt.includes('바닥')) { cause='바닥 수평 이상 → 수평 조정'; actionType='환경지도(수평)'; }
+                        else if(txt.includes('영점')||txt.includes('캘리')) { cause='영점 틀어짐 → 영점 보정'; actionType='설정(영점보정)'; }
+                        else { cause='측정값 이상 → 점검 후 정상'; actionType='단순 점검'; }
+                    }
+                    else if(sub.includes('Upgrade')||sub.includes('Setup')||sub.includes('정도관리')){ cause='펌웨어/프로그램 업그레이드 또는 QC 점검'; actionType='펌웨어 업그레이드'; }
+                    else if(txt.includes('펌웨어')||txt.includes('업그레이드')) { cause='펌웨어 업그레이드 후 정상'; actionType='펌웨어 업그레이드'; }
+                    else { cause='측정 오류 → 현장 점검 후 정상'; actionType='단순 점검'; }
+                }
+                else if(mc==='cat2'){
+                    if(sub.includes('체중값이상')||sub.includes('체중측정안됨')||sub.includes('체중값고정안됨')){
+                        if(txt.includes('카페트')||txt.includes('매트')) { cause='카페트/매트 위 설치 → 수평 불안정'; actionType='환경지도(수평)'; }
+                        else if(txt.includes('수평')||txt.includes('바닥')) { cause='바닥 수평 이상으로 체중값 오류'; actionType='환경지도(수평)'; }
+                        else if(txt.includes('분동')) { cause='분동 테스트 → 체중 보정 완료'; actionType='설정(영점보정)'; }
+                        else if(txt.includes('영점')||txt.includes('캘리')) { cause='체중 영점 틀어짐 → 영점 보정'; actionType='설정(영점보정)'; }
+                        else if(txt.includes('로드셀')||txt.includes('센서')) { cause='로드셀 센서 점검 필요'; actionType='단순 점검'; }
+                        else if(txt.includes('재부팅')||txt.includes('재시작')) { cause='일시적 오류 → 재부팅 후 정상'; actionType='소프트웨어 리셋'; }
+                        else if(txt.includes('펌웨어')||txt.includes('업그레이드')) { cause='펌웨어 업그레이드 후 정상'; actionType='펌웨어 업그레이드'; }
+                        else { cause='체중 측정값 이상 → 점검 후 정상'; actionType='단순 점검'; }
+                    }
+                    else if(sub.includes('신장')){
+                        if(txt.includes('헤드바')||txt.includes('head bar')||txt.includes('신장봉')||txt.includes('스탠드')||txt.includes('가이드')) { cause='신장 헤드바/스탠드 위치 이상 → 재조립'; actionType='설정(신장보정)'; }
+                        else if(txt.includes('펌웨어')||txt.includes('업그레이드')) { cause='펌웨어 업그레이드 후 정상'; actionType='펌웨어 업그레이드'; }
+                        else if(txt.includes('재부팅')||txt.includes('재시작')) { cause='일시적 오류 → 재부팅 후 정상'; actionType='소프트웨어 리셋'; }
+                        else { cause='신장 측정 오류 → 점검 후 정상'; actionType='단순 점검'; }
+                    }
+                    else if(sub.includes('Head Bar')){
+                        if(txt.includes('나사')||txt.includes('고정')) { cause='헤드바 나사/고정 불량 → 조임 완료'; actionType='설정(신장보정)'; }
+                        else { cause='헤드바 위치/고정 불량 → 조정'; actionType='설정(신장보정)'; }
+                    }
+                    else if(txt.includes('수분')||txt.includes('건조')||txt.includes('각질')) { cause='측정자 피부 상태 이상'; actionType='고객 사용지도'; }
+                    else if(txt.includes('분동')) { cause='분동 테스트 → 체중 보정 완료'; actionType='설정(영점보정)'; }
+                    else if(txt.includes('수평')||txt.includes('바닥')) { cause='바닥 수평 이상'; actionType='환경지도(수평)'; }
+                    else { cause='체중/신장 측정 이상 → 점검 후 정상'; actionType='단순 점검'; }
+                }
+                else if(mc==='cat4'){
+                    if(sub.includes('LCD화면터치')||sub.includes('터치 인식')){
+                        if(txt.includes('이물질')||txt.includes('먼지')||txt.includes('청소')) { cause='터치패널 이물질/먼지 → 청소 후 정상'; actionType='단순 청소'; }
+                        else if(txt.includes('얼라이먼트')||txt.includes('터치영점')||txt.includes('터치 영점')||txt.includes('보정')||txt.includes('좌표')) { cause='터치 좌표 틀어짐 → 영점/보정'; actionType='설정(터치보정)'; }
+                        else if(txt.includes('터치스크린 모드')||txt.includes('강제 터치')) { cause='강제 터치영점 작업으로 정상화'; actionType='설정(터치보정)'; }
+                        else if(txt.includes('재조립')||txt.includes('조립')) { cause='LCD/터치 재조립 후 정상'; actionType='단순 점검'; }
+                        else if(txt.includes('펌웨어')||txt.includes('업그레이드')) { cause='펌웨어 업그레이드 후 정상'; actionType='펌웨어 업그레이드'; }
+                        else if(txt.includes('재부팅')||txt.includes('재시작')) { cause='일시적 오류 → 재부팅 후 정상'; actionType='소프트웨어 리셋'; }
+                        else { cause='터치 인식 오류 → 점검 후 정상'; actionType='단순 점검'; }
+                    }
+                    else if(sub.includes('LCD화면 출력')||sub.includes('LCD켜지나')||sub.includes('LCD깜빡')||sub.includes('LCD밝기')||sub.includes('LCD화면줄')){
+                        if(txt.includes('펌웨어')||txt.includes('업그레이드')) { cause='펌웨어 업그레이드로 화면 오류 해결'; actionType='펌웨어 업그레이드'; }
+                        else if(txt.includes('재조립')||txt.includes('케이블')) { cause='LCD 케이블/재조립 후 정상'; actionType='단순 점검'; }
+                        else if(txt.includes('재부팅')||txt.includes('재시작')) { cause='일시적 화면 오류 → 재부팅 후 정상'; actionType='소프트웨어 리셋'; }
+                        else { cause='LCD 화면 출력 이상 → 점검 후 정상'; actionType='단순 점검'; }
+                    }
+                    else if(sub.includes('버튼안눌림')){
+                        if(txt.includes('이물질')||txt.includes('청소')||txt.includes('세척')) { cause='버튼 이물질 → 청소 후 정상'; actionType='단순 청소'; }
+                        else if(txt.includes('재조립')||txt.includes('조립')||txt.includes('분해')) { cause='키패드 재조립 후 정상'; actionType='단순 점검'; }
+                        else if(txt.includes('껴')||txt.includes('끼')) { cause='버튼 물리적 끼임 → 제거 후 정상'; actionType='단순 점검'; }
+                        else if(txt.includes('펌웨어')||txt.includes('업그레이드')) { cause='펌웨어 업그레이드 후 정상'; actionType='펌웨어 업그레이드'; }
+                        else { cause='버튼 인식 오류 → 점검 후 정상'; actionType='단순 점검'; }
+                    }
+                    else if(sub.includes('회원정보')){
+                        if(txt.includes('설정')||txt.includes('초기화')) { cause='회원정보 입력 설정 오류 → 재설정'; actionType='단순 재설정'; }
+                        else { cause='회원정보 입력 오류 → 점검 후 정상'; actionType='단순 점검'; }
+                    }
+                    else { cause='화면/버튼 오류 → 점검 후 정상'; actionType='단순 점검'; }
+                }
+                else if(mc==='cat5'){
+                    if(sub.includes('결과지')||sub.includes('프린터')||sub.includes('출력')||sub.includes('써멀')){
+                        if(txt.includes('토너')||txt.includes('용지')||txt.includes('잉크')||txt.includes('롤')) { cause='프린터 소모품 (토너/용지) 교체'; actionType='소모품 교체'; }
+                        else if(txt.includes('케이블')||txt.includes('연결선')||txt.includes('없음')) { cause='프린터 연결 케이블 미연결/불량'; actionType='단순 체결'; }
+                        else if(txt.includes('설정')||txt.includes('드라이버')) { cause='프린터 설정/드라이버 오류'; actionType='단순 재설정'; }
+                        else if(txt.includes('a/s')||txt.includes('as접수')||txt.includes('불량 확인')) { cause='프린터 자체 불량 → A/S 접수'; actionType='단순 점검'; }
+                        else if(txt.includes('온오프')||txt.includes('재부팅')||txt.includes('재시작')) { cause='프린터 재부팅 후 정상'; actionType='소프트웨어 리셋'; }
+                        else { cause='출력 오류 → 설정 확인 후 정상'; actionType='단순 안내'; }
+                    }
+                    else if(sub.includes('베터리')||sub.includes('배터리')){
+                        if(txt.includes('cr2032')||txt.includes('코인')||txt.includes('소모')) { cause='코인 배터리(CR2032) 소모 → 교체'; actionType='소모품 교체'; }
+                        else if(txt.includes('충전')||txt.includes('방전')) { cause='배터리 방전 → 충전/교체'; actionType='소모품 교체'; }
+                        else { cause='배터리 불량 → 교체'; actionType='소모품 교체'; }
+                    }
+                    else if(sub.includes('장비안켜짐')||sub.includes('부팅안됨')){
+                        if(txt.includes('콘센트')||txt.includes('빠짐')||txt.includes('잭')) { cause='전원 케이블/잭 빠짐 → 재체결'; actionType='단순 체결'; }
+                        else if(txt.includes('어댑터')) { cause='전원 어댑터 불량 → 교체'; actionType='자재 교체'; }
+                        else if(txt.includes('스위치')||txt.includes('switch')) { cause='전원 스위치 불량 → 교체'; actionType='자재 교체'; }
+                        else if(txt.includes('차단기')||txt.includes('정전')) { cause='외부 전원 공급 차단 (차단기/정전)'; actionType='환경/위치 안내'; }
+                        else if(txt.includes('펌웨어')||txt.includes('업그레이드')) { cause='펌웨어 업그레이드 후 정상'; actionType='펌웨어 업그레이드'; }
+                        else if(txt.includes('수거')||txt.includes('회수')) { cause='장비 수거 후 수리 진행'; actionType='단순 점검'; }
+                        else { cause='전원 불량 → 점검 후 정상'; actionType='단순 점검'; }
+                    }
+                    else if(sub.includes('전원꺼짐')){
+                        if(txt.includes('어댑터')||txt.includes('케이블')) { cause='전원 케이블/어댑터 불량'; actionType='자재 교체'; }
+                        else if(txt.includes('펌웨어')||txt.includes('업그레이드')) { cause='펌웨어 업그레이드 후 정상'; actionType='펌웨어 업그레이드'; }
+                        else { cause='동작 중 전원 꺼짐 → 점검 후 정상'; actionType='단순 점검'; }
+                    }
+                    else if(sub.includes('음성출력')){
+                        if(txt.includes('설정')||txt.includes('볼륨')||txt.includes('음량')) { cause='음성 출력 설정 오류 → 재설정'; actionType='단순 재설정'; }
+                        else { cause='음성 출력 오류 → 점검 후 정상'; actionType='단순 점검'; }
+                    }
+                    else if(sub.includes('외부장치')){
+                        if(txt.includes('usb')||txt.includes('포트')) { cause='USB 포트 인식 오류 → 재연결'; actionType='단순 재설정'; }
+                        else if(txt.includes('블루투스')||txt.includes('페어링')) { cause='외부 장치 블루투스 페어링 오류'; actionType='단순 재설정'; }
+                        else { cause='외부 장치 인식 오류 → 재연결/점검'; actionType='단순 재설정'; }
+                    }
+                    else {
+                        if(txt.includes('콘센트')||txt.includes('어댑터')) { cause='전원 어댑터/잭 재체결'; actionType='단순 체결'; }
+                        else if(txt.includes('전압')||txt.includes('voltage')) { cause='전압 불안정 → 점검'; actionType='단순 점검'; }
+                        else { cause='전원/외부기기 오류 → 점검 후 정상'; actionType='단순 점검'; }
+                    }
+                }
+                else if(mc==='cat7'){
+                    if(sub.includes('고객지원부연락메시지')){
+                        if(txt.includes('펌웨어')||txt.includes('업그레이드')) { cause='장비 이상 감지 팝업 → 펌웨어 업그레이드'; actionType='펌웨어 업그레이드'; }
+                        else if(txt.includes('재현안됨')||txt.includes('재현 안됨')) { cause='장비 이상 감지 팝업 → 현장 재현 안됨'; actionType='단순 점검'; }
+                        else if(txt.includes('모니터링')) { cause='장비 이상 감지 팝업 → 모니터링 진행'; actionType='단순 점검'; }
+                        else { cause='장비 이상 감지 팝업 → 점검 후 정상'; actionType='단순 점검'; }
+                    }
+                    else if(sub.includes('소음')||sub.includes('파손')||sub.includes('스크래치')){ cause='외관 손상 또는 소음 발생 → 현장 확인'; actionType='단순 점검'; }
+                    else if(sub.includes('재부팅')||sub.includes('전원꺼짐')){
+                        if(txt.includes('펌웨어')||txt.includes('업그레이드')) { cause='펌웨어 이슈로 재부팅 → 업그레이드'; actionType='펌웨어 업그레이드'; }
+                        else { cause='장비 동작 중 재부팅/전원 꺼짐 → 점검'; actionType='단순 점검'; }
+                    }
+                    else if(sub.includes('대기화면')||sub.includes('멈춤')){
+                        if(txt.includes('펌웨어')||txt.includes('업그레이드')) { cause='대기화면 멈춤 → 펌웨어 업그레이드'; actionType='펌웨어 업그레이드'; }
+                        else if(txt.includes('재부팅')||txt.includes('재시작')) { cause='대기화면 멈춤 → 재부팅 후 정상'; actionType='소프트웨어 리셋'; }
+                        else { cause='대기화면 멈춤 → 점검 후 정상'; actionType='단순 점검'; }
+                    }
+                    else if(txt.includes('펌웨어')||txt.includes('업그레이드')) { cause='펌웨어 업그레이드 후 정상'; actionType='펌웨어 업그레이드'; }
+                    else if(txt.includes('재현안됨')||txt.includes('정상')||txt.includes('이상없')) { cause='현장 방문 시 현상 재현 안됨'; actionType='단순 점검'; }
+                    else { cause='장비 동작 이상 → 현장 점검 후 정상'; actionType='단순 점검'; }
+                }
+                else if(mc==='cat6'){
+                    if(sub.includes('로고')) { cause='로고 변경 작업 완료'; actionType='로고 변경'; }
+                    else if(sub.includes('Upgrade')||sub.includes('업그레이드')) {
+                        if(txt.includes('펌웨어')) { cause='펌웨어 업그레이드 완료'; actionType='펌웨어 업그레이드'; }
+                        else { cause='장비 업그레이드 완료'; actionType='펌웨어 업그레이드'; }
+                    }
+                    else if(sub.includes('정도관리')) { cause='정기 유지보수 점검 완료'; actionType='단순 점검'; }
+                    else if(sub.includes('세척')||txt.includes('세척')) { cause='장비 세척 완료'; actionType='세척'; }
+                    else if(sub.includes('사용방법')||sub.includes('교육')) { cause='사용법 교육/안내 완료'; actionType='단순 안내'; }
+                    else if(sub.includes('구매')||sub.includes('비용')||sub.includes('호환')||sub.includes('문의')) { cause='고객 문의 → 안내 완료'; actionType='단순 안내'; }
+                    else if(sub.includes('클레임')) { cause='고객 클레임 접수 → 현장 처리'; actionType='단순 점검'; }
+                    else if(sub.includes('보상판매')) { cause='보상판매/장비 교환 진행'; actionType='단순 안내'; }
+                    else if(sub.includes('검사필증')||sub.includes('검교정')) { cause='검사필증/검교정 발급 안내'; actionType='단순 안내'; }
+                    else if(sub.includes('Setup')||sub.includes('setup')) { cause='장비 설치/셋업 문의 → 안내 완료'; actionType='단순 안내'; }
+                    else if(sub.includes('결과지')||sub.includes('특수문자')) { cause='결과지 출력 이상 → 설정 안내'; actionType='단순 안내'; }
+                    else { cause='고객 문의/방문 → 안내 완료'; actionType='단순 안내'; }
+                }
+                else if(mc==='cat8'){
+                    if(txt.includes('정전기')||txt.includes('매트')) { cause='정전기 환경 → 제전매트 설치'; actionType='보완재 설치'; }
+                    else if(txt.includes('노이즈')||txt.includes('필터')) { cause='전원 노이즈 → 필터 설치'; actionType='보완재 설치'; }
+                    else { cause='환경 노이즈/정전기 → 조치 완료'; actionType='환경지도(노이즈)'; }
+                }
+                else {
+                    if(txt.includes('펌웨어')||txt.includes('업그레이드')) { cause='펌웨어/프로그램 업그레이드'; actionType='펌웨어 업그레이드'; }
+                    else if(txt.includes('재현안됨')||txt.includes('문제없음')||txt.includes('정상')) { cause='현장 방문 시 현상 재현 안됨'; actionType='단순 점검'; }
+                    else { cause='현장 점검 완료'; actionType='단순 점검'; }
+                }
+            } 
+        }
+
+        d.rootCause=cause; d.actionType=actionType;
+        d.displayPart=(d.isHW||d.isInstall)?d.실제부품목록.join(', '):'없음';
+        d.hwStatusRaw=d.isHW?'HW불량':(d.isInstall?'보완재':'단순안내');
+        if(d.메타카테고리==='cat3'){
+            const subL=(d.소분류||'').toLowerCase(); const ft=d.풀텍스트||'';
+            const isBT=subL.includes('블루투스')||subL.includes('bluetooth')||ft.includes('블루투스')||ft.includes('bluetooth');
+            const isWifi=subL.includes('wifi')||subL.includes('wi-fi')||subL.includes('와이파이')||ft.includes('wifi')||ft.includes('와이파이');
+            const isLAN=subL.includes('lan')||subL.includes('lbweb')||ft.includes(' lan ')||ft.includes('랜선');
+            if(isBT&&isWifi) d.commType='BT+WiFi';
+            else if(isBT) d.commType='BT';
+            else if(isWifi) d.commType='WiFi';
+            else if(isLAN) d.commType='LAN';
+            else d.commType='기타';
+        } else { d.commType=null; }
+        return d;
+    });
+
+    applyGlobalFilters();
+}
+
+function applyGlobalFilters(){
+    const fY=getCheckedValues('g-year-cb'),fD=getCheckedValues('g-dno-cb'),fP=getCheckedValues('g-prod-cb'),fC=getCheckedValues('g-cat-cb');
+    currentData=globalRawData.filter(d=>{
+        if(fY.length&&!fY.includes(d.연도))return false;
+        if(fD.length){let ok=false;if(fD.includes('DNO2')&&dno2List.some(x=>d.제품명.replace(/\s/g,'').includes(x.replace(/\s/g,''))))ok=true;if(fD.includes('DNO3')&&dno3List.some(x=>d.제품명.replace(/\s/g,'').includes(x.replace(/\s/g,''))))ok=true;if(!ok)return false;}
+        if(fP.length&&!fP.includes(d.제품명))return false;
+        if(fC.length&&!fC.includes(d.원본대분류))return false;
+        return true;
+    });
+    updateDashboard();
+}
+
+function resetAll(){
+    document.querySelectorAll('input[type="checkbox"]').forEach(cb=>cb.checked=false);
+    document.querySelectorAll('.ms-list.ms-open').forEach(el=>{el.classList.remove('ms-open');if(el.previousElementSibling)el.previousElementSibling.classList.remove('ms-open');});
+    document.querySelectorAll('.ms-btn .sel-badge').forEach(b=>b.textContent='0');
+    document.querySelectorAll('.ms-btn.has-selection').forEach(b=>b.classList.remove('has-selection'));
+    Object.entries(_defaultBtnLabels).forEach(([cls, lbl]) => {
+        const boxes = document.querySelectorAll('.'+cls); if(!boxes.length) return;
+        const list = boxes[0].closest('.ms-list'); if(!list) return;
+        const btn = list.previousElementSibling; if(!btn) return;
+        const labelEl = btn.querySelector('.btn-label'); if(labelEl) labelEl.textContent = lbl;
+    });
+    state.symptom=null;state.equipment=null;state.drillSubs=new Map();
+    trendState.subOverlay.clear();
+    applyGlobalFilters();
+}
+
+function setSymptomFilter(cat){
+    const allCats = ['cat1','cat2','cat3','cat4','cat5','cat6','cat7','cat8'];
+    state.drillSubs = new Map(); 
+    trendState.subOverlay.clear(); 
+
+    if(state.symptom===cat){
+        state.symptom=null;
+        allCats.forEach(c => {
+            if(c==='cat3'){ document.getElementById('cat3-sub-panel').classList.add('hidden'); }
+            else { const pp = document.getElementById('cat-sub-panel-'+c); if(pp) pp.classList.add('hidden'); }
+        });
+        trendState.selected.delete(cat);
+        if(trendState.tab === 'cat') renderTrendCheckboxes();
+    } else {
+        state.symptom=cat;
+        allCats.forEach(c => {
+            if(c==='cat3'){ document.getElementById('cat3-sub-panel').classList.add('hidden'); }
+            else { const pp = document.getElementById('cat-sub-panel-'+c); if(pp) pp.classList.add('hidden'); }
+        });
+        if(cat==='cat3'){ document.getElementById('cat3-sub-panel').classList.remove('hidden'); } 
+        else { const pp = document.getElementById('cat-sub-panel-'+cat); if(pp){ pp.classList.remove('hidden'); } }
+        
+        if(trendState.tab !== 'cat') { switchTrendTab('cat'); } 
+        else { trendState.selected.clear(); }
+        trendState.selected.add(cat);
+        renderTrendCheckboxes();
+    }
+    updateDashboard();
+}
+
+function setEquipmentFilter(eq){state.equipment=(state.equipment===eq)?null:eq;updateDashboard();}
+
+function renderDrillBreadcrumb() {
+    const el = document.getElementById('drillBreadcrumb');
+    if(!el) return;
+    if(!state.symptom && trendState.selected.size === 0 && trendState.subOverlay.size === 0){ el.classList.add('hidden'); return; }
+    el.classList.remove('hidden');
+    const parts = [];
+    if(state.symptom){
+        const catName = {cat1:'측정결함',cat2:'체중/영점',cat3:'통신/네트워크',cat4:'디스플레이',cat5:'전원/외부기기',cat6:'고객문의',cat7:'장비동작이상',cat8:'노이즈'}[state.symptom]||state.symptom;
+        parts.push(`<span class="drill-crumb" onclick="setSymptomFilter('${state.symptom}')" style="cursor:pointer;color:#2563eb;font-weight:800;">${catName}</span>`);
+    }
+    if(trendState.subOverlay.size > 0){
+        parts.push(`<span style="color:#94a3b8;">›</span>`);
+        trendState.subOverlay.forEach((info, key) => {
+            parts.push(`<span style="cursor:pointer;color:${info.color};font-weight:800;background:${info.color}18;padding:1px 5px;border-radius:4px;" onclick="trendState.subOverlay.delete('${key}');renderTrendChart();updateDashboard();">${info.label}</span>`);
+        });
+    }
+    if(trendState.selected.size > 0){
+        const trendLabel = trendState.tab === 'cat' ? '불량구분' : '제품';
+        const items = Array.from(trendState.selected).join(', ');
+        parts.push(`<span style="color:#94a3b8;">›</span>`);
+        parts.push(`<span style="cursor:pointer;color:#7c3aed;font-weight:800;" onclick="clearTrendOverlay()">📈 ${trendLabel}: ${items}</span>`);
+    }
+    el.innerHTML = parts.join(' ');
+}
+
+const catSubRules = {
+    cat1: { color: '#2563eb', items: { start: { label:'⏹ 측정 시작안됨', color:'#1d4ed8', subMatch:['측정 시작안됨','측정시작안됨'], textMatch:['측정 시작','측정시작','워밍업','발판물체','start'], partMatch:[] }, value: { label:'📊 측정값 이상', color:'#7c3aed', subMatch:['측정 결과값 이상','bwa_측정 결과값','측정결과값'], textMatch:['결과값 이상','측정값 이상','측정결과 이상','값이 다르','값이상','결과 이상'], partMatch:[] }, error: { label:'⚠️ 측정중 에러', color:'#dc2626', subMatch:['측정중에러발생','측정중 에러발생','측정중에러'], textMatch:['측정중 에러','측정 에러','측정중에러','측정완료후 멈춤','측정 후 멈춤'], partMatch:[] }, remeasure:{ label:'🔄 재측정메시지', color:'#d97706', subMatch:['재측정메시지발생','재측정 메시지'], textMatch:['재측정','re-measure','remeasure'], partMatch:[] }, etc: { label:'기타', color:'#94a3b8', subMatch:[], textMatch:[], partMatch:[] } } },
+    cat2: { color: '#059669', items: { weight: { label:'⚖️ 체중값 이상', color:'#059669', subMatch:['체중값이상','체중문제','체중 문제','체중값 이상','체중측정안됨','체중값고정안됨'], textMatch:['체중값','체중 값','체중이상','체중 이상','로드셀','load cell','loadcell'], partMatch:['load.?cell','loadcell','로드셀'] }, calib: { label:'🔧 영점/캘리브레이션', color:'#0891b2', subMatch:['영점','캘리브레이션','calibration','zero'], textMatch:['영점','캘리브레이션','calibration','영점보정','zero point','분동','체중 보정','보정 완료','보정 후 정상'], partMatch:[] }, height: { label:'📏 신장값 이상', color:'#7c3aed', subMatch:['신장값이상','신장 값','신장계_체중','신장 측정','신장 작게','신장 크게','head bar'], textMatch:['신장값','신장 값','신장이상','head bar','headbar','신장계'], partMatch:['head.?bar','headbar'] }, etc: { label:'기타', color:'#94a3b8', subMatch:[], textMatch:[], partMatch:[] } } },
+    cat4: { color: '#f97316', items: { lcd: { label:'🖥️ LCD 화면불량', color:'#f97316', subMatch:['lcd화면 출력이상','lcd화면줄감','lcd깜빡','lcd밝기','lcd켜지나'], textMatch:['lcd 화면','화면 출력','화면이상','화면 이상','줄감','깜빡','밝기 불량','화면불량'], partMatch:['lcd','panel+touch','lcd touch'] }, touch: { label:'👆 LCD 터치불량', color:'#7c3aed', subMatch:['lcd화면터치 인식안됨','터치 인식','터치인식'], textMatch:['터치 인식','터치인식','터치 불량','터치불량','touch 인식','touch인식'], partMatch:['touch screen'] }, button: { label:'🔘 버튼안눌림', color:'#dc2626', subMatch:['버튼안눌림'], textMatch:['버튼 안눌','버튼안눌','버튼 불량','버튼불량','키 불량'], partMatch:['switch','button','kno','board key'] }, etc: { label:'기타', color:'#94a3b8', subMatch:[], textMatch:[], partMatch:[] } } },
+    cat5: { color: '#0891b2', items: { power: { label:'🔌 장비안켜짐', color:'#dc2626', subMatch:['장비안켜짐','전원안켜짐','부팅안됨'], textMatch:['장비 안켜','장비안켜','전원 안켜','부팅 안됨','부팅안됨','전원 불량','어댑터 불량','배터리 불량'], partMatch:['adapter','어댑터','power.*cord','cable.*power'] }, external:{ label:'🔗 외부기기연결', color:'#7c3aed', subMatch:['외부기기연결','usb 연결','외부장치'], textMatch:['usb 인식','외부기기','외부 장치','usb연결','dongle','하드락'], partMatch:['usb','dongle'] }, printer: { label:'🖨️ 출력안됨(프린터)', color:'#d97706', subMatch:['결과지 출력안됨','출력안됨','프린터'], textMatch:['프린터','결과지 출력','출력 안됨','출력안됨','printer','thermal'], partMatch:['printer','smp610','thermal'] }, etc: { label:'기타', color:'#94a3b8', subMatch:[], textMatch:[], partMatch:[] } } },
+    cat6: { color: '#64748b', items: { check: { label:'🔍 장비점검', color:'#2563eb', subMatch:['장비점검'], textMatch:['장비점검','정도관리','정기점검','pm 점검'], partMatch:[] }, upgrade: { label:'⬆️ 장비Upgrade', color:'#7c3aed', subMatch:['장비upgrade','장비 upgrade'], textMatch:['업그레이드','upgrade','펌웨어 업','firmware up'], partMatch:[] }, claim: { label:'😤 고객클레임', color:'#dc2626', subMatch:['고객클레임','고객 클레임'], textMatch:['클레임','고객불만','불만 접수'], partMatch:[] }, logo: { label:'🏷️ 로고변경', color:'#d97706', subMatch:['로고변경','로고 변경','logo'], textMatch:['로고 변경','로고변경','logo change'], partMatch:[] }, etc: { label:'기타문의', color:'#94a3b8', subMatch:[], textMatch:[], partMatch:[] } } },
+    cat7: { color: '#ef4444', items: { boot: { label:'🔄 부팅/재시작', color:'#dc2626', subMatch:['부팅안됨','재시작','리셋','고객지원부연락'], textMatch:['재부팅','재시작','부팅 안됨','부팅안됨','리셋','reset','동작중 전원꺼짐','동작 중 꺼짐'], partMatch:[] }, freeze: { label:'🧊 대기화면멈춤', color:'#7c3aed', subMatch:['대기화면에서멈춤','화면멈춤','멈춤'], textMatch:['대기화면 멈춤','화면 멈춤','화면멈춤','멈춤 현상','프리징','freezing'], partMatch:[] }, damage: { label:'💥 소음/파손', color:'#f97316', subMatch:['소음및파손문제','기구파손','전자부파손','스크래치','소음'], textMatch:['소음 발생','소음발생','파손','스크래치','기구 파손','깨짐'], partMatch:[] }, etc: { label:'기타동작이상', color:'#94a3b8', subMatch:[], textMatch:[], partMatch:[] } } },
+    cat8: { color: '#d97706', items: { static: { label:'⚡ 정전기/노이즈', color:'#d97706', subMatch:['정전기','전원노이즈','노이즈필터'], textMatch:['정전기','제전매트','nf1500','노이즈필터','전원노이즈','static'], partMatch:['nf1500','노이즈필터','제전'] }, env: { label:'🌿 외부노이즈', color:'#059669', subMatch:['환경노이즈','외부노이즈','노이즈'], textMatch:['환경 노이즈','외부 노이즈','장비 이동','장비이동','노이즈 환경'], partMatch:[] }, etc: { label:'기타', color:'#94a3b8', subMatch:[], textMatch:[], partMatch:[] } } },
+};
+
+function classifyCatSub(d, catKey) {
+    const rules = catSubRules[catKey]; if(!rules) return 'etc';
+    const sub = (d.소분류 || '').toLowerCase(); const txt = (d.풀텍스트 || '').toLowerCase(); const parts = d.실제부품목록.map(p => p.toLowerCase()).join(' ');
+    for(const [key, rule] of Object.entries(rules.items)){
+        if(key === 'etc') continue;
+        if(rule.subMatch.some(s => sub.includes(s.toLowerCase())) || (rule.textMatch||[]).some(s => txt.includes(s.toLowerCase())) || (rule.partMatch.length > 0 && rule.partMatch.some(p => new RegExp(p,'i').test(parts)))) return key;
+    }
+    return 'etc';
+}
+
+function renderCatSubPanel(catKey, data) {
+    const rules = catSubRules[catKey]; if(!rules) return;
+    const catData = data.filter(d => d.메타카테고리 === catKey);
+    const panel = document.getElementById('cat-sub-panel-' + catKey); if(!panel) return;
+    panel.querySelector('.cat-sub-total').textContent = '총 ' + catData.length + '건';
+
+    const counts = {}, hwCounts = {}, subDetails = {};
+    Object.keys(rules.items).forEach(k => { counts[k]=0; hwCounts[k]=0; subDetails[k]={}; });
+    catData.forEach(d => {
+        const key = classifyCatSub(d, catKey);
+        counts[key]++; if(d.isHW) hwCounts[key]++;
+        subDetails[key][d.소분류 || '미분류'] = (subDetails[key][d.소분류 || '미분류']||0) + 1;
+    });
+    window['_catSubData_' + catKey] = { counts, hwCounts, subDetails, total: catData.length };
+
+    panel.querySelector('.cat-sub-cards').innerHTML = Object.entries(rules.items).map(([key, item]) => {
+        const cnt = counts[key] || 0; const hwPct = cnt > 0 ? Math.round((hwCounts[key] || 0)/cnt*100) : 0;
+        const isSelected = trendState.subOverlay.has(key);
+        const cardStyle = isSelected ? `border-color:${item.color};background:${item.color}10;padding:8px;border-radius:6px;outline:1px solid ${item.color};transform:scale(1.02);cursor:pointer;` : `border-color:${item.color}30;background:#fff;padding:8px;border-radius:6px;border:1px solid #e2e8f0;cursor:pointer;`;
+        return `<div data-drill-key="${key}" style="${cardStyle}" onclick="filterCatSub('${catKey}','${key}')">
+            <div style="font-size:10px;font-weight:900;color:${item.color};margin-bottom:2px;" class="truncate">${item.label}</div>
+            <div style="font-size:16px;font-weight:900;color:#1e293b;line-height:1;">${cnt}<span style="font-size:9px;color:#94a3b8;margin-left:2px;">건</span></div>
+            <div style="display:flex; justify-content:space-between; margin-top:4px;">
+            <div style="font-size:9px;color:#64748b;">비중 ${catData.length > 0 ? Math.round(cnt/catData.length*100) : 0}%</div>
+            <div style="font-size:9px;font-weight:800;color:#ef4444;">HW ${hwPct}%</div>
+            </div></div>`;
+    }).join('');
+    panel.querySelector('.cat-sub-table').classList.add('hidden');
+}
+
+function filterCatSub(catKey, itemKey) {
+    const rules = catSubRules[catKey]; const data = window['_catSubData_' + catKey]; if(!rules || !data) return;
+    const panel = document.getElementById('cat-sub-panel-' + catKey); if(!panel) return;
+    const item = rules.items[itemKey]; if(!item) return;
+
+    if(trendState.subOverlay.has(itemKey)) { trendState.subOverlay.delete(itemKey); } 
+    else { trendState.subOverlay.clear(); trendState.subOverlay.set(itemKey, { label: item.label, color: item.color, filterFn: (d) => classifyCatSub(d, catKey) === itemKey }); }
+    
+    renderCatSubPanel(catKey, currentData);
+    const tableWrap = panel.querySelector('.cat-sub-table');
+    if(!trendState.subOverlay.has(itemKey)){ tableWrap.classList.add('hidden'); }
+    else {
+        tableWrap.classList.remove('hidden');
+        const rows = Object.entries(data.subDetails[itemKey] || {}).sort((a,b)=>b[1]-a[1]);
+        panel.querySelector('.cat-sub-table-body').innerHTML = rows.map(([sc, cnt]) => {
+            const pct = Math.round(cnt/(data.counts[itemKey] || 1)*100);
+            return `<tr><td class="truncate" style="max-width:100px;">${sc}</td><td style="text-align:right;font-weight:800;color:#2563eb;">${cnt}</td>
+                <td><div style="display:flex;align-items:center;gap:4px;"><div style="flex:1;height:4px;background:#e2e8f0;border-radius:2px;"><div style="height:100%;width:${pct}%;background:${item.color};border-radius:2px;"></div></div><span style="font-size:9px;color:#94a3b8;">${pct}%</span></div></td></tr>`;
+        }).join('');
+    }
+    renderTrendChart(); updateDashboard();
+}
+
+const cat3SubRules = {
+    wifi: { label:'📡 WiFi', color:'#7c3aed', subMatch: ['wifi 연결 끊어짐','wifi 설정 안됨','lan 설정 안됨'], partMatch: ['wifi.?module','module.?wifi','cf-811','cf-wu','cf-8188','archer'] },
+    lb: { label:'🔗 LB 통신', color:'#0891b2', subMatch: ['lb통신안됨','inbody통신불량','lb통신불량','inbody통신안됨'], partMatch: [] },
+    bt: { label:'🔵 블루투스', color:'#2563eb', subMatch: ['블루투스 연동안됨','블루투스연동안됨'], partMatch: ['inbt[0-9]+','dongle','bluetooth'] },
+    inbody: { label:'📟 InBody↔기기', color:'#059669', subMatch: ['인바디통신안됨','외부장치 인식안됨','lbweb 로그인 안됨','앱으로 결과전송 안됨'], partMatch: [] },
+};
+
+function classifyCat3Sub(d) {
+    const sub = (d.소분류 || '').toLowerCase(); const parts = d.실제부품목록.map(p => p.toLowerCase()).join(' ');
+    for (const [key, rule] of Object.entries(cat3SubRules)) {
+        if (rule.subMatch.some(s => sub.includes(s)) || (rule.partMatch.length > 0 && rule.partMatch.some(p => new RegExp(p,'i').test(parts)))) return key;
+    }
+    return 'etc';
+}
+
+function renderCat3SubPanel(data) {
+    const cat3Data = data.filter(d => d.메타카테고리 === 'cat3');
+    document.getElementById('cat3-sub-total').textContent = '총 ' + cat3Data.length + '건';
+    const counts = { wifi:0, lb:0, bt:0, inbody:0, printer:0, etc:0 }, hwCounts = { wifi:0, lb:0, bt:0, inbody:0, printer:0, etc:0 }, subDetails = {};
+    cat3Data.forEach(d => {
+        const key = classifyCat3Sub(d); counts[key]++; if(d.isHW) hwCounts[key]++;
+        if(!subDetails[key]) subDetails[key] = {}; subDetails[key][d.소분류 || '미분류'] = (subDetails[key][d.소분류 || '미분류'] || 0) + 1;
+    });
+    window._cat3SubData = { counts, hwCounts, subDetails, total: cat3Data.length };
+    
+    document.getElementById('cat3-sub-cards').innerHTML = ['wifi','lb','bt','inbody','printer','etc'].map(key => {
+        const rule = cat3SubRules[key] || { label:'기타', color:'#94a3b8' };
+        const cnt = counts[key] || 0; const hwPct = cnt > 0 ? Math.round((hwCounts[key] || 0)/cnt*100) : 0;
+        const isSelected = trendState.subOverlay.has(key);
+        const cardStyle = isSelected ? `border-color:${rule.color};background:${rule.color}10;padding:8px;border-radius:6px;outline:1px solid ${rule.color};transform:scale(1.02);cursor:pointer;` : `border-color:${rule.color}30;background:#fff;padding:8px;border-radius:6px;border:1px solid #e2e8f0;cursor:pointer;`;
+        return `<div data-drill-key="${key}" style="${cardStyle}" onclick="filterCat3Sub('${key}')">
+            <div style="font-size:10px;font-weight:900;color:${rule.color};margin-bottom:2px;" class="truncate">${rule.label}</div>
+            <div style="font-size:16px;font-weight:900;color:#1e293b;line-height:1;">${cnt}<span style="font-size:9px;color:#94a3b8;margin-left:2px;">건</span></div>
+            <div style="display:flex; justify-content:space-between; margin-top:4px;">
+            <div style="font-size:9px;color:#64748b;">비중 ${cat3Data.length > 0 ? Math.round(cnt/cat3Data.length*100) : 0}%</div>
+            <div style="font-size:9px;font-weight:800;color:#ef4444;">HW ${hwPct}%</div>
+            </div></div>`;
+    }).join('');
+    document.getElementById('cat3-sub-table').classList.add('hidden');
+}
+
+function filterCat3Sub(key) {
+    const rule = cat3SubRules[key] || { label: key, color: '#7c3aed' };
+    if(trendState.subOverlay.has(key)) { trendState.subOverlay.delete(key); } 
+    else { trendState.subOverlay.clear(); trendState.subOverlay.set(key, { label: rule.label, color: rule.color, filterFn: (d) => classifyCat3Sub(d) === key }); }
+    
+    renderCat3SubPanel(currentData);
+    const tableWrap = document.getElementById('cat3-sub-table');
+    if(trendState.subOverlay.has(key)) {
+        tableWrap.classList.remove('hidden');
+        const rows = Object.entries(window._cat3SubData.subDetails[key] || {}).sort((a,b)=>b[1]-a[1]);
+        document.getElementById('cat3-sub-table-body').innerHTML = rows.map(([sc, cnt]) => {
+            const pct = Math.round(cnt/(window._cat3SubData.counts[key] || 1)*100);
+            return `<tr><td class="truncate" style="max-width:100px;">${sc}</td><td style="text-align:right;font-weight:800;color:#2563eb;">${cnt}</td>
+                <td><div style="display:flex;align-items:center;gap:4px;"><div style="flex:1;height:4px;background:#e2e8f0;border-radius:2px;"><div style="height:100%;width:${pct}%;background:#7c3aed;border-radius:2px;"></div></div><span style="font-size:9px;color:#94a3b8;">${pct}%</span></div></td></tr>`;
+        }).join('');
+    } else { tableWrap.classList.add('hidden'); }
+    renderTrendChart(); updateDashboard();
+}
+
+function updateDashboard(){
+    filteredData=currentData.filter(d=>{
+        if(state.symptom&&d.메타카테고리!==state.symptom)return false;
+        if(state.equipment&&d.제품명!==state.equipment)return false;
+        if(trendState.selected.size > 0 && trendState.tab !== 'stacked'){
+            if(trendState.tab === 'product' && !trendState.selected.has(d.제품명)) return false;
+            if(trendState.tab === 'cat' && !trendState.selected.has(d.메타카테고리)) return false;
+        }
+        return true;
+    });
+    document.getElementById('totalDocCount').innerText=filteredData.length;
+    renderDrillBreadcrumb();
+
+    ['cat1','cat2','cat3','cat4','cat5','cat6','cat7','cat8'].forEach(c=>{
+        const btn=document.getElementById(`btn-${c}`);
+        if(btn){state.symptom===c?btn.classList.add('active-symptom'):btn.classList.remove('active-symptom');}
+        const arr=currentData.filter(d=>d.메타카테고리===c);
+        const totEl=document.getElementById(`kpi-${c}-tot`); if(totEl)totEl.innerText=arr.length;
+        const rateEl=document.getElementById(`kpi-${c}-rate`);
+        if(rateEl){const cnt=c==='cat8'?arr.filter(d=>d.isInstall).length:arr.filter(d=>d.isHW).length;rateEl.innerText=arr.length>0?Math.round(cnt/arr.length*100)+'%':'0%';}
+    });
+
+    closePanelDetail(); 
+    updateAnalysisContextBar();
+    renderCharts();
+    
+    if(state.symptom === 'cat3') renderCat3SubPanel(currentData);
+    else if(state.symptom && catSubRules[state.symptom]) renderCatSubPanel(state.symptom, currentData);
+}
+
+function destroyChart(id){if(charts[id]){charts[id].destroy();delete charts[id];}}
+
+const trendState = { tab: 'product', period: 'monthly', selected: new Set(), showTotal: true, subOverlay: new Map() };
+const catColors = { cat1:'#2563eb', cat2:'#059669', cat3:'#7c3aed', cat4:'#f97316', cat5:'#0891b2', cat6:'#64748b', cat7:'#ef4444', cat8:'#d97706' };
+const catLabels = { cat1:'측정결함', cat2:'체중/영점', cat3:'통신/네트워크', cat4:'디스플레이', cat5:'전원/외부기기', cat6:'고객문의', cat7:'장비동작이상', cat8:'노이즈' };
+const lineColors = ['#2563eb','#ef4444','#059669','#f97316','#7c3aed','#0891b2','#d97706','#64748b','#ec4899','#14b8a6','#8b5cf6','#f59e0b','#10b981','#6366f1','#e11d48'];
+const _productColorCache = {};
+function getProductColor(productName) { if (_productColorCache[productName] !== undefined) return _productColorCache[productName]; const color = lineColors[Object.keys(_productColorCache).length % lineColors.length]; _productColorCache[productName] = color; return color; }
+function resetProductColors() { Object.keys(_productColorCache).forEach(k => delete _productColorCache[k]); }
+const stackedColors = ['#3b82f6','#ef4444','#10b981','#f97316','#8b5cf6','#06b6d4','#f59e0b','#64748b','#ec4899','#14b8a6','#6366f1','#84cc16','#e11d48','#0891b2','#d97706'];
+
+function getPeriodKey(d) {
+    if(trendState.period === 'yearly') return d.연도 || '미상';
+    if(trendState.period === 'monthly') return d.월별 || '미상';
+    if(trendState.period === 'weekly') {
+        const raw = d._접수일raw; if(!raw || raw === '미상') return '미상';
+        let dt; if(typeof raw === 'number') dt = new Date((raw - 25569) * 86400 * 1000); else dt = new Date(String(raw).replace(/\./g,'-'));
+        if(isNaN(dt)) return '미상';
+        const jan1 = new Date(dt.getFullYear(), 0, 1);
+        const week = Math.ceil(((dt - jan1) / 86400000 + jan1.getDay() + 1) / 7);
+        return `${dt.getFullYear()}-W${String(week).padStart(2,'0')}`;
+    }
+    return d.월별 || '미상';
+}
+
+function switchTrendPeriod(period) {
+    trendState.period = period;
+    document.querySelectorAll('.trend-period-btn').forEach(b => { b.classList.toggle('bg-white', false); b.classList.toggle('text-blue-600', false); b.classList.toggle('shadow-sm', false); b.classList.toggle('text-gray-500', true); });
+    const idx = ['monthly','weekly','yearly'].indexOf(period);
+    const btns = document.querySelectorAll('.trend-period-btn'); if(btns[idx]) { btns[idx].classList.add('bg-white','text-blue-600','shadow-sm'); btns[idx].classList.remove('text-gray-500'); }
+    document.getElementById('titleTrend').textContent = {monthly:'📈 추이(월별)', weekly:'📈 추이(주별)', yearly:'📈 추이(연별)'}[period];
+    renderTrendChart();
+}
+
+function switchTrendTab(tab) {
+    trendState.tab = tab; trendState.selected.clear(); trendState.subOverlay.clear();
+    ['product','cat','stacked'].forEach(t => {
+        const btn = document.getElementById('trend-tab-' + t); if(!btn) return;
+        if(t === tab) { btn.classList.add('bg-white','text-blue-600','shadow-sm'); btn.classList.remove('text-gray-500'); }
+        else { btn.classList.remove('bg-white','text-blue-600','shadow-sm'); btn.classList.add('text-gray-500'); }
+    });
+    const ctrl = document.getElementById('trend-overlay-controls'); if(ctrl) ctrl.style.display = tab === 'stacked' ? 'none' : 'flex';
+    renderTrendCheckboxes(); renderTrendChart();
+}
+
+function renderTrendCheckboxes() {
+    const container = document.getElementById('trend-checkboxes'); if(!container || trendState.tab === 'stacked') return;
+    let items = [];
+    if(trendState.tab === 'product') {
+        const equips = {}; currentData.forEach(d => { if(d.제품명) equips[d.제품명] = (equips[d.제품명]||0)+1; });
+        items = Object.entries(equips).sort((a,b)=>b[1]-a[1]).slice(0,10).map(([k])=>k);
+        resetProductColors(); items.forEach(item => getProductColor(item));
+    } else { items = ['cat1','cat2','cat3','cat4','cat5','cat6','cat7','cat8']; }
+    container.innerHTML = items.map(item => {
+        const label = trendState.tab === 'cat' ? catLabels[item] : item;
+        const color = trendState.tab === 'cat' ? catColors[item] : getProductColor(item);
+        const checked = trendState.selected.has(item);
+        return `<label style="display:flex;align-items:center;gap:3px;cursor:pointer;font-size:10px;font-weight:700;padding:2px 6px;border-radius:10px;border:1px solid ${checked ? color : '#e2e8f0'};background:${checked ? color+'18' : '#f8fafc'};color:${checked ? color : '#64748b'};" onclick="toggleTrendItem('${item}',this,'${color}',event)"><span style="width:6px;height:6px;border-radius:50%;background:${color};flex-shrink:0;display:inline-block;"></span>${label}</label>`;
+    }).join('');
+}
+
+function toggleTrendItem(item, labelEl, color, e) {
+    if(e) e.preventDefault();
+    if(trendState.selected.has(item)) {
+        trendState.selected.delete(item); labelEl.style.borderColor = '#e2e8f0'; labelEl.style.background = '#f8fafc'; labelEl.style.color = '#64748b';
+        if(trendState.tab === 'cat' && state.symptom === item) { state.symptom = null; state.drillSubs = new Map(); ['cat1','cat2','cat3','cat4','cat5','cat6','cat7','cat8'].forEach(c => { if(c==='cat3'){ document.getElementById('cat3-sub-panel').classList.add('hidden'); } else { const pp = document.getElementById('cat-sub-panel-'+c); if(pp) pp.classList.add('hidden'); } }); }
+    } else {
+        trendState.selected.add(item); labelEl.style.borderColor = color; labelEl.style.background = color + '18'; labelEl.style.color = color;
+        if(trendState.tab === 'cat') {
+            state.drillSubs = new Map(); trendState.subOverlay.clear(); trendState.selected.clear(); trendState.selected.add(item); state.symptom = item;
+            ['cat1','cat2','cat3','cat4','cat5','cat6','cat7','cat8'].forEach(c => { if(c==='cat3'){ document.getElementById('cat3-sub-panel').classList.add('hidden'); } else { const pp = document.getElementById('cat-sub-panel-'+c); if(pp) pp.classList.add('hidden'); } });
+            if(item === 'cat3'){ const p3 = document.getElementById('cat3-sub-panel'); if(p3) p3.classList.remove('hidden'); } else { const pp = document.getElementById('cat-sub-panel-'+item); if(pp) pp.classList.remove('hidden'); }
+            renderTrendCheckboxes();
+        }
+    }
+    updateDashboard();
+}
+
+function toggleTrendTotal(el) {
+    trendState.showTotal = !trendState.showTotal;
+    if(trendState.showTotal) { el.style.borderColor = '#94a3b8'; el.style.background = '#f1f5f9'; el.style.color = '#475569'; el.style.opacity = '1'; } 
+    else { el.style.borderColor = '#e2e8f0'; el.style.background = '#fff'; el.style.color = '#cbd5e1'; el.style.opacity = '0.5'; }
+    renderTrendChart();
+}
+
+function clearTrendOverlay() { trendState.selected.clear(); trendState.subOverlay.clear(); renderTrendCheckboxes(); updateDashboard(); }
+
+function renderTrendChart() {
+    const trendBase = trendState.selected.size > 0 ? currentData : filteredData;
+    const allTrends = {}; trendBase.forEach(d => { const key = getPeriodKey(d); if(key !== '미상') allTrends[key] = (allTrends[key]||0) + 1; });
+    const labels = Object.keys(allTrends).sort(); if(!labels.length) return;
+
+    let datasets = [];
+    if(trendState.tab === 'stacked') {
+        const equips = {}; filteredData.forEach(d => { if(d.제품명) equips[d.제품명] = (equips[d.제품명]||0)+1; });
+        const topProducts = Object.entries(equips).sort((a,b)=>b[1]-a[1]).slice(0,10).map(([k])=>k);
+        datasets = topProducts.map((prod, i) => {
+            const prodTrends = {}; filteredData.forEach(d => { if(d.제품명 !== prod) return; const key = getPeriodKey(d); if(key !== '미상') prodTrends[key] = (prodTrends[key]||0)+1; });
+            return { label: prod, type: 'bar', data: labels.map(l => prodTrends[l] || 0), backgroundColor: stackedColors[i % stackedColors.length] + 'cc', borderColor: stackedColors[i % stackedColors.length], borderWidth: 0, stack: 'products', datalabels: { display: false } };
+        });
+        datasets.push({ label: '전체', type: 'line', data: labels.map(l => allTrends[l]), borderColor: '#1e293b', backgroundColor: 'transparent', borderWidth: 2, borderDash: [4,3], pointRadius: 2, tension: 0.3, fill: false, datalabels: { display: true, anchor: 'end', align: 'top', color: '#334155', font: { size: 9, weight: 'bold' } } });
+    } else {
+        if(trendState.showTotal) {
+            datasets.push({ label: '전체 발생건수', type: 'bar', data: labels.map(l => allTrends[l]), backgroundColor: 'rgba(148,163,184,0.3)', borderColor: 'rgba(148,163,184,0.5)', borderWidth: 1, order: 10, datalabels: { display: true, anchor: 'end', align: 'top', offset: 1, color: '#475569', font: { size: 9, weight: 'bold' }, formatter: v => v > 0 ? v : '' } }, { label: '전체 추이', type: 'line', data: labels.map(l => allTrends[l]), borderColor: 'rgba(100,116,139,0.8)', borderWidth: 2, borderDash: [5,3], pointRadius: 2, tension: 0.3, fill: false, order: 2, datalabels: { display: false } });
+        }
+        trendState.selected.forEach(item => {
+            const color = trendState.tab === 'cat' ? catColors[item] : getProductColor(item); const label = trendState.tab === 'cat' ? catLabels[item] : item; const itemTrends = {};
+            filteredData.forEach(d => { const key = getPeriodKey(d); if(key === '미상') return; const hit = trendState.tab === 'cat' ? d.메타카테고리 === item : d.제품명 === item; if(hit) itemTrends[key] = (itemTrends[key]||0)+1; });
+            datasets.push({ label, type: 'line', data: labels.map(l => itemTrends[l] || 0), borderColor: color, backgroundColor: color + '20', borderWidth: 2.5, pointRadius: 2, tension: 0.3, fill: false, order: 1, datalabels: { display: true, anchor: 'end', align: 'top', offset: 2, color: color, font: { size: 9, weight: 'bold' }, formatter: v => v > 0 ? v : '', backgroundColor: 'rgba(255,255,255,0.8)', borderRadius: 2, padding: 1 } });
+        });
+        trendState.subOverlay.forEach((info, key) => {
+            const subTrends = {}; filteredData.forEach(d => { const periodKey = getPeriodKey(d); if(periodKey === '미상') return; if(info.filterFn(d)) subTrends[periodKey] = (subTrends[periodKey]||0)+1; });
+            datasets.push({ label: info.label, type: 'line', data: labels.map(l => subTrends[l] || 0), borderColor: info.color, backgroundColor: info.color + '20', borderWidth: 2, borderDash: [3, 2], pointRadius: 2, tension: 0.3, fill: false, order: 1, datalabels: { display: true, anchor: 'end', align: 'bottom', offset: 2, color: info.color, font: { size: 8, weight: 'bold' }, formatter: v => v > 0 ? v : '', backgroundColor: 'rgba(255,255,255,0.8)', borderRadius: 2, padding: 1 } });
+        });
+    }
+
+    destroyChart('Trend');
+    charts['Trend'] = new Chart(document.getElementById('chartTrend'), {
+        data: { labels, datasets },
+        options: { maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, plugins: { legend: { display: trendState.tab === 'stacked', position: 'bottom', labels: { font: { size: 9 }, boxWidth: 10, padding: 4 } }, datalabels: { display: ctx => { const ds = ctx.dataset; if(trendState.tab === 'stacked') return ds.type === 'line'; if(ds.type === 'bar') return true; return false; }, anchor: 'end', align: 'top', offset: 1, color: '#334155', font: { size: 9, weight: 'bold' }, formatter: v => v > 0 ? v : '' }, tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y}건` } } }, scales: { x: { grid: { display: false }, ticks: { font: { size: 9 }, maxRotation: 0 }, stacked: trendState.tab === 'stacked' }, y: { beginAtZero: true, ticks: { font: { size: 9 } }, grace: '10%', stacked: trendState.tab === 'stacked' } } }
+    });
+
+    const legend = document.getElementById('trend-legend');
+    if(legend && trendState.tab !== 'stacked') {
+        const items = [];
+        trendState.selected.forEach(item => { const color = trendState.tab==='cat' ? catColors[item] : getProductColor(item); const lbl = trendState.tab==='cat' ? catLabels[item] : item; items.push(`<span style="display:flex;align-items:center;gap:2px;font-size:9px;color:${color};font-weight:700;"><span style="width:12px;height:2px;background:${color};display:inline-block;"></span>${lbl}</span>`); });
+        trendState.subOverlay.forEach((info, key) => { items.push(`<span style="display:flex;align-items:center;gap:2px;font-size:9px;color:${info.color};font-weight:700;"><span style="width:12px;height:2px;background:${info.color};display:inline-block;border-top:1px dashed ${info.color};"></span>${info.label}</span>`); });
+        legend.innerHTML = items.join('');
+    } else if(legend && trendState.tab === 'stacked') { legend.innerHTML = ''; }
+    if(!document.getElementById('trend-checkboxes').children.length) renderTrendCheckboxes();
+}
+
+function renderCharts(){
+    if(!filteredData.length){
+        document.getElementById('reasonTableBody').innerHTML='<tr><td colspan="7" class="text-center p-6 text-gray-400 font-bold">데이터 없음</td></tr>';
+        document.getElementById('partsListContainer').innerHTML='<div class="text-center text-gray-500 mt-10 font-bold">데이터 없음</div>';
+        ['Trend','Equip','EnvHW'].forEach(id=>destroyChart(id));return;
+    }
+
+    let displayData = filteredData;
+    if(trendState.subOverlay.size > 0) { const filterFns = Array.from(trendState.subOverlay.values()).map(info => info.filterFn); displayData = filteredData.filter(d => filterFns.some(fn => fn(d))); }
+    window._currentDisplayData = displayData;
+
+    renderTrendChart(); renderTrendCheckboxes();
+
+    const equips={};displayData.forEach(d=>equips[d.제품명]=(equips[d.제품명]||0)+1);
+    const eqSort=Object.entries(equips).sort((a,b)=>b[1]-a[1]);
+    destroyChart('Equip');
+    charts['Equip']=new Chart(document.getElementById('chartEquip'),{
+        type:'bar',
+        data:{labels:eqSort.map(x=>x[0]),datasets:[{label:'건수',data:eqSort.map(x=>x[1]),backgroundColor:'#64748b',hoverBackgroundColor:'#3b82f6', barThickness: 10, borderRadius: 2}]},
+        options:{
+            maintainAspectRatio:false, indexAxis:'y', layout: { padding: {right: 30} }, 
+            onClick:(e,els,ch)=>{if(els.length)setEquipmentFilter(ch.data.labels[els[0].index]);},
+            plugins:{ legend: {display: false}, datalabels:{ color:'#475569', font:{weight:'900',size:9}, anchor:'end', align:'right', offset: 4, formatter: v => v > 0 ? v+'건' : '' } }, 
+            scales:{ y:{ticks:{font:{size:9}}, grid:{display:false}}, x:{display: false} } 
+        }
+    });
+
+    const envhw={};displayData.forEach(d=>envhw[d.envVsHw]=(envhw[d.envVsHw]||0)+1);
+    const envL=Object.keys(envhw),envD=Object.values(envhw),envC=envL.map(l=>envColorMap[l]||'#9ca3af');
+    destroyChart('EnvHW');
+    charts['EnvHW']=new Chart(document.getElementById('chartEnvHW'),{
+        type:'doughnut',
+        data:{labels:envL,datasets:[{data:envD,backgroundColor:envC,borderWidth:0}]},
+        options:{
+            maintainAspectRatio:false, cutout:'55%', layout: { padding: 5 },
+            plugins:{
+                legend:{display:false},
+                // 💡 추가된 부분: textAlign 설정 및 줄바꿈(% 비율 표시)
+                datalabels:{ 
+                    display:true, color:'#ffffff', font:{weight:'900', size:11}, textAlign: 'center',
+                    formatter: (v, ctx) => { 
+                        if(v<=0) return ''; 
+                        const total = ctx.dataset.data.reduce((a,b)=>a+b,0); 
+                        return v + '건\n(' + Math.round(v/total*100) + '%)'; 
+                    } 
+                },
+                tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${ctx.raw}건`}}
+            }
+        }
+    });
+
+    const legendEl = document.getElementById('envHwLegend');
+    if(legendEl) {
+        legendEl.innerHTML = envL.map((l, i) => {
+            let shortLabel = '기타';
+            if(l.includes('HW 결함')) shortLabel = 'HW교체'; else if(l.includes('보완재')) shortLabel = '보완재'; else if(l.includes('미사용')) shortLabel = '단순안내';
+            return `<div class="flex items-center gap-1"><span class="w-2 h-2 rounded-full" style="background:${envC[i]}"></span><span class="text-[10px] text-gray-600 font-bold">${shortLabel}</span></div>`;
+        }).join('');
+    }
+
+    const reasonMap={};const uEq2=new Set(),uSubCat2=new Set(),uCa=new Set(),uTy=new Set(),uPa=new Set();
+    displayData.forEach(d=>{
+        const status=d.isHW?'HW불량':(d.isInstall?'보완재':'단순안내');
+        const key=`${status}||${d.제품명}||${d.소분류}||${d.rootCause}||${d.actionType}||${d.displayPart}||${d.commType||''}`;
+        if(!reasonMap[key])reasonMap[key]={status,equip:d.제품명,subCat:d.소분류||'미분류',cause:d.rootCause,type:d.actionType,part:d.displayPart,commType:d.commType||null,count:0};
+        reasonMap[key].count++;uEq2.add(d.제품명);uSubCat2.add(d.소분류||'미분류');uCa.add(d.rootCause);uTy.add(d.actionType);uPa.add(d.displayPart);
+    });
+    window.currentReasonMap=reasonMap;
+    renderReasonTable(displayData);
+
+    const parts={};displayData.forEach(d=>d.실제부품목록.forEach(p=>parts[p]=(parts[p]||0)+1));
+    const pSort=Object.entries(parts).sort((a,b)=>b[1]-a[1]).slice(0,30);const maxV=pSort.length>0?pSort[0][1]:1;
+    document.getElementById('partsListContainer').innerHTML=pSort.length===0?'<div class="text-center text-gray-500 mt-10 font-bold text-xs">사용된 부품 내역이 없습니다.</div>':pSort.map((x,i)=>`<div class="flex flex-col mb-1.5"><div class="flex justify-between items-end mb-0.5"><span class="text-[10px] font-bold text-gray-700 truncate">${i+1}. ${x[0]}</span><span class="text-[10px] font-black text-red-600">${x[1]}건</span></div><div class="w-full bg-gray-100 rounded-full h-1.5"><div class="bg-red-500 h-1.5 rounded-full" style="width:${(x[1]/maxV)*100}%"></div></div></div>`).join('');
+}
+
+function renderReasonTable(data) { renderTabView(data || window._currentDisplayData || filteredData); }
+
+const tabConfig = [
+    { status: 'HW불량',   label: '🚨 자재 교체',      barColor: '#ef4444', barBg: '#fee2e2', tagBg: '#fee2e2', tagColor: '#b91c1c' },
+    { status: '보완재',   label: '⚠️ 보완재 설치',    barColor: '#f97316', barBg: '#ffedd5', tagBg: '#ffedd5', tagColor: '#c2410c' },
+    { status: '단순안내', label: '✅ 단순안내/설정',   barColor: '#10b981', barBg: '#d1fae5', tagBg: '#d1fae5', tagColor: '#065f46' },
+];
+
+function renderTabView(data) {
+    if (!data) data = window._currentDisplayData || filteredData;
+    const nav = document.getElementById('rnTabNav'); const panels = document.getElementById('rnTabPanels');
+    if (!nav || !panels) return;
+
+    const activeBtn = nav.querySelector('.rn-tab-btn.active'); const activeStatus = activeBtn ? activeBtn.dataset.status : null;
+    const causeMap = {};
+    data.forEach(d => {
+        const status = d.isHW ? 'HW불량' : (d.isInstall ? '보완재' : '단순안내'); const key = status + '||' + d.rootCause + '||' + d.actionType;
+        if (!causeMap[key]) { causeMap[key] = { status, cause: d.rootCause, actionType: d.actionType, metaCat: d.메타카테고리 || '미분류_기타', repLabel: (classifyPartsAll(d.실제부품목록) || {}).label || null, count: 0, soloCount: 0, comboCount: 0, partCounts: {}, companionCats: {} }; }
+        causeMap[key].count++;
+        if (d.isHW || d.isInstall) {
+            const repLabel = causeMap[key].repLabel; let hasCompanion = false;
+            d.실제부품목록.forEach(p => { if (!p) return; const pLabel = classifyPart(p).label; if (pLabel === repLabel) { causeMap[key].partCounts[p] = (causeMap[key].partCounts[p] || 0) + 1; } else { hasCompanion = true; causeMap[key].companionCats[pLabel] = (causeMap[key].companionCats[pLabel] || 0) + 1; } });
+            if (hasCompanion) causeMap[key].comboCount++; else causeMap[key].soloCount++;
+        }
+    });
+
+    const allItems = Object.values(causeMap).sort((a, b) => b.count - a.count); const statusTotals = {};
+    allItems.forEach(it => { statusTotals[it.status] = (statusTotals[it.status] || 0) + it.count; });
+    const activeTabs = tabConfig.filter(t => statusTotals[t.status] > 0);
+    if (!activeTabs.length) { nav.innerHTML = ''; panels.innerHTML = '<div class="text-center p-4 text-xs text-gray-400">데이터가 없습니다</div>'; return; }
+
+    const restoreStatus = activeStatus && activeTabs.some(t => t.status === activeStatus) ? activeStatus : activeTabs[0].status;
+
+    nav.innerHTML = activeTabs.map((t) => {
+        const cnt = statusTotals[t.status] || 0; const isActive = t.status === restoreStatus;
+        return `<button class="rn-tab-btn ${isActive ? 'active' : ''}" data-status="${t.status}" onclick="rnSwitchTab(this, 'rn-panel-${t.status}')">${t.label} <span class="rn-tab-count" style="background:${t.barBg};color:${t.tagColor};">${cnt}건</span></button>`;
+    }).join('');
+
+    panels.innerHTML = activeTabs.map((t) => {
+        const items = allItems.filter(it => it.status === t.status); const total = statusTotals[t.status] || 1;
+        const rows = items.map(item => {
+            const pct = Math.round(item.count / total * 100); const cm = catMeta[item.metaCat] || catMeta['미분류_기타'];
+            const catBadge = `<span style="font-size:9px;font-weight:700;padding:1px 4px;border-radius:4px;background:${cm.bg};color:${cm.color};white-space:nowrap;">${cm.label}</span>`;
+            const topParts = Object.entries(item.partCounts).sort((a, b) => b[1] - a[1]).slice(0, 3);
+            const partsHTML = topParts.length > 0 ? topParts.map(([name, cnt]) => `<span class="part-tag-sm">${name}<span style="color:#94a3b8;font-size:8px;margin-left:2px;">${cnt}</span></span>`).join('') : `<span style="color:#cbd5e1;font-size:9px;">없음</span>`;
+            let companionHTML = ''; if (item.comboCount > 0) companionHTML = `<div style="font-size:9px;color:#f97316;font-weight:700;margin-top:2px;">+동반 ${item.comboCount}건</div>`;
+            
+            const typeBtn = `<button class="action-type-btn" onclick="openActionDetail('${item.actionType.replace(/'/g,"\\'")}', ${item.count}, this)">${item.actionType}</button>`;
+
+            return `<tr>
+                <td style="white-space:nowrap;width:15%;">${catBadge}</td>
+                <td style="width:30%;"><div class="agg-cause-main text-[11px] leading-tight">${item.cause}</div>${companionHTML}</td>
+                <td style="width:30%;">${partsHTML}</td>
+                <td style="white-space:nowrap;width:15%;">${typeBtn}</td>
+                <td style="width:10%;">
+                    <div style="font-weight:900;font-size:12px;color:${t.barColor};">${item.count}</div>
+                    <div class="agg-share-bar-wrap"><div class="agg-share-bar-fill" style="width:${pct}%;background:${t.barColor};"></div></div>
+                </td>
+            </tr>`;
+        }).join('');
+
+        return `<div class="rn-tab-panel ${t.status === restoreStatus ? 'active' : ''}" id="rn-panel-${t.status}">
+            <table class="agg-tbl"><thead><tr><th>카테고리</th><th>상세 원인</th><th>핵심 자재</th><th>조치유형(클릭)</th><th>건수</th></tr></thead>
+            <tbody>${rows || '<tr><td colspan="5" class="text-center p-4">데이터 없음</td></tr>'}</tbody></table></div>`;
+    }).join('');
+}
+
+function rnSwitchTab(btn, panelId) {
+    document.querySelectorAll('.rn-tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.rn-tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    const panel = document.getElementById(panelId); if (panel) panel.classList.add('active');
+    closePanelDetail(); 
+}
+
+const actionPatternRules = {
+    '단순 재설정': [ { label: '와이파이 비밀번호 재입력', keywords: ['비번','비밀번호','password','pw'] }, { label: '연결 끊김 → 재연결/재부팅', keywords: ['재연결','재부팅','껐다','끊김','끊어','다시 연결','재시작'] }, { label: 'IP·DNS 설정 재입력', keywords: ['ip','dns','아이피','수동 설정','네트워크 설정'] }, { label: 'LAN 케이블 재체결', keywords: ['lan','랜','케이블','포트','꽂'] }, { label: '블루투스 페어링 재설정', keywords: ['페어링','pairing','블루투스','bluetooth','bt 연결','bt연결'] }, { label: 'LBWeb/앱 접속 문제', keywords: ['lbweb','로그인','접속','lb웹','앱 접속'] }, { label: '앱 재설치', keywords: ['재설치','삭제','앱 설치','앱설치'] }, { label: '클라우드 연동 설정', keywords: ['클라우드','cloud','lbcloud','lb클라우드'] }, ],
+    '모듈 업그레이드': [ { label: 'INBT200 → INBT400/500 교체', keywords: ['inbt200','inbt100','inbt300'] }, { label: 'INBT400 신규 설치', keywords: ['inbt400'] }, { label: 'INBT500 신규 설치', keywords: ['inbt500'] }, ],
+    '클라우드': [ { label: '클라우드 연동 설정', keywords: ['클라우드','cloud','lbcloud','lb클라우드'] }, { label: '클라우드 계정/로그인', keywords: ['계정','로그인','login','아이디','패스워드'] }, { label: '클라우드 데이터 전송', keywords: ['전송','업로드','동기화','sync','결과 전송'] }, ],
+    '고객사 인프라': [ { label: '병원·기관 방화벽/보안 차단', keywords: ['방화벽','보안','차단','firewall','security','포트 차단'] }, { label: '고객사 공유기 불량·교체', keywords: ['공유기','라우터','router','ap ','액세스포인트','iptime'] }, { label: 'DHCP·IP 충돌 문제', keywords: ['dhcp','ip 충돌','중복','충돌','할당'] }, { label: '내부망 정책 제한', keywords: ['내부망','망분리','vlan','사내망','정책'] }, ],
+    '환경/위치 안내': [ { label: '장비 위치 이동 (수신율 저하)', keywords: ['이동','자리','위치','수신','멀어','떨어'] }, { label: '와이파이 신호 약함', keywords: ['신호','약','세기','수신율','wifi 약','공유기 거리'] }, ],
+    '자재 교체': [ { label: '통신모듈 교체 (WiFi/BT)', keywords: ['inbt400','inbt500','inbt200','wifi module','module_wifi','dongle','동글','bt dongle'] }, { label: '통신모듈 업그레이드', keywords: ['inbt100','inbt200','inbt300','업그레이드','구형','신형','교체 후'] }, { label: 'LCD/터치스크린 교체', keywords: ['lcd','touch screen','panel+touch','터치스크린','액정','lcd touch'] }, { label: '로드셀/체중센서 교체', keywords: ['loadcell','load cell','로드셀','transducer','체중센서'] }, { label: '메인보드(DNO) 교체', keywords: ['board dno','dno2','dno3','dno34','메인보드','dno board'] }, { label: '측정보드(Analog/ANO) 교체', keywords: ['board analog','analog board','ano','board ano'] }, { label: '로드셀 보드 교체', keywords: ['board loadcell','loadcell board','board lno3'] }, { label: '사지 전극 보드 교체', keywords: ['board electrode','electrode board','hand electrode','foot electrode'] }, { label: '인터페이스 보드(IF) 교체', keywords: ['board if','board ino','if board','ino board'] }, { label: '키패드 보드 교체', keywords: ['board key','board keypad','kno','keypad board'] }, { label: '화면 보드(LNO) 교체', keywords: ['board lno','lno board'] }, { label: '손 전극케이블 교체', keywords: ['cable hand','cable_hand','cable la','cable ra','cable_electrode_hand','hand cable','핸드케이블','라케이블','ra케이블','la케이블'] }, { label: '발 전극케이블 교체', keywords: ['cable foot','cable_foot','cable ll','cable rl','cable_electrode_foot','풋케이블','ll케이블','rl케이블'] }, { label: '전원/스위치 케이블 교체', keywords: ['cable power','cable_power','power switch cable','power cord'] }, { label: '전원 어댑터 교체', keywords: ['adapter','어댑터','power adapter'] }, { label: '스위치/버튼 교체', keywords: ['switch','버튼','button','push sw','tact sw'] }, { label: '배터리 교체', keywords: ['battery','cr2032','배터리'] }, { label: '헤드바/신장계 교체', keywords: ['head bar','headbar','head bar','신장계','board headbar'] }, { label: '스피커 교체', keywords: ['speaker','스피커'] }, { label: '프린터 모듈 교체', keywords: ['printer module','smp610','프린터모듈'] }, { label: '기타 부품 교체', keywords: ['board','pcb','cable','electrode','부품','교체'] }, ],
+    '소프트웨어 리셋': [ { label: '앱/소프트웨어 강제 종료·재시작', keywords: ['앱','소프트웨어','프로그램','강제종료','재시작','리셋'] }, { label: '펌웨어 업데이트', keywords: ['펌웨어','firmware','업데이트','업그레이드','펌웨어 업그레이드','프로그램 업그레이드'] }, ],
+    '단순 점검': [ { label: '현장 방문 점검 후 정상', keywords: ['점검','확인','정상','이상없','방문 후','재현안됨'] }, { label: '고객 사용법 안내', keywords: ['안내','교육','설명','사용법','방법'] }, ],
+    '단순 안내': [ { label: '프린터 설정/토너', keywords: ['프린터 설정','문제없음','토너 교체','토너'] }, ],
+    '보완재 설치': [ { label: '노이즈 필터 설치', keywords: ['노이즈','필터','nf','nf1500'] }, { label: '제전 매트 설치', keywords: ['매트','제전','정전기'] }, ],
+    '환경지도(수평)': [ { label: '바닥 수평 조정 안내', keywords: ['수평','바닥','기울','leveling'] }, ],
+    '고객 사용지도': [ { label: '손발 건조·각질 안내', keywords: ['건조','각질','수분','물티슈','손발','피부'] }, { label: '측정 자세 안내', keywords: ['자세','위치','올려','발판','서서'] }, ],
+    '세척': [ { label: '세척', keywords: ['세척'] }, ],
+    '로고 변경': [ { label: '로고 변경', keywords: ['로고','logo','로고변경'] }, ],
+};
+
+let currentPanelActionType = null;
+
+function updateAnalysisContextBar() {
+    const bar = document.getElementById('analysisContextBar'); if (!bar) return;
+    const catLabelsMap = {cat1:'측정결함',cat2:'체중/영점 이상',cat3:'통신/네트워크',cat4:'디스플레이/조작',cat5:'전원/외부기기',cat6:'고객문의/기타',cat7:'장비 동작 이상',cat8:'노이즈'};
+
+    const hasTrendSel = trendState.selected.size > 0 && trendState.tab !== 'stacked';
+    const hasProduct  = !!state.equipment || hasTrendSel;
+    const hasCat      = !!state.symptom; const hasSub = trendState.subOverlay.size > 0;
+    const hasAny      = hasProduct || hasCat || hasSub;
+
+    if (!hasAny) { bar.style.display = 'none'; return; }
+    bar.style.display = 'flex';
+
+    const pEl = document.getElementById('contextProduct'); const cArrow = document.getElementById('contextCatArrow'); const cEl = document.getElementById('contextCat'); const sArrow = document.getElementById('contextSubArrow'); const sEl = document.getElementById('contextSub'); const cntEl = document.getElementById('contextCount');
+
+    if (state.equipment) { pEl.textContent = '🖥️ ' + state.equipment; pEl.style.display = 'inline-block'; }
+    else if (hasTrendSel) { const label = trendState.tab === 'cat' ? '불량구분' : '제품'; const items = Array.from(trendState.selected).join(', '); pEl.textContent = '📈 ' + label + ': ' + items; pEl.style.display = 'inline-block'; }
+    else { pEl.style.display = 'none'; }
+
+    if (hasCat) { cArrow.style.display = hasProduct ? 'inline' : 'none'; cEl.textContent = '⚠️ ' + (catLabelsMap[state.symptom] || state.symptom); cEl.style.display = 'inline-block'; }
+    else { cArrow.style.display = 'none'; cEl.style.display = 'none'; }
+
+    if (hasSub) { sArrow.style.display = 'inline'; sEl.textContent = '🔍 ' + Array.from(trendState.subOverlay.values()).map(info=>info.label).join(', '); sEl.style.display = 'inline-block'; }
+    else { sArrow.style.display = 'none'; sEl.style.display = 'none'; }
+
+    cntEl.textContent = '총 ' + (window._currentDisplayData || filteredData).length + '건';
+}
+
+function closePanelDetail(){
+    currentPanelActionType = null;
+    document.getElementById('panelHeaderTitle').textContent = '🔍 조치유형 세부 분석';
+    document.getElementById('panelModeBadge').classList.add('hidden');
+    document.getElementById('panelCloseBtn').classList.add('hidden');
+    document.getElementById('panelHeaderWrap').classList.remove('bg-blue-600');
+    document.getElementById('panelHeaderWrap').classList.add('bg-blue-50');
+    document.getElementById('panelHeaderTitle').classList.remove('text-white');
+    document.getElementById('panelHeaderTitle').classList.add('text-blue-800');
+
+    document.getElementById('panelContent').innerHTML = `<div class="h-full flex flex-col items-center justify-center text-center text-gray-400 text-[11px] font-bold">👆 위 표에서 <span class="text-blue-600 bg-blue-50 px-1 rounded border border-blue-200">조치유형 버튼</span>을 클릭하시면<br>처리내용 텍스트 기반의 세부 패턴이 분석됩니다.</div>`;
+    
+    document.querySelectorAll('.agg-tbl tr').forEach(tr => tr.style.backgroundColor = '');
+    document.querySelectorAll('.action-type-btn').forEach(b=>b.classList.remove('ring-2','ring-blue-400','bg-blue-600','text-white'));
+}
+
+async function openActionDetail(actionType, totalCount, btnElement){
+    if(currentPanelActionType === actionType){ closePanelDetail(); return; }
+    currentPanelActionType = actionType;
+
+    document.getElementById('panelHeaderTitle').textContent = '🔍 조치유형 AI 패턴 분석';
+    document.getElementById('panelModeBadge').textContent = actionType;
+    document.getElementById('panelModeBadge').classList.remove('hidden');
+    
+    document.getElementById('panelHeaderWrap').classList.remove('bg-blue-50');
+    document.getElementById('panelHeaderWrap').classList.add('bg-blue-600');
+    document.getElementById('panelHeaderTitle').classList.remove('text-blue-800');
+    document.getElementById('panelHeaderTitle').classList.add('text-white');
+    document.getElementById('panelCloseBtn').classList.remove('hidden');
+    document.getElementById('panelCloseBtn').classList.add('text-white', 'hover:text-blue-200');
+
+    document.querySelectorAll('.agg-tbl tr').forEach(tr => tr.style.backgroundColor = '');
+    document.querySelectorAll('.action-type-btn').forEach(b=>{ b.classList.remove('ring-2','ring-blue-400','bg-blue-600','text-white'); });
+    
+    if(btnElement) {
+        btnElement.classList.add('ring-2','ring-blue-400','bg-blue-600','text-white');
+        const tr = btnElement.closest('tr');
+        if(tr) tr.style.backgroundColor = '#eff6ff'; 
+    }
+
+    document.getElementById('panelContent').innerHTML = `<div class="flex flex-col items-center justify-center h-full gap-2 text-blue-500"><div class="text-2xl animate-spin">⚙️</div><p class="text-[11px] font-bold">데이터 분석 중...</p></div>`;
+
+    const targetDocs = (window._currentDisplayData || filteredData).filter(d => d.actionType === actionType);
+
+    const partLabelCounts = {};  
+    const noPartsDocs = [];      
+
+    targetDocs.forEach(doc => {
+        if(doc.실제부품목록 && doc.실제부품목록.length > 0){
+            const rep = classifyPartsAll(doc.실제부품목록); const label = rep ? rep.label : '기타 부품';
+            partLabelCounts[label] = (partLabelCounts[label] || 0) + 1;
+        } else { noPartsDocs.push(doc); }
+    });
+
+    const rules = actionPatternRules[actionType] || [];
+    const patCounts = {}; const unclass = [];
+    rules.forEach(r => patCounts[r.label] = 0);
+    noPartsDocs.forEach(doc => {
+        const txt = doc.풀텍스트 || ''; let matched = false;
+        for (const rule of rules) { if (rule.keywords.some(kw => txt.includes(kw))) { patCounts[rule.label]++; matched = true; break; } }
+        if (!matched) unclass.push(doc.풀텍스트);
+    });
+    if (unclass.length) patCounts['기타(미분류)'] = unclass.length;
+    
+    const finalMap = {...partLabelCounts};
+    Object.entries(patCounts).forEach(([k,v])=>{ finalMap[k] = (finalMap[k]||0) + v; });
+
+    const sorted = Object.entries(finalMap).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
+    const barColors = ['#2563eb','#3b82f6','#60a5fa','#93c5fd','#bfdbfe','#dbeafe'];
+
+    window._unclassifiedSamples = unclass.slice(0, 20); window._unclassifiedTotal = unclass.length;
+
+    document.getElementById('panelContent').innerHTML = `
+        <div class="h-full flex flex-col">
+            <div class="flex items-center justify-between mb-3 shrink-0">
+                <span class="text-[12px] text-gray-500">총 <span class="font-black text-blue-600">${targetDocs.length}건</span> 분석 결과</span>
+            </div>
+            <div class="panel-grid flex-1 overflow-y-auto">
+                ${sorted.map(([label,count],i)=>{
+                    const pct = Math.round(count/targetDocs.length*100);
+                    const color = barColors[Math.min(i, barColors.length-1)];
+                    const isEtc = label.includes('기타') || label.includes('미분류');
+                    return `
+                    <div class="mb-2 ${isEtc?'cursor-pointer':''}" ${isEtc?'onclick="toggleEtcSamples(this)"':''}>
+                        <div class="panel-bar-label ${isEtc?'text-amber-700':''}">${label}${isEtc?' <span style="font-size:8px;color:#d97706;">▼ 원문보기</span>':''}</div>
+                        <div class="panel-bar-track"><div class="panel-bar-fill" style="width:${pct}%;background:${isEtc?'#f59e0b':color};"></div></div>
+                        <div class="panel-bar-meta"><span class="font-bold">${count}건</span><span class="text-gray-400">${pct}%</span></div>
+                        ${isEtc ? `<div class="etc-samples hidden mt-1 space-y-1"></div>` : ''}
+                    </div>`;
+                }).join('')}
+            </div>
+        </div>`;
+}
+
+function toggleEtcSamples(container) {
+    const samplesDiv = container.querySelector('.etc-samples'); if (!samplesDiv) return;
+    const isOpen = !samplesDiv.classList.contains('hidden');
+    if (isOpen) { samplesDiv.classList.add('hidden'); return; }
+
+    samplesDiv.classList.remove('hidden');
+    const samples = window._unclassifiedSamples || []; const total = window._unclassifiedTotal || 0;
+    if (!samples.length) { samplesDiv.innerHTML = `<p class="text-[9px] text-gray-400 italic">원문 데이터가 없습니다.</p>`; return; }
+
+    samplesDiv.innerHTML = `
+        <div class="bg-amber-50 border border-amber-200 rounded p-1.5 mt-1 max-h-32 overflow-y-auto">
+            <div class="text-[9px] font-black text-amber-700 mb-1 border-b border-amber-200 pb-1">📄 원문 샘플 (최대 20건)</div>
+            ${samples.map(txt => `<div class="text-[9px] text-gray-600 mb-0.5 truncate border-b border-amber-100 pb-0.5" title="${txt}">- ${txt||'(내용없음)'}</div>`).join('')}
+        </div>`;
+}
+    </script>
+</body>
+</html>
