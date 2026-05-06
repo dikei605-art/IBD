@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>InBody 통합 챗봇 — 기능 소개</title>
+<link href="https://cdn.jsdelivr.net/gh/fonts-archive/S-CoreDream/S-CoreDream.css" rel="stylesheet">
+<style>
+:root {
+  --red: #8B2323;
+  --red-bg: #F9EDED;
+  --red-mid: #b02d2d;
+  --black: #111111;
+  --gray: #6B7280;
+  --gray-light: #F3F4F6;
+  --gray-mid: #E5E7EB;
+  --gray-dark: #4B5563;
+  --white: #FFFFFF;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'S-Core Dream', 'Noto Sans KR', sans-serif;
+  font-weight: 400;
+  background: #FAFAFA;
+  color: var(--black);
+  line-height: 1.6;
+}
+
+/* ── 섹션 공통 ── */
+.section {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 80px 48px;
+}
+.section + .section {
+  border-top: 1px solid var(--gray-mid);
+}
+.sec-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--red);
+  margin-bottom: 12px;
+}
+.sec-title {
+  font-size: 32px;
+  font-weight: 800;
+  color: var(--black);
+  line-height: 1.25;
+  margin-bottom: 10px;
+}
+.sec-sub {
+  font-size: 15px;
+  color: var(--gray);
+  margin-bottom: 48px;
+  max-width: 640px;
+}
+
+/* ── 커버 ── */
+.cover {
+  background: var(--black);
+  padding: 0;
+}
+.cover-inner {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 96px 48px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 64px;
+  align-items: center;
+}
+.cover-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  color: var(--red);
+  text-transform: uppercase;
+  margin-bottom: 20px;
+}
+.cover-title {
+  font-size: 42px;
+  font-weight: 800;
+  color: var(--white);
+  line-height: 1.2;
+  margin-bottom: 20px;
+}
+.cover-title span { color: #F0A0A0; }
+.cover-desc {
+  font-size: 15px;
+  color: #9CA3AF;
+  line-height: 1.8;
+  margin-bottom: 32px;
+}
+.cover-tags {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.cover-tag {
+  padding: 5px 14px;
+  border: 1px solid #374151;
+  border-radius: 20px;
+  font-size: 11px;
+  color: #9CA3AF;
+}
+.cover-right {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.cover-stat {
+  background: #1C1C1C;
+  border: 1px solid #2D2D2D;
+  border-radius: 10px;
+  padding: 20px 24px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.cover-stat-icon {
+  width: 40px;
+  height: 40px;
+  background: #2D2D2D;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+.cover-stat-label { font-size: 11px; color: #6B7280; margin-bottom: 3px; }
+.cover-stat-val { font-size: 14px; font-weight: 600; color: var(--white); }
+
+/* ── 한줄 요약 띠 ── */
+.summary-band {
+  background: var(--red-bg);
+  border-top: 1px solid #E0B0B0;
+  border-bottom: 1px solid #E0B0B0;
+}
+.summary-band-inner {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 28px 48px;
+  display: flex;
+  align-items: flex-start;
+  gap: 24px;
+}
+.summary-icon { font-size: 24px; flex-shrink: 0; margin-top: 2px; }
+.summary-text { font-size: 16px; font-weight: 600; color: var(--black); line-height: 1.65; }
+.summary-text strong { color: var(--red); }
+
+/* ── compare grid ── */
+.compare-grid {
+  display: grid;
+  grid-template-columns: 1fr 48px 1fr;
+  gap: 0;
+  align-items: stretch;
+  margin-bottom: 56px;
+}
+.compare-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  color: var(--red);
+  font-weight: 700;
+}
+.compare-box {
+  border-radius: 10px;
+  padding: 28px 32px;
+}
+.compare-box.problem {
+  background: var(--gray-light);
+  border: 1px solid var(--gray-mid);
+}
+.compare-box.solution {
+  background: var(--red-bg);
+  border: 1px solid #E0B0B0;
+  border-left: 4px solid var(--red);
+}
+.compare-tag {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--gray);
+  margin-bottom: 10px;
+}
+.compare-box.solution .compare-tag { color: var(--red); }
+.compare-head {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--black);
+  margin-bottom: 10px;
+  line-height: 1.35;
+}
+.compare-desc {
+  font-size: 13px;
+  color: var(--gray);
+  line-height: 1.8;
+  margin-bottom: 16px;
+}
+.compare-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.chip { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+.chip.gray { background: var(--white); color: var(--gray); border: 1px solid var(--gray-mid); }
+.chip.red { background: var(--red); color: var(--white); }
+
+/* ── 문제 목록 ── */
+.problem-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
+.problem-item {
+  display: flex; align-items: flex-start; gap: 10px;
+  font-size: 13px; color: var(--gray-dark); line-height: 1.6;
+}
+.problem-num {
+  width: 20px; height: 20px; border-radius: 50%;
+  background: var(--gray-mid); color: var(--gray);
+  font-size: 10px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; margin-top: 2px;
+}
+
+/* ── DB 카드 4개 ── */
+.db-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 0;
+}
+.db-card {
+  border: 1px solid var(--gray-mid);
+  border-radius: 12px;
+  padding: 24px 20px;
+  background: var(--white);
+  position: relative;
+  overflow: hidden;
+}
+.db-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: var(--red);
+}
+.db-icon { font-size: 28px; margin-bottom: 14px; }
+.db-name { font-size: 14px; font-weight: 800; color: var(--black); margin-bottom: 6px; }
+.db-source {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--red); margin-bottom: 10px;
+}
+.db-desc { font-size: 12px; color: var(--gray); line-height: 1.65; }
+.db-count {
+  margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--gray-mid);
+  font-size: 11px; color: var(--gray-dark); font-weight: 600;
+}
+
+/* ── 동작 흐름 ── */
+.flow-steps {
+  display: flex;
+  align-items: flex-start;
+  gap: 0;
+  position: relative;
+  margin-bottom: 48px;
+}
+.flow-steps::before {
+  content: '';
+  position: absolute;
+  top: 28px;
+  left: 10%;
+  width: 80%;
+  height: 1px;
+  background: var(--gray-mid);
+  z-index: 0;
+}
+.flow-step {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
+  position: relative;
+  z-index: 1;
+}
+.flow-circle {
+  width: 56px; height: 56px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px; position: relative;
+  background: var(--white);
+  border: 1.5px solid var(--gray-mid);
+}
+.flow-circle.accent { background: var(--red); border-color: var(--red); }
+.flow-num {
+  position: absolute; top: -4px; right: -4px;
+  width: 18px; height: 18px;
+  background: var(--red); color: var(--white);
+  border-radius: 50%; font-size: 9px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+}
+.flow-circle.accent .flow-num { background: var(--black); }
+.flow-name { font-size: 12px; font-weight: 700; color: var(--black); line-height: 1.35; }
+.flow-desc { font-size: 11px; color: var(--gray); line-height: 1.5; }
+.flow-tag { font-size: 10px; font-weight: 700; padding: 2px 10px; border-radius: 10px; }
+.flow-tag-main { background: var(--red-bg); color: var(--red); border: 1px solid #E0B0B0; }
+.flow-tag-sub { background: var(--gray-light); color: var(--gray-dark); border: 1px solid var(--gray-mid); }
+
+/* ── 질문 예시 ── */
+.qa-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 0;
+}
+.qa-card {
+  border: 1px solid var(--gray-mid);
+  border-radius: 10px;
+  padding: 20px 22px;
+  background: var(--white);
+}
+.qa-feature {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--red); margin-bottom: 10px;
+}
+.qa-q {
+  font-size: 13px; font-weight: 600; color: var(--black);
+  line-height: 1.55; margin-bottom: 12px; padding-bottom: 12px;
+  border-bottom: 1px solid var(--gray-mid);
+}
+.qa-q::before { content: '"'; color: var(--red); }
+.qa-q::after { content: '"'; color: var(--red); }
+.qa-a { font-size: 12px; color: var(--gray); line-height: 1.7; }
+.qa-a strong { color: var(--red); font-weight: 700; }
+.qa-note {
+  margin-top: 8px;
+  font-size: 10px;
+  color: #9CA3AF;
+  font-style: italic;
+}
+
+/* ── divider (검정 띠) ── */
+.divider-section { background: var(--black); padding: 56px 0; }
+.divider-inner {
+  max-width: 1080px; margin: 0 auto; padding: 0 48px;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 32px; flex-wrap: wrap;
+}
+.divider-msg {
+  font-size: 22px; font-weight: 700; color: var(--white);
+  line-height: 1.4; max-width: 620px;
+}
+.divider-msg span { color: #F0A0A0; }
+.divider-sub { font-size: 12px; color: #6B7280; margin-top: 6px; }
+
+/* ── Before/After 표 ── */
+.compare-table-wrap { margin-bottom: 56px; }
+.compare-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.compare-table th {
+  padding: 12px 20px; text-align: left;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--gray);
+  background: var(--gray-light); border-bottom: 1px solid var(--gray-mid);
+}
+.compare-table th:first-child { border-radius: 8px 0 0 0; }
+.compare-table th:last-child { border-radius: 0 8px 0 0; }
+.compare-table td {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--gray-mid);
+  vertical-align: middle;
+}
+.compare-table tr:last-child td { border-bottom: none; }
+.compare-table .item { font-weight: 600; color: var(--black); }
+.compare-table .before { color: var(--gray); }
+.compare-table .after { color: var(--red); font-weight: 600; }
+
+/* ── 로드맵 ── */
+.roadmap-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+.rm-card {
+  border: 1px solid var(--gray-mid);
+  border-radius: 10px;
+  padding: 22px 24px;
+  position: relative;
+}
+.rm-card.current {
+  background: var(--red-bg);
+  border-color: #E0B0B0;
+}
+.rm-card.future {
+  background: var(--white);
+}
+.rm-phase {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.12em;
+  color: var(--gray); margin-bottom: 6px;
+}
+.rm-card.current .rm-phase { color: var(--red); }
+.rm-title { font-size: 15px; font-weight: 800; color: var(--black); margin-bottom: 8px; }
+.rm-desc { font-size: 12px; color: var(--gray); line-height: 1.7; }
+.rm-badge {
+  display: inline-block; margin-top: 14px;
+  padding: 3px 10px; border-radius: 10px;
+  font-size: 10px; font-weight: 700;
+}
+.rm-badge.done { background: var(--red); color: var(--white); }
+.rm-badge.reviewing { background: #FEF3C7; color: #92400E; border: 1px solid #FDE68A; }
+.rm-badge.goal { background: var(--black); color: var(--white); }
+
+/* ── footer ── */
+.footer { background: var(--black); padding: 32px 0; text-align: center; }
+.footer-text { font-size: 12px; color: #6B7280; }
+.footer-text span { color: #F0A0A0; }
+
+/* ── 반응형 ── */
+@media (max-width: 768px) {
+  .section { padding: 48px 24px; }
+  .cover-inner { grid-template-columns: 1fr; gap: 40px; }
+  .compare-grid { grid-template-columns: 1fr; }
+  .compare-arrow { transform: rotate(90deg); }
+  .db-grid { grid-template-columns: 1fr 1fr; }
+  .qa-grid { grid-template-columns: 1fr; }
+  .roadmap-grid { grid-template-columns: 1fr; }
+  .flow-steps::before { display: none; }
+}
+@media print {
+  body { background: white; }
+  .cover { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .divider-section { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════
+  커버
+══════════════════════════════════════ -->
+<section class="cover">
+  <div class="cover-inner">
+    <div class="cover-left">
+      <div class="cover-label">InBody CS 지원 도구 · 기능 소개</div>
+      <h1 class="cover-title">InBody<br><span>통합 챗봇</span></h1>
+      <p class="cover-desc">
+        호환리스트, 설계변경 이력, AS 문의 이력, CS 매뉴얼.<br>
+        네 개의 데이터베이스를 자연어 한 문장으로 한번에 검색합니다.
+      </p>
+      <div class="cover-tags">
+        <span class="cover-tag">#호환리스트</span>
+        <span class="cover-tag">#설계변경이력</span>
+        <span class="cover-tag">#AS문의이력</span>
+        <span class="cover-tag">#CS매뉴얼</span>
+        <span class="cover-tag">#자연어검색</span>
+      </div>
+    </div>
+    <div class="cover-right">
+      <div class="cover-stat">
+        <div class="cover-stat-icon">📋</div>
+        <div>
+          <div class="cover-stat-label">호환리스트 · 설계변경 이력</div>
+          <div class="cover-stat-val">엑셀 파일 → 자동 파싱 DB</div>
+        </div>
+      </div>
+      <div class="cover-stat">
+        <div class="cover-stat-icon">🔧</div>
+        <div>
+          <div class="cover-stat-label">AS 문의 이력</div>
+          <div class="cover-stat-val">현장 기사 Q&A 이력 검색</div>
+        </div>
+      </div>
+      <div class="cover-stat">
+        <div class="cover-stat-icon">📖</div>
+        <div>
+          <div class="cover-stat-label">CS 매뉴얼</div>
+          <div class="cover-stat-val">PDF 317건 전문 검색</div>
+        </div>
+      </div>
+      <div class="cover-stat">
+        <div class="cover-stat-icon">🌐</div>
+        <div>
+          <div class="cover-stat-label">접속 방법</div>
+          <div class="cover-stat-val">사내 네트워크 · 웹 브라우저</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════
+  한줄 요약 띠
+══════════════════════════════════════ -->
+<div class="summary-band">
+  <div class="summary-band-inner">
+    <div class="summary-icon">💡</div>
+    <div class="summary-text">
+      기존에는 호환리스트, 설계변경, AS이력, CS매뉴얼을 <strong>각각 파일을 열어 직접 찾아야</strong> 했습니다.<br>
+      이제는 <strong>자연어로 질문 한 문장이면</strong> 네 개 DB를 동시에 검색하고 답변을 받을 수 있습니다.
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+  배경 — 왜 만들었나
+══════════════════════════════════════ -->
+<section class="section">
+  <div class="sec-label">Background · 배경</div>
+  <h2 class="sec-title">이 도구를 만든 이유</h2>
+  <p class="sec-sub">현장에서 정보를 찾는 데 너무 많은 시간이 걸렸습니다.</p>
+
+  <div class="compare-grid">
+    <div class="compare-box problem">
+      <div class="compare-tag">Before · 기존 방식</div>
+      <div class="compare-head">파일을 직접 열어서<br>눈으로 찾아야 했다</div>
+      <div class="problem-list">
+        <div class="problem-item">
+          <div class="problem-num">1</div>
+          <div>호환리스트 엑셀을 열고 모델 시트를 찾아 스크롤</div>
+        </div>
+        <div class="problem-item">
+          <div class="problem-num">2</div>
+          <div>설계변경 이력 엑셀을 별도로 열어 날짜·내용 확인</div>
+        </div>
+        <div class="problem-item">
+          <div class="problem-num">3</div>
+          <div>AS 문의 이력 파일에서 유사 사례 직접 검색</div>
+        </div>
+        <div class="problem-item">
+          <div class="problem-num">4</div>
+          <div>CS 매뉴얼 PDF를 열어 Ctrl+F로 키워드 검색</div>
+        </div>
+      </div>
+      <div class="compare-chips">
+        <span class="chip gray">파일 4개 이상</span>
+        <span class="chip gray">수동 검색</span>
+        <span class="chip gray">시간 소요</span>
+      </div>
+    </div>
+    <div class="compare-arrow">→</div>
+    <div class="compare-box solution">
+      <div class="compare-tag">After · 챗봇 도입 후</div>
+      <div class="compare-head">질문 한 문장으로<br>4개 DB를 동시에 검색</div>
+      <div class="compare-desc">
+        모델명과 증상을 자연어로 입력하면 AI가 키워드를 확장하고,
+        관련 데이터를 모두 찾아 정리된 답변으로 돌려줍니다.
+        파일을 열 필요가 없습니다.
+      </div>
+      <div class="compare-chips">
+        <span class="chip red">자연어 질문</span>
+        <span class="chip red">동시 검색</span>
+        <span class="chip red">즉시 답변</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════
+  데이터 구조
+══════════════════════════════════════ -->
+<section class="section">
+  <div class="sec-label">Data Structure · 데이터 구조</div>
+  <h2 class="sec-title">무엇을 검색하나요?</h2>
+  <p class="sec-sub">4개의 데이터베이스가 자동으로 파싱되어 항상 최신 상태를 유지합니다.</p>
+
+  <div class="db-grid">
+    <div class="db-card">
+      <div class="db-icon">📊</div>
+      <div class="db-source">Excel → JSON</div>
+      <div class="db-name">호환리스트</div>
+      <div class="db-desc">디지털·아날로그·로드셀 버전 세트. 모델별 생산적용일 및 배포버전 이력 전체.</div>
+      <div class="db-count">모델별 전수 데이터</div>
+    </div>
+    <div class="db-card">
+      <div class="db-icon">🔄</div>
+      <div class="db-source">Excel → JSON</div>
+      <div class="db-name">설계변경 이력</div>
+      <div class="db-desc">MAR 번호, 변경 자재, 변경 내용, 생산 적용 시점. S/N 기준 추적 가능.</div>
+      <div class="db-count">전 모델 설계변경 이력</div>
+    </div>
+    <div class="db-card">
+      <div class="db-icon">🔧</div>
+      <div class="db-source">Excel → JSON</div>
+      <div class="db-name">AS 문의 이력</div>
+      <div class="db-desc">지사 AS 기사 현장 문의와 답변 이력. 유사 증상 사례 검색에 활용.</div>
+      <div class="db-count">24~26년 문의 이력</div>
+    </div>
+    <div class="db-card">
+      <div class="db-icon">📖</div>
+      <div class="db-source">PDF → JSON</div>
+      <div class="db-name">CS 매뉴얼</div>
+      <div class="db-desc">CS 매뉴얼 PDF 전문 파싱. 표 데이터, 에러코드, 섹션별 조치방법 검색.</div>
+      <div class="db-count">317건 매뉴얼 전문</div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════
+  divider
+══════════════════════════════════════ -->
+<div class="divider-section">
+  <div class="divider-inner">
+    <div>
+      <div class="divider-msg">
+        질문 한 문장이면<br>
+        <span>4개 DB가 동시에 움직입니다.</span>
+      </div>
+      <div class="divider-sub">AI가 키워드를 확장하고, 모든 DB에서 관련 내용을 찾아 정리합니다.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+  동작 흐름
+══════════════════════════════════════ -->
+<section class="section">
+  <div class="sec-label">How It Works · 동작 흐름</div>
+  <h2 class="sec-title">어떻게 작동하나요?</h2>
+  <p class="sec-sub">질문이 입력되면 5단계 파이프라인이 자동으로 실행됩니다.</p>
+
+  <div class="flow-steps">
+    <div class="flow-step">
+      <div class="flow-circle">
+        <span>✍️</span>
+        <div class="flow-num">1</div>
+      </div>
+      <div class="flow-name">질문 입력</div>
+      <div class="flow-desc">모델명 + 증상을<br>자연어로 입력</div>
+      <div class="flow-tag flow-tag-sub">사용자</div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-circle">
+        <span>🧠</span>
+        <div class="flow-num">2</div>
+      </div>
+      <div class="flow-name">AI 키워드 확장</div>
+      <div class="flow-desc">동의어·관련어<br>자동 추가</div>
+      <div class="flow-tag flow-tag-main">AI</div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-circle accent">
+        <span style="color:white">🔍</span>
+        <div class="flow-num">3</div>
+      </div>
+      <div class="flow-name">4개 DB 동시 검색</div>
+      <div class="flow-desc">호환·설변·AS이력<br>CS매뉴얼 병렬 탐색</div>
+      <div class="flow-tag flow-tag-main">핵심</div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-circle">
+        <span>📎</span>
+        <div class="flow-num">4</div>
+      </div>
+      <div class="flow-name">컨텍스트 조합</div>
+      <div class="flow-desc">검색 결과를<br>LLM용으로 정리</div>
+      <div class="flow-tag flow-tag-sub">자동</div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-circle">
+        <span>💬</span>
+        <div class="flow-num">5</div>
+      </div>
+      <div class="flow-name">답변 생성</div>
+      <div class="flow-desc">출처 명시 포함<br>한국어 답변</div>
+      <div class="flow-tag flow-tag-main">AI</div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════
+  질문 예시
+══════════════════════════════════════ -->
+<section class="section">
+  <div class="sec-label">Examples · 질문 예시</div>
+  <h2 class="sec-title">이런 걸 물어볼 수 있어요</h2>
+  <p class="sec-sub">모델명과 증상만 자연어로 입력하면 됩니다. ※ 아래 답변은 예시입니다.</p>
+
+  <div class="qa-grid">
+    <div class="qa-card">
+      <div class="qa-feature">설계변경 이력</div>
+      <div class="qa-q">380 정전기 개선은 언제부터야?</div>
+      <div class="qa-a">
+        InBody 380 기준, 정전기 개선 설계변경은
+        <strong>2021년 11월 생산분(S/N 21110001~)</strong>부터 적용되었습니다.<br><br>
+        변경 내용: 핸드 전극부 정전기 방지 코팅 추가 (MAR-2021-047).<br>
+        해당 S/N 이전 제품은 현장 조치 필요합니다.
+      </div>
+      <div class="qa-note">※ 예시 답변</div>
+    </div>
+    <div class="qa-card">
+      <div class="qa-feature">CS 매뉴얼 · AS 이력</div>
+      <div class="qa-q">770에서 와이파이 모듈 교체했는데 클라우드가 안돼</div>
+      <div class="qa-a">
+        InBody 770 Wi-Fi 모듈 교체 후 클라우드 미연결 시:<br><br>
+        <strong>1.</strong> 장비 설정 → 네트워크 → SSID 재등록<br>
+        <strong>2.</strong> 클라우드 서버 주소 초기화 후 재입력<br>
+        <strong>3.</strong> 방화벽 포트(443) 오픈 여부 확인<br><br>
+        유사 AS 이력: 모듈 교체 후 MAC 주소 변경으로 미연결 사례 다수.
+      </div>
+      <div class="qa-note">※ 예시 답변</div>
+    </div>
+    <div class="qa-card">
+      <div class="qa-feature">CS 매뉴얼 · 기준값</div>
+      <div class="qa-q">인체지그로 인바디770 측정 시 체지방률 기준</div>
+      <div class="qa-a">
+        InBody 770 인체지그(RC Unit) 측정 기준값:<br><br>
+        체지방률(BFP): <strong>±1.5% 이내</strong> (20회 연속 측정 평균 기준)<br>
+        체수분: ±0.3L 이내<br><br>
+        기준 초과 시: 전극 청소 → 지그 캘리브레이션 → 재측정 순서로 조치.
+      </div>
+      <div class="qa-note">※ 예시 답변</div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════
+  divider
+══════════════════════════════════════ -->
+<div class="divider-section">
+  <div class="divider-inner">
+    <div>
+      <div class="divider-msg">
+        파일을 열 필요 없이,<br>
+        <span>질문하면 바로 답변이 옵니다.</span>
+      </div>
+      <div class="divider-sub">사내 네트워크 연결 시 누구나 웹 브라우저에서 접속 가능합니다.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+  Before / After
+══════════════════════════════════════ -->
+<section class="section">
+  <div class="sec-label">Before / After · 변화</div>
+  <h2 class="sec-title">무엇이 달라지나요?</h2>
+  <p class="sec-sub">정보를 찾는 방식이 바뀌면 업무 속도가 달라집니다.</p>
+
+  <div class="compare-table-wrap">
+    <table class="compare-table">
+      <thead>
+        <tr>
+          <th>항목</th>
+          <th>Before — 기존 방식</th>
+          <th>After — 챗봇 도입 후</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="item">정보 접근</td>
+          <td class="before">파일 4개 이상 직접 열기</td>
+          <td class="after">질문 한 문장, 브라우저에서 즉시</td>
+        </tr>
+        <tr>
+          <td class="item">검색 방식</td>
+          <td class="before">Ctrl+F, 스크롤, 눈으로 탐색</td>
+          <td class="after">자연어 입력 → AI가 키워드 확장·검색</td>
+        </tr>
+        <tr>
+          <td class="item">DB 범위</td>
+          <td class="before">한 번에 하나의 파일만</td>
+          <td class="after">4개 DB 동시 검색</td>
+        </tr>
+        <tr>
+          <td class="item">유사 사례</td>
+          <td class="before">AS이력 파일 수동 탐색</td>
+          <td class="after">관련 AS 이력 자동 매칭·요약</td>
+        </tr>
+        <tr>
+          <td class="item">접속 환경</td>
+          <td class="before">파일 보유자만 / 개인 PC</td>
+          <td class="after">사내 네트워크 어디서든 웹 브라우저</td>
+        </tr>
+        <tr>
+          <td class="item">데이터 갱신</td>
+          <td class="before">파일 수동 배포·공유</td>
+          <td class="after">파서 실행 한 번으로 전체 DB 자동 갱신</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════
+  로드맵
+══════════════════════════════════════ -->
+<section class="section">
+  <div class="sec-label">Roadmap · 향후 계획</div>
+  <h2 class="sec-title">앞으로의 방향</h2>
+  <p class="sec-sub">단순한 검색 도구를 넘어, 현장 AS 기사의 실질적인 도구로 발전시킵니다.</p>
+
+  <div class="roadmap-grid">
+    <div class="rm-card current">
+      <div class="rm-phase">Phase 1 · 현재</div>
+      <div class="rm-title">사내 PC 웹 챗봇</div>
+      <div class="rm-desc">
+        사내 네트워크 웹 브라우저에서 4개 DB 자연어 검색 및 AI 답변. 현재 운영 중.
+      </div>
+      <span class="rm-badge done">✅ 운영 중</span>
+    </div>
+    <div class="rm-card future">
+      <div class="rm-phase">Phase 2 · 단기 검토</div>
+      <div class="rm-title">모바일 접근성 개선</div>
+      <div class="rm-desc">
+        현장에서도 접근 가능하도록 모바일 최적화 또는 앱 형태 제공 검토 중. 구현 방식 미정.
+      </div>
+      <span class="rm-badge reviewing">🔄 검토 중</span>
+    </div>
+    <div class="rm-card future">
+      <div class="rm-phase">Phase 3 · 최종 목표</div>
+      <div class="rm-title">현장 AS 완결 도구</div>
+      <div class="rm-desc">
+        사진·영상 포함 점검 가이드, 자재 사진 매칭 기능 추가.<br>
+        <strong>비기너 AS 기사가 이것 하나로 AS를 완료</strong>할 수 있는 수준.
+      </div>
+      <span class="rm-badge goal">🎯 최종 목표</span>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════
+  footer
+══════════════════════════════════════ -->
+<div class="footer">
+  <div class="footer-text">
+    <span>InBody 통합 챗봇</span> · 사내 CS 지원 도구 · 사내 네트워크 전용
+  </div>
+</div>
+
+</body>
+</html>
