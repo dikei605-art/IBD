@@ -1,0 +1,1574 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>InBody Remote CS — 원격 진단 대시보드</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --navy:#1F3864;--navy-light:#2a4a7f;--navy-dark:#0f1f3c;
+  --ok:#1a7a4a;--ok-bg:#eaf3de;--ok-bd:#b8dca0;
+  --warn:#854f0b;--warn-bg:#fff4e0;--warn-bd:#f0c060;
+  --err:#a32d2d;--err-bg:#fff5f5;--err-bd:#f0bfbf;
+  --mid:#73726c;--border:#e0dfd7;--bg:#f0f2f5;
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',sans-serif;font-size:13px;color:#1a1a1a;background:var(--bg);padding:24px 0}
+.page{max-width:1400px;margin:0 auto;padding:0 32px}
+
+/* ── 헤더 ── */
+.hd{background:var(--navy);color:#fff;border-radius:12px;padding:13px 20px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
+.hd-left{display:flex;align-items:center;gap:10px}
+.conn-dot{width:8px;height:8px;border-radius:50%;background:#4caf50;box-shadow:0 0 0 2px rgba(76,175,80,.3);flex-shrink:0}
+.conn-dot.scanning{background:#f0c040;animation:blink 1s ease-in-out infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.dev-name{font-size:14px;font-weight:500}.dev-meta{font-size:11px;opacity:.6;margin-top:1px}
+.hd-right{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.last-ts{font-size:11px;opacity:.6}
+.btn-hd{padding:6px 14px;background:#fff;color:var(--navy);border:none;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;transition:background .15s}
+.btn-hd:hover{background:#e8f0fe}.btn-hd:disabled{background:#888;color:#ccc;cursor:not-allowed}
+.btn-auto{padding:6px 14px;background:#2E7D32;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;transition:background .15s}
+.btn-auto:hover{background:#1B5E20}.btn-auto.on{background:#a05c00}
+
+/* ── 진행 스텝 ── */
+.steps{background:#fff;border-radius:10px;border:.5px solid #ddd;padding:10px 18px;margin-bottom:14px;display:flex;align-items:center;flex-wrap:wrap;gap:2px}
+.step{display:flex;align-items:center;gap:4px;font-size:11px;color:#bbb;transition:color .3s;white-space:nowrap;padding:2px 0}
+.step.active{color:var(--navy);font-weight:500}.step.done{color:var(--ok)}
+.step-num{width:18px;height:18px;border-radius:50%;background:#e8e8e8;color:#aaa;font-size:10px;font-weight:600;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .3s,color .3s}
+.step.active .step-num{background:var(--navy);color:#fff}.step.done .step-num{background:var(--ok);color:#fff}
+.step-sep{width:16px;height:1px;background:#e0e0e0;margin:0 3px;flex-shrink:0}
+
+/* ── 내러티브 ── */
+.narr{background:#fff;border-radius:10px;border:.5px solid #ddd;padding:9px 16px;margin-bottom:14px;display:flex;align-items:center;gap:8px;min-height:36px}
+.narr-text{font-size:12px;color:#555;transition:opacity .3s}.narr-text.fade{opacity:0}
+
+/* ── 요약바 ── */
+.sumbar{background:#fff;border-radius:10px;border:.5px solid #ddd;padding:12px 18px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
+.sum-left{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.sum-lbl{font-size:10px;color:#888;margin-bottom:2px}.sum-val{font-size:13px;font-weight:500}
+.sdiv{width:1px;height:28px;background:#eee}
+.btn-all{padding:8px 18px;background:var(--navy);color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:5px;transition:background .15s}
+.btn-all:hover{background:var(--navy-light)}.btn-all:disabled{background:#aaa;cursor:not-allowed}
+
+/* ── 타일 그리드 ── */
+.grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:14px}
+.tile{background:#fff;border-radius:10px;border:.5px solid #ddd;overflow:hidden;display:flex;flex-direction:column;transition:box-shadow .2s,border-color .3s}
+.tile:hover{box-shadow:0 2px 12px rgba(0,0,0,.08)}
+.tile.t-err{border-color:#e57373;border-width:1.5px}.tile.t-warn{border-color:#ffb74d;border-width:1.5px}
+.tile.t-scan{border-color:#64b5f6;animation:tpulse 1.2s ease-in-out infinite}
+@keyframes tpulse{0%,100%{box-shadow:0 0 0 0 rgba(100,181,246,.2)}50%{box-shadow:0 0 0 5px rgba(100,181,246,.07)}}
+.tile-top{padding:14px 16px 8px;display:flex;justify-content:space-between;align-items:flex-start}
+.tile-num{font-size:10px;color:#aaa;margin-bottom:3px}.tile-name{font-size:15px;font-weight:500}.tile-sub{font-size:10px;color:#aaa;margin-top:2px}
+.sig{display:flex;align-items:center;gap:5px;padding:4px 11px;border-radius:99px;font-size:11px;font-weight:500;white-space:nowrap;flex-shrink:0}
+.sig.ok{background:var(--ok-bg);color:var(--ok)}.sig.warn{background:var(--warn-bg);color:var(--warn)}.sig.err{background:var(--err-bg);color:var(--err)}.sig.idle{background:#f0f0f0;color:#999}.sig.pending{background:#f5f5f5;color:#bbb}
+.sdot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.sdot.ok{background:var(--ok)}.sdot.warn{background:var(--warn)}.sdot.err{background:var(--err)}.sdot.idle{background:#ccc;animation:blink 1s ease-in-out infinite}.sdot.pending{background:#ddd}
+.tile-conc{padding:0 16px 8px}.conc{font-size:16px;font-weight:500;line-height:1.3}
+.conc.ok{color:var(--ok)}.conc.warn{color:#854f0b}.conc.err{color:var(--err)}.conc.idle{color:#bbb}.conc.pending{color:#ccc}
+.tile-ev{margin:0 16px 10px;padding:7px 11px;background:#f8f8f8;border-radius:7px;border:.5px solid #eee;min-height:36px}
+.ev-row{display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding:2px 0}
+.ev-lbl{font-size:10px;color:#888;white-space:nowrap;flex-shrink:0}.ev-val{font-size:10px;color:#444;text-align:right;line-height:1.5}
+.ev-val.err{color:var(--err);font-weight:500}.ev-val.warn{color:var(--warn);font-weight:500}.ev-val.ok{color:var(--ok)}
+.tile-prog{height:3px;background:#eee;overflow:hidden}
+.prog-fill{height:100%;transition:width .5s,background .3s}
+.prog-fill.run{animation:pprog 1.5s linear infinite;width:0!important}
+@keyframes pprog{0%{width:0;margin-left:0}50%{width:55%}100%{width:0;margin-left:100%}}
+.tile-foot{padding:10px 16px 14px;margin-top:auto}
+.exec-btn{width:100%;padding:9px;background:#f5f7fa;color:var(--navy);border:.5px solid #c8d4e8;border-radius:7px;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;transition:background .15s}
+.exec-btn:hover{background:#e8f0fe}.exec-btn:disabled{background:#f0f0f0;color:#bbb;border-color:#e0e0e0;cursor:not-allowed}
+.reset-btn{width:100%;margin-top:5px;padding:6px;background:transparent;color:#aaa;border:.5px solid #e0e0e0;border-radius:7px;font-size:11px;font-weight:400;cursor:pointer;font-family:inherit;transition:all .15s;display:none}
+.reset-btn:hover{background:#f5f5f5;color:#888;border-color:#ccc}
+
+/* ── 이력 ── */
+.hist{background:#fff;border-radius:10px;border:.5px solid #ddd;padding:12px 18px}
+.hist-title{font-size:10px;font-weight:500;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px}
+.hist-row{display:flex;justify-content:space-between;align-items:center;padding:6px 8px;border-bottom:.5px solid #f0f0f0;font-size:11px;gap:8px;border-radius:6px;cursor:pointer;transition:background .15s}
+.hist-row:last-child{border-bottom:none}
+.hist-row:hover{background:#f0f4ff}
+.hist-ts{color:#aaa;min-width:110px;flex-shrink:0}.hist-res{flex:1;color:#444}.hist-act{color:#aaa;font-size:10px;min-width:70px;text-align:right}
+.hist-arrow{font-size:10px;color:#bbb;flex-shrink:0}
+
+/* ══════════════════════════════════════════
+   모달
+══════════════════════════════════════════ */
+.overlay{position:fixed;inset:0;background:rgba(10,20,50,.65);z-index:200;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .3s}
+.overlay.show{opacity:1;pointer-events:auto}
+.modal{background:#f0f2f5;border-radius:14px;width:min(940px,96vw);max-height:90vh;display:flex;flex-direction:column;overflow:hidden;transform:translateY(24px) scale(.97);transition:transform .35s cubic-bezier(.22,.8,.3,1)}
+.overlay.show .modal{transform:translateY(0) scale(1)}
+.modal-head{background:var(--navy);color:#fff;padding:12px 20px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0}
+.modal-title{font-size:14px;font-weight:500}
+.modal-meta{font-size:11px;opacity:.65;margin-top:2px}
+.modal-head-right{display:flex;align-items:center;gap:10px}
+.modal-auto-badge{font-size:10px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);padding:2px 10px;border-radius:20px;display:none}
+.modal-auto-badge.show{display:block}
+.modal-close{background:transparent;border:none;color:#fff;font-size:20px;cursor:pointer;line-height:1;padding:2px 8px;border-radius:4px}
+.modal-close:hover{background:rgba(255,255,255,.15)}
+.modal-body{flex:1;overflow-y:auto;position:relative}
+.modal-footer{padding:12px 20px;background:#fff;border-top:.5px solid #e0e0e0;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;gap:10px}
+.modal-footer-left{font-size:11px;color:#888}
+.modal-footer-right{display:flex;gap:8px}
+.mf-btn-close{padding:8px 18px;background:#fff;color:#555;border:.5px solid #ccc;border-radius:7px;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit}
+.mf-btn-close:hover{background:#f0f0f0}
+.mf-btn-report{padding:8px 20px;background:var(--navy);color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:5px}
+.mf-btn-report:hover{background:var(--navy-light)}
+
+/* ══════════════════════════════════════════
+   ★ 로딩 화면 (진행바 + 단계 라벨)
+══════════════════════════════════════════ */
+.diag-loading{position:absolute;inset:0;background:rgba(240,242,245,.97);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;z-index:10;transition:opacity .4s;padding:28px}
+.diag-loading.hide{opacity:0;pointer-events:none}
+.dl-title{font-size:13px;font-weight:600;color:var(--navy);margin-bottom:20px}
+/* 진행바 */
+.dl-bar-wrap{width:100%;max-width:440px;margin-bottom:8px}
+.dl-bar-bg{width:100%;height:6px;background:#dde1e8;border-radius:3px;overflow:hidden}
+.dl-bar-fill{height:100%;background:var(--navy);border-radius:3px;width:0%;transition:width .6s ease}
+.dl-bar-pct{font-size:11px;color:var(--navy);font-weight:600;text-align:right;margin-top:4px}
+/* 4단계 라벨 */
+.dl-stages{display:flex;align-items:flex-start;justify-content:center;gap:0;width:100%;max-width:500px;margin:18px 0 20px}
+.dl-stage{flex:1;text-align:center;position:relative}
+.dl-stage:not(:last-child)::after{content:'';position:absolute;top:11px;left:60%;width:80%;height:1px;background:#ddd;z-index:0}
+.dl-stage-dot{width:22px;height:22px;border-radius:50%;background:#e0e0e0;color:#aaa;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;margin:0 auto 5px;position:relative;z-index:1;transition:background .4s,color .4s}
+.dl-stage.active .dl-stage-dot{background:var(--navy);color:#fff;box-shadow:0 0 0 3px rgba(31,56,100,.2)}
+.dl-stage.done .dl-stage-dot{background:var(--ok);color:#fff}
+.dl-stage-lbl{font-size:10px;color:#aaa;line-height:1.3;transition:color .3s}
+.dl-stage.active .dl-stage-lbl{color:var(--navy);font-weight:600}
+.dl-stage.done .dl-stage-lbl{color:var(--ok)}
+/* 세부 스텝 */
+.dl-steps{display:flex;flex-direction:column;gap:5px;min-width:300px;margin-top:4px}
+.dsi{display:flex;align-items:center;gap:8px;font-size:11px;color:#bbb;transition:color .3s}
+.dsi.active{color:var(--navy);font-weight:500}.dsi.done{color:var(--ok)}
+.dsi-dot{width:6px;height:6px;border-radius:50%;background:#ddd;flex-shrink:0;transition:background .3s}
+.dsi.active .dsi-dot{background:var(--navy)}.dsi.done .dsi-dot{background:var(--ok)}
+.dl-cur-sub{font-size:11px;color:#888;margin-top:6px}
+
+/* ══════════════════════════════════════════
+   ★ 사전정보 패널 (PHASE 1) — 한 화면에
+══════════════════════════════════════════ */
+.pre-panel{padding:16px 20px;display:flex;flex-direction:column;gap:10px}
+.pp-banner{display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:9px}
+.pp-icon{font-size:22px;flex-shrink:0}
+.pp-banner-title{font-size:14px;font-weight:600;line-height:1.3}
+.pp-banner-sub{font-size:11px;opacity:.7;margin-top:1px}
+.pp-tag{padding:2px 9px;border-radius:20px;font-size:10px;font-weight:600;margin-left:auto;flex-shrink:0;border:1px solid currentColor;opacity:.8}
+/* 2단 그리드 */
+.pp-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.pp-grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.pp-card{background:#fff;border-radius:8px;border:.5px solid var(--border);padding:11px 13px}
+.pp-card-lbl{font-size:10px;color:var(--mid);font-weight:600;margin-bottom:6px;text-transform:uppercase;letter-spacing:.03em}
+.pp-card-val{font-size:11px;color:#333;line-height:1.65}
+.pp-card-val b{color:var(--navy)}
+.pp-stat-row{display:flex;justify-content:space-between;padding:2px 0;border-bottom:.5px solid #f5f5f5;font-size:11px}
+.pp-stat-row:last-child{border-bottom:none}
+.pp-stat-lbl{color:#888}.pp-stat-val{font-weight:500}
+.pp-stat-val.ok{color:var(--ok)}.pp-stat-val.err{color:var(--err)}.pp-stat-val.warn{color:var(--warn)}
+.pp-list{list-style:none;display:flex;flex-direction:column;gap:3px}
+.pp-list li{font-size:11px;color:#444;display:flex;gap:5px;line-height:1.5}
+.pp-list li::before{content:'›';color:var(--navy);font-weight:700;flex-shrink:0}
+/* 진단 흐름 — 인라인 컴팩트 */
+.pp-flow{display:flex;align-items:center;gap:0;background:#fff;border-radius:8px;border:.5px solid var(--border);padding:10px 14px}
+.pp-fs{flex:1;text-align:center}
+.pp-fs-num{width:20px;height:20px;border-radius:50%;background:var(--navy);color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;margin:0 auto 3px}
+.pp-fs-lbl{font-size:10px;color:var(--navy);font-weight:500;line-height:1.2}
+.pp-fs-sub{font-size:9px;color:#aaa}
+.pp-arrow{font-size:12px;color:#ccc;flex-shrink:0;padding:0 2px}
+.pp-notice-inline{background:#fffbf0;border:.5px solid var(--warn-bd);border-radius:7px;padding:8px 12px;font-size:11px;color:#7a5510;line-height:1.6}
+.pp-notice-inline b{color:#854f0b}
+.pp-actions{display:flex;justify-content:flex-end;align-items:center;gap:8px;padding-top:2px}
+.pp-time{font-size:11px;color:#aaa;margin-right:auto}
+.pp-btn-cancel{padding:8px 18px;background:#fff;color:#555;border:.5px solid #ccc;border-radius:7px;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit}
+.pp-btn-cancel:hover{background:#f0f0f0}
+.pp-btn-run{padding:8px 26px;background:var(--navy);color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:6px;box-shadow:0 2px 8px rgba(31,56,100,.25)}
+.pp-btn-run:hover{background:var(--navy-light)}
+
+/* ══════════════════════════════════════════
+   결과 — 바둑판 공통
+══════════════════════════════════════════ */
+.mc{padding:14px 18px;display:flex;flex-direction:column;gap:10px}
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:500;white-space:nowrap}
+.badge.ok{background:var(--ok-bg);color:#27500a}.badge.warn{background:var(--warn-bg);color:#633806}.badge.fail{background:var(--err-bg);color:#791f1f}.badge.neutral{background:#f1efe8;color:#555}
+.mdot{width:6px;height:6px;border-radius:50%;display:inline-block;flex-shrink:0}
+.mdot.ok{background:#3b6d11}.mdot.warn{background:#854f0b}.mdot.fail{background:#a32d2d}
+/* 판정 배너 */
+.m-verdict-banner{border-radius:8px;padding:10px 14px;border:.5px solid transparent;display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.m-verdict-banner.fail{background:var(--err-bg);border-color:var(--err-bd)}
+.m-verdict-banner.ok{background:var(--ok-bg);border-color:var(--ok-bd)}
+.m-verdict-banner.warn{background:var(--warn-bg);border-color:var(--warn-bd)}
+.mvb-title{font-size:12px;font-weight:600;margin-bottom:3px}
+.mvb-title.fail{color:var(--err)}.mvb-title.ok{color:var(--ok)}.mvb-title.warn{color:var(--warn)}
+.mvb-body{font-size:11px;color:#555;line-height:1.6}
+/* KPI 행 */
+.m-kpi-row{display:grid;gap:8px}
+.m-kpi{background:#fff;border:.5px solid var(--border);border-radius:8px;padding:10px 13px}
+.m-kpi-lbl{font-size:10px;color:var(--mid);margin-bottom:3px}
+.m-kpi-val{font-size:16px;font-weight:500}
+.m-kpi-val.fail{color:var(--err)}.m-kpi-val.ok{color:var(--ok)}.m-kpi-val.navy{color:var(--navy)}
+/* 바둑판 2열 */
+.m-cols2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.m-cols3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+/* 섹션 카드 */
+.m-sec{background:#fff;border:.5px solid var(--border);border-radius:8px;overflow:hidden}
+.m-sec-hd{padding:8px 13px;border-bottom:.5px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:8px;background:#fafaf8}
+.m-sec-title{font-size:11px;font-weight:600;color:#333}
+.m-sec-sub{font-size:10px;color:var(--mid);margin-top:1px}
+table.mt{width:100%;border-collapse:collapse;font-size:11px}
+table.mt th{padding:6px 10px;text-align:left;font-size:10px;font-weight:500;color:var(--mid);border-bottom:.5px solid var(--border);background:#fafaf8;white-space:nowrap}
+table.mt th.r{text-align:right}table.mt th.c{text-align:center}
+table.mt td{padding:7px 10px;border-bottom:.5px solid #eeeee8;vertical-align:middle}
+table.mt td.r{text-align:right;font-family:monospace;font-size:11px}table.mt td.c{text-align:center}
+table.mt td.dev-ok{text-align:right;font-family:monospace;font-size:11px;color:var(--mid)}
+table.mt td.dev-fail{text-align:right;font-family:monospace;font-size:11px;color:#a32d2d;font-weight:500}
+table.mt td.dev-warn{text-align:right;font-family:monospace;font-size:11px;color:#854f0b;font-weight:500}
+table.mt tr:last-child td{border-bottom:none}
+table.mt tr.rf{background:#fff5f5}table.mt tr.rw{background:#fffbf0}
+.mbar-wrap{width:56px;height:4px;background:#e8e8e0;border-radius:2px;display:inline-block;vertical-align:middle;margin-left:4px}
+.mbar-fill{height:100%;border-radius:2px}
+.mbar-fill.ok{background:#3b6d11}.mbar-fill.warn{background:#854f0b}.mbar-fill.fail{background:#a32d2d}
+.m-vfoot{padding:7px 13px;display:flex;gap:20px;flex-wrap:wrap;border-top:.5px solid var(--border);background:#fafaf8}
+.m-vf-lbl{font-size:10px;color:var(--mid);margin-bottom:1px}.m-vf-txt{font-size:11px;font-weight:500}
+.m-vf-txt.fail{color:#a32d2d}
+/* 편심 위치도 */
+.pos-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px}
+.pos-cell{border-radius:5px;padding:7px 5px;text-align:center}
+.pos-cell.ok{background:var(--ok-bg);border:.5px solid var(--ok-bd)}.pos-cell.fail{background:var(--err-bg);border:.5px solid var(--err-bd)}.pos-cell.ref{background:#f1efe8;border:.5px solid #d3d1c7;grid-column:1/-1}
+.pos-name{font-size:9px;margin-bottom:1px}.pos-name.ok{color:#3b6d11}.pos-name.fail{color:#a32d2d}.pos-name.ref{color:var(--mid)}
+.pos-val{font-size:10px;font-weight:500}.pos-val.ok{color:#3b6d11}.pos-val.fail{color:#a32d2d}.pos-val.ref{color:#1a1a18}
+/* 테이블 그룹행 */
+.mgrp td{background:#EEF2F8;font-weight:500;color:var(--navy);font-size:11px;text-align:left;padding:3px 10px;border-bottom:.5px solid #C8D0E0}
+td.mpass{color:#3b6d11;font-weight:500;text-align:center}td.mfail-t{color:#a32d2d;font-weight:500;text-align:center}
+td.mref{color:#888;font-family:monospace;font-size:11px;text-align:center}
+td.mdev-ok{color:#3b6d11;font-weight:500;font-size:11px;text-align:center}
+td.mdev-fail{color:#a32d2d;font-weight:500;font-size:11px;text-align:center}
+td.mdev-warn{color:#854f0b;font-weight:500;font-size:11px;text-align:center}
+/* 노이즈 사지 카드 */
+.limb-grid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:7px}
+.lc{background:#fff;border:.5px solid var(--border);border-radius:7px;padding:9px 10px}
+.lc-lbl{font-size:10px;color:#888;margin-bottom:2px}
+.lc-val{font-size:16px;font-weight:500;margin-bottom:2px}
+.lc-unit{font-size:10px;color:#aaa;font-weight:400}
+.lc-bar{height:4px;border-radius:2px;background:#eee;margin:3px 0;overflow:hidden}
+.lc-bar-fill{height:100%;border-radius:2px}
+/* 3단계 카드 */
+.stage3-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.s3c{background:#fff;border:.5px solid var(--border);border-radius:7px;padding:9px 11px}
+.s3c-num{font-size:10px;color:var(--mid);margin-bottom:2px}
+.s3c-title{font-size:11px;font-weight:500;margin-bottom:3px}
+.s3c-val{font-size:14px;font-weight:600}.s3c-val.ok{color:var(--ok)}
+.s3c-note{font-size:10px;color:#aaa;margin-top:2px}
+/* 노이즈 차트 */
+.noise-chart-wrap{background:#fff;border:.5px solid var(--border);border-radius:8px;overflow:hidden}
+.noise-chart-hd{padding:8px 13px;border-bottom:.5px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:8px;background:#fafaf8;flex-wrap:wrap;gap:6px}
+.noise-chart-title{font-size:11px;font-weight:600;color:#333}
+.freq-btns{display:flex;flex-wrap:wrap;gap:4px}
+.freq-btn{padding:3px 8px;border-radius:20px;font-size:10px;font-weight:500;cursor:pointer;border:.5px solid #d0d0d0;background:#f5f5f5;color:#555;transition:all .15s;font-family:inherit}
+.freq-btn.active{background:var(--navy);color:#fff;border-color:var(--navy)}
+.noise-chart-body{padding:10px 14px 12px;position:relative;height:140px}
+.noise-chart-note{padding:5px 13px 8px;font-size:10px;color:var(--mid);border-top:.5px solid #f0f0f0;background:#fafaf8}
+
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.anim-item{opacity:0;animation:fadeUp .35s ease forwards}
+
+/* 이력 결과 모달 특이 스타일 */
+.hist-result-banner{background:var(--err-bg);border:.5px solid var(--err-bd);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:var(--err);font-weight:500}
+.hist-result-banner.ok{background:var(--ok-bg);border-color:var(--ok-bd);color:var(--ok)}
+
+/* ── 툴팁 ── */
+.tip-wrap{position:relative;display:inline-flex;align-items:center}
+.tip-icon{width:14px;height:14px;border-radius:50%;background:#dde3ee;color:var(--navy);font-size:9px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;margin-left:4px;transition:background .15s}
+.tip-icon:hover{background:#b8c8e8}
+.tip-box{position:absolute;bottom:calc(100% + 7px);left:50%;transform:translateX(-50%);background:#1a2540;color:#fff;font-size:11px;line-height:1.6;padding:8px 12px;border-radius:8px;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .18s;z-index:300;box-shadow:0 4px 16px rgba(0,0,0,.25);min-width:180px;max-width:260px;white-space:normal}
+.tip-box::after{content:'';position:absolute;top:100%;left:50%;transform:translateX(-50%);border:5px solid transparent;border-top-color:#1a2540}
+.tip-wrap:hover .tip-box{opacity:1;pointer-events:auto}
+
+/* ── 로직 요약표 ── */
+.logic-table-wrap{margin:0 16px 14px;border-radius:8px;overflow:hidden;border:.5px solid #e8eaf0}
+.logic-table-title{padding:7px 12px;background:#f0f2f8;font-size:10px;font-weight:600;color:var(--navy);letter-spacing:.04em;text-transform:uppercase;border-bottom:.5px solid #e0e3ec}
+.logic-table{width:100%;border-collapse:collapse;font-size:11px}
+.logic-table th{padding:6px 10px;background:#f8f9fc;color:#888;font-weight:500;text-align:left;border-bottom:.5px solid #eceef4;white-space:nowrap}
+.logic-table td{padding:6px 10px;border-bottom:.5px solid #f2f3f7;color:#444;line-height:1.4;vertical-align:middle;white-space:nowrap}
+.logic-table tr:last-child td{border-bottom:none}
+.logic-table td:first-child{color:var(--navy);font-weight:500;white-space:nowrap}.logic-table td.meaning{white-space:nowrap}
+.logic-table td.load-tag{white-space:nowrap}
+.load-badge{display:inline-block;padding:1px 6px;border-radius:10px;font-size:9px;font-weight:600}
+.load-badge.부하{background:#fff4e0;color:#854f0b}
+.load-badge.무부하{background:#edf4ff;color:#2a5a9a}
+
+/* ── 타일 간소화 ── */
+.tile-ev-simple{margin:0 16px 10px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.tile-tag{display:inline-flex;align-items:center;gap:3px;padding:3px 8px;border-radius:20px;font-size:10px;font-weight:500;background:#f0f2f8;color:var(--navy)}
+
+/* ── 상태 배지 ── */
+.stat-badge{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600;white-space:nowrap}
+.stat-badge.none{background:#f0f0f0;color:#bbb}
+.stat-badge.ok{background:var(--ok-bg);color:#27500a}
+.stat-badge.err{background:var(--err-bg);color:#791f1f}
+.stat-badge.val{font-family:monospace;font-size:10px;color:#555;background:#f5f5f5;padding:2px 7px;border-radius:6px;border:.5px solid #e0e0e0}
+
+/* ── 상세 보기 버튼 ── */
+.detail-btn{width:100%;margin-top:6px;padding:8px;background:#f5f5f5;color:#bbb;border:.5px solid #e0e0e0;border-radius:7px;font-size:12px;font-weight:500;cursor:not-allowed;font-family:inherit;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:5px}
+.detail-btn.active{background:#f0f4ff;color:var(--navy);border-color:#c0cce8;cursor:pointer}
+.detail-btn.active:hover{background:#e0eaff;border-color:#a0b8e0}
+/* 로직표: 수치 컬럼 제거 — 상태만 */
+.logic-table td.val-col{display:none}
+.logic-table th.val-col{display:none}
+
+.stat-badge.ok{background:var(--ok-bg);color:#27500a;font-weight:600}
+.stat-badge.err{background:var(--err-bg);color:#791f1f;font-weight:600}
+.stat-badge.warn{background:var(--warn-bg);color:#633806;font-weight:600}
+
+.btn-reset-all{padding:8px 16px;background:transparent;color:#888;border:.5px solid #ccc;border-radius:7px;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;transition:all .15s;display:flex;align-items:center;gap:5px}
+.btn-reset-all:hover{background:#f5f5f5;color:#555;border-color:#aaa}
+
+/* ── 원격 진단 흐름도 ── */
+.flow-section{background:#fff;border-radius:10px;border:.5px solid #ddd;padding:16px 20px;margin-bottom:14px}
+.flow-section-title{font-size:11px;font-weight:600;color:var(--navy);margin-bottom:14px;display:flex;align-items:center;gap:6px;text-transform:uppercase;letter-spacing:.04em}
+.flow-row{display:grid;grid-template-columns:1fr 32px 1fr 32px 1fr 32px 1fr 32px 1fr;align-items:center;gap:0}
+.flow-step{display:flex;flex-direction:column;align-items:center;gap:5px;text-align:center}
+.flow-step-icon{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.flow-step-icon.cs{background:#e8eef8;border:.5px solid #c0cce8}
+.flow-step-icon.customer{background:#fff4e0;border:.5px solid #f0c060}
+.flow-step-icon.device{background:#1a1a2e;border:.5px solid #333}
+.flow-step-lbl{font-size:10px;font-weight:600;color:#555;line-height:1.4}
+.flow-step-sub{font-size:9px;color:#aaa;line-height:1.4}
+.flow-arrow{text-align:center;color:#ccc;font-size:14px}
+.flow-actor-labels{display:grid;grid-template-columns:repeat(5,1fr);gap:0;margin-top:12px;padding-top:10px;border-top:.5px solid #f0f0f0}
+.flow-actor{text-align:center;font-size:9px;font-weight:600;letter-spacing:.05em;padding:3px 0;border-radius:4px}
+.flow-actor.cs{color:var(--navy);background:#f0f4ff}
+.flow-actor.customer{color:#854f0b;background:#fffbf0}
+.flow-actor.device{color:#444;background:#f5f5f5}
+
+/* ── 장비 화면 썸네일 ── */
+.device-thumb-wrap{margin:0 16px 12px;border-radius:8px;overflow:hidden;border:.5px solid #e0e4f0;background:#1a1a1a}
+.device-thumb-title{padding:6px 12px;background:#1a1a2e;font-size:10px;font-weight:600;color:#aaa;letter-spacing:.04em;display:flex;align-items:center;justify-content:space-between}
+.device-thumb-title span{color:#666}
+.device-thumb-body{height:200px;position:relative;overflow:hidden}
+.device-thumb-body iframe{width:200%;height:200%;transform:scale(.5);transform-origin:top left;border:none;background:#0d0d0d;pointer-events:none}
+.device-thumb-body.interactive iframe{pointer-events:auto;width:100%;height:100%;transform:none}
+.thumb-expand-btn{font-size:9px;background:rgba(255,255,255,.08);color:#888;border:.5px solid #333;padding:2px 8px;border-radius:4px;cursor:pointer;font-family:inherit;transition:all .15s}
+.thumb-expand-btn:hover{background:rgba(255,255,255,.15);color:#ccc}
+
+/* ── 장비 화면 버튼 ── */
+.device-btn{width:100%;margin-top:6px;padding:8px;background:#1a1a2e;color:#aaa;border:.5px solid #333;border-radius:7px;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:5px}
+.device-btn:hover{background:#2a2a4e;color:#ddd;border-color:#555}
+
+/* ── 장비 화면 팝업 오버레이 ── */
+.device-overlay{position:fixed;inset:0;background:rgba(5,10,25,.85);z-index:500;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .3s}
+.device-overlay.show{opacity:1;pointer-events:auto}
+.device-modal{background:#111;border-radius:16px;width:min(420px,92vw);display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.6);transform:translateY(20px) scale(.96);transition:transform .3s cubic-bezier(.22,.8,.3,1)}
+.device-overlay.show .device-modal{transform:translateY(0) scale(1)}
+.device-modal-head{background:#0d0d1a;padding:10px 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:.5px solid #222}
+.device-modal-title{font-size:11px;color:#666;letter-spacing:.08em}
+.device-modal-close{background:transparent;border:none;color:#555;font-size:18px;cursor:pointer;line-height:1;padding:2px 6px;border-radius:4px;transition:color .15s}
+.device-modal-close:hover{color:#ccc}
+.device-modal-body{padding:0}
+.device-modal-body iframe{width:100%;height:480px;border:none;display:block;background:#0d0d0d}
+</style>
+</head>
+<body>
+<div class="page">
+  <!-- 헤더 -->
+  <div class="hd" style="flex-direction:column;align-items:stretch;gap:12px;padding:16px 20px">
+    <!-- 상단: 장비 정보 + 버튼 -->
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+      <div class="hd-left">
+        <div class="conn-dot" id="conn-dot"></div>
+        <div><div class="dev-name">장비 연결됨</div><div class="dev-meta">SN: 81415184 &nbsp;·&nbsp; Model: InBody 580 &nbsp;·&nbsp; 서울대병원</div></div>
+      </div>
+      <div class="hd-right">
+        <div class="last-ts" id="last-ts">마지막 진단: 2026-04-29 09:52</div>
+        <button class="btn-hd" id="btn-hd" onclick="runAll()" disabled>전체 재진단 ▶</button>
+        <button class="btn-auto" id="btn-auto" onclick="toggleAuto()">▶ 자동 시연</button>
+      </div>
+    </div>
+    <!-- 하단: 원격 진단 목적 배너 -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.15)">
+      <div style="display:flex;align-items:flex-start;gap:8px">
+        <div style="font-size:16px;flex-shrink:0">🎯</div>
+        <div>
+          <div style="font-size:11px;font-weight:600;opacity:.9;margin-bottom:2px">목표</div>
+          <div style="font-size:11px;opacity:.7;line-height:1.6">현장 방문 없이 원인 파악 · 캘리브레이션 없이 해결</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:flex-start;gap:8px">
+        <div style="font-size:16px;flex-shrink:0">🔍</div>
+        <div>
+          <div style="font-size:11px;font-weight:600;opacity:.9;margin-bottom:2px">방법</div>
+          <div style="font-size:11px;opacity:.7;line-height:1.6">진단툴로 데이터·수치 수집 → 원격 트러블슈팅 → 방문 여부 결정</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:flex-start;gap:8px">
+        <div style="font-size:16px;flex-shrink:0">📈</div>
+        <div>
+          <div style="font-size:11px;font-weight:600;opacity:.9;margin-bottom:2px">효과</div>
+          <div style="font-size:11px;opacity:.7;line-height:1.6">방문 비용 절감 · 차별화된 CS 인프라 구축 · 글로벌 확장 기반</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- 원격 진단 흐름도 -->
+  <div class="flow-section">
+    <div class="flow-section-title">🔄 원격 진단 흐름 — 고객 · CS · 장비 역할</div>
+    <div class="flow-row">
+      <!-- Step 1: CS 연락 -->
+      <div class="flow-step">
+        <div class="flow-step-icon cs">📞</div>
+        <div class="flow-step-lbl">CS접수 </div>
+        <div class="flow-step-sub">고객 → CS <br>전화 / 메일</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <!-- Step 2: 인증코드 발송 -->
+      <div class="flow-step">
+        <div class="flow-step-icon cs">📧</div>
+        <div class="flow-step-lbl">인증코드 발송</div>
+        <div class="flow-step-sub">CS → 고객<br>이메일</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <!-- Step 3: 고객 입력 -->
+      <div class="flow-step">
+        <div class="flow-step-icon customer">🔑</div>
+        <div class="flow-step-lbl">코드 입력</div>
+        <div class="flow-step-sub">고객이 장비에<br>인증코드 입력</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <!-- Step 4: 장비 대기 -->
+      <div class="flow-step">
+        <div class="flow-step-icon device" style="font-size:12px">🔒</div>
+        <div class="flow-step-lbl">원격 점검 화면</div>
+        <div class="flow-step-sub">장비 잠금<br>고객 대기</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <!-- Step 5: CS 진단 -->
+      <div class="flow-step">
+        <div class="flow-step-icon cs">🖥️</div>
+        <div class="flow-step-lbl">원격 진단 실행</div>
+        <div class="flow-step-sub">CS가 대시보드에서<br>진단 실행</div>
+      </div>
+    </div>
+    <!-- 주체 라벨 -->
+    <div style="display:grid;grid-template-columns:1fr 32px 1fr 32px 1fr 32px 1fr 32px 1fr;margin-top:10px;padding-top:8px;border-top:.5px solid #f0f0f0;gap:0">
+      <div style="text-align:center;font-size:9px;font-weight:600;color:var(--navy);background:#f0f4ff;padding:3px 0;border-radius:4px">CS팀</div>
+      <div></div>
+      <div style="text-align:center;font-size:9px;font-weight:600;color:var(--navy);background:#f0f4ff;padding:3px 0;border-radius:4px">CS팀</div>
+      <div></div>
+      <div style="text-align:center;font-size:9px;font-weight:600;color:#854f0b;background:#fffbf0;padding:3px 0;border-radius:4px">고객</div>
+      <div></div>
+      <div style="text-align:center;font-size:9px;font-weight:600;color:#444;background:#f5f5f5;padding:3px 0;border-radius:4px">장비</div>
+      <div></div>
+      <div style="text-align:center;font-size:9px;font-weight:600;color:var(--navy);background:#f0f4ff;padding:3px 0;border-radius:4px">CS팀</div>
+    </div>
+  </div>
+  <!-- 진행 스텝 -->
+  <div class="steps">
+    <div class="step done" id="step0"><div class="step-num">1</div><span>연결 확인</span></div>
+    <div class="step-sep"></div><div class="step" id="step1"><div class="step-num">2</div><span>체중 진단</span></div>
+    <div class="step-sep"></div><div class="step" id="step2"><div class="step-num">3</div><span>측정값 진단</span></div>
+    <div class="step-sep"></div><div class="step" id="step3"><div class="step-num">4</div><span>노이즈 진단</span></div>
+    <div class="step-sep"></div><div class="step" id="step4"><div class="step-num">5</div><span>결과 확정</span></div>
+  </div>
+
+  <!-- 내러티브 -->
+  <div class="narr">
+    <span class="narr-text" id="narr-text">💡 [원격 진단 실행]으로 정상/비정상을 확인하고, 수치가 필요하면 [📋 상세 보기]를 클릭하세요. [자동 시연]으로 전체 흐름을 확인할 수 있습니다.</span>
+  </div>
+
+  <!-- 요약바 -->
+  <div class="sumbar">
+    <div class="sum-left">
+      <div><div class="sum-lbl">전체 종합 판정</div><div class="sum-val" id="overall" style="color:#aaa">진단 전</div></div>
+      <div class="sdiv"></div>
+      <div><div class="sum-lbl">이상 항목</div><div class="sum-val" id="err-cnt" style="color:#1a7a4a">0개</div></div>
+      <div class="sdiv"></div>
+      <div><div class="sum-lbl">주의 항목</div><div class="sum-val" id="warn-cnt" style="color:#444">0개</div></div>
+      <div class="sdiv"></div>
+      <div><div class="sum-lbl">진행 상태</div><div class="sum-val" id="prog-txt">대기 중</div></div>
+    </div>
+    <div style="display:flex;gap:8px"><button class="btn-all" id="btn-all2" onclick="runAll()"><span>▶</span> 전체 점검 실행</button><button class="btn-reset-all" onclick="resetAll()">↺ 전체 초기화</button></div>
+  </div>
+
+  <!-- 3개 타일 (통신 제거) -->
+  <div class="grid">
+
+    <!-- ① 체중 -->
+    <div class="tile" id="tile-weight">
+      <div class="tile-top">
+        <div><div class="tile-num">① 체중</div><div class="tile-name">Weight</div><div class="tile-sub">로드셀 · 로드셀 보드</div></div>
+        <div class="sig pending" id="sig-weight"><div class="sdot pending"></div><span id="sig-weight-txt">미실행</span></div>
+      </div>
+      <div class="tile-conc"><div class="conc pending" id="conc-weight">진단 전</div></div>
+      <div class="tile-ev" id="ev-weight">
+        <div style="color:#ccc;font-size:11px;padding:4px 0">진단을 실행하면 결과가 표시됩니다.</div>
+      </div>
+      <!-- 로직 요약표 -->
+<div class="logic-table-wrap" id="logic-weight">
+        <div class="logic-table-title">진단 로직</div>
+        <table class="logic-table">
+          <thead><tr><th>부품</th><th>측정</th><th>의미</th><th class="val-col">수치</th><th>상태</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>로드셀 보드</td>
+              <td><span class="tip-wrap">내부저항<span class="tip-icon">?</span><span class="tip-box">무부하 · 장비 켜져 있으면 언제든 가능. 부팅 시 자동 수집.</span></span></td>
+              <td class="meaning">저항 이탈률</td>
+              <td id="val-weight-res" class="val-col" style="font-family:monospace;font-size:10px;color:#aaa">—</td>
+              <td><span class="stat-badge none" id="stat-weight-res">—</span></td>
+            </tr>
+            <tr>
+              <td>로드셀 보드</td>
+              <td><span class="tip-wrap">제로 ADC<span class="tip-icon">?</span><span class="tip-box">무부하 · 장비 켜져 있으면 언제든 가능. 부팅 시 자동 수집.</span></span></td>
+              <td class="meaning">기준값 안정성</td>
+              <td id="val-weight-adc" class="val-col" style="font-family:monospace;font-size:10px;color:#aaa">—</td>
+              <td><span class="stat-badge none" id="stat-weight-adc">—</span></td>
+            </tr>
+            <tr>
+              <td>로드셀 보드</td>
+              <td><span class="tip-wrap">Coef<span class="tip-icon">?</span><span class="tip-box">부하 · 원격 진단 실행 시. 고객이 발판에 올라서 있어야 함.</span></span></td>
+              <td class="meaning">교정값 이탈</td>
+              <td id="val-weight-coef" class="val-col" style="font-family:monospace;font-size:10px;color:#aaa">—</td>
+              <td><span class="stat-badge none" id="stat-weight-coef">—</span></td>
+            </tr>
+            <tr>
+              <td>로드셀</td>
+              <td><span class="tip-wrap">편심 5위치<span class="tip-icon">?</span><span class="tip-box">부하 · 고객이 발판 5위치에 순서대로 올라서야 함.</span></span></td>
+              <td class="meaning">불량 여부</td>
+              <td id="val-weight-ecc" class="val-col" style="font-family:monospace;font-size:10px;color:#aaa">—</td>
+              <td><span class="stat-badge none" id="stat-weight-ecc">—</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="tile-prog"><div class="prog-fill" id="prog-weight" style="width:0%;background:#c8d4e8"></div></div>
+      <div class="tile-foot"><button class="exec-btn" id="btn-weight" onclick="openPrePanel('weight')">원격 진단 실행 ▶</button><button class="detail-btn" id="detail-weight" onclick="openDetail('weight')" disabled>📋 상세 보기</button><button class="device-btn" onclick="openDeviceScreen('weight')">📱 장비 화면</button><button class="reset-btn" id="reset-weight" onclick="resetTile('weight')">↺ 초기화</button></div>
+    </div>
+
+    <!-- ② 측정값 -->
+    <div class="tile" id="tile-measure">
+      <div class="tile-top">
+        <div><div class="tile-num">② 측정값</div><div class="tile-name">Measurement</div><div class="tile-sub">아날로그 보드 · 전극보드</div></div>
+        <div class="sig pending" id="sig-measure"><div class="sdot pending"></div><span id="sig-measure-txt">미실행</span></div>
+      </div>
+      <div class="tile-conc"><div class="conc pending" id="conc-measure">진단 전</div></div>
+      <div class="tile-ev" id="ev-measure">
+        <div style="color:#ccc;font-size:11px;padding:4px 0">진단을 실행하면 결과가 표시됩니다.</div>
+      </div>
+      <!-- 로직 요약표 -->
+<div class="logic-table-wrap" id="logic-measure">
+        <div class="logic-table-title">진단 로직</div>
+        <table class="logic-table">
+          <thead><tr><th>부품</th><th>측정</th><th>의미</th><th class="val-col">수치</th><th>상태</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>아날로그 보드</td>
+              <td><span class="tip-wrap">ANO Current O/X<span class="tip-icon">?</span><span class="tip-box">원격 진단 실행 시. 장비 켜져 있으면 고객 없이도 가능.</span></span></td>
+              <td class="meaning">아날보드 신호</td>
+              <td id="val-measure-ano" class="val-col" style="font-family:monospace;font-size:10px;color:#aaa">—</td>
+              <td><span class="stat-badge none" id="stat-measure-ano">—</span></td>
+            </tr>
+            <tr>
+              <td>전극보드/케이블</td>
+              <td><span class="tip-wrap">Current O/X<span class="tip-icon">?</span><span class="tip-box">원격 진단 실행 시. 장비 켜져 있으면 고객 없이도 가능.</span></span></td>
+              <td class="meaning">전극보드 신호</td>
+              <td id="val-measure-cur" class="val-col" style="font-family:monospace;font-size:10px;color:#aaa">—</td>
+              <td><span class="stat-badge none" id="stat-measure-cur">—</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="tile-prog"><div class="prog-fill" id="prog-measure" style="width:0%;background:#c8d4e8"></div></div>
+      <div class="tile-foot"><button class="exec-btn" id="btn-measure" onclick="openPrePanel('measure')">원격 진단 실행 ▶</button><button class="detail-btn" id="detail-measure" onclick="openDetail('measure')" disabled>📋 상세 보기</button><button class="device-btn" onclick="openDeviceScreen('measure')">📱 장비 화면</button><button class="reset-btn" id="reset-measure" onclick="resetTile('measure')">↺ 초기화</button></div>
+    </div>
+
+    <!-- ③ 노이즈 -->
+    <div class="tile" id="tile-noise">
+      <div class="tile-top">
+        <div><div class="tile-num">③ 노이즈</div><div class="tile-name">Noise</div><div class="tile-sub">설치 환경 · 사용 중 모니터링</div></div>
+        <div class="sig pending" id="sig-noise"><div class="sdot pending"></div><span id="sig-noise-txt">미실행</span></div>
+      </div>
+      <div class="tile-conc"><div class="conc pending" id="conc-noise">진단 전</div></div>
+      <div class="tile-ev" id="ev-noise">
+        <div style="color:#ccc;font-size:11px;padding:4px 0">진단을 실행하면 결과가 표시됩니다.</div>
+      </div>
+      <!-- 로직 요약표 -->
+<div class="logic-table-wrap" id="logic-noise">
+        <div class="logic-table-title">진단 로직</div>
+        <table class="logic-table">
+          <thead><tr><th>노이즈 경로</th><th>측정</th><th>의미</th><th>상태</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>공중 방사</td>
+              <td><span class="tip-wrap">RA · LA 절대값<span class="tip-icon">?</span><span class="tip-box">각 팔의 노이즈 수신량. 높은 쪽 방향에 노이즈 원 존재.</span></span></td>
+              <td class="meaning">좌/우 방향 특정 (팔)</td>
+              <td><span class="stat-badge none" id="stat-noise-arm">—</span></td>
+            </tr>
+            <tr>
+              <td>바닥 전도</td>
+              <td><span class="tip-wrap">RL · LL 절대값<span class="tip-icon">?</span><span class="tip-box">각 다리의 노이즈 수신량. 높은 쪽 방향에 노이즈 원 존재.</span></span></td>
+              <td class="meaning">좌/우 방향 특정 (다리)</td>
+              <td><span class="stat-badge none" id="stat-noise-leg">—</span></td>
+            </tr>
+            <tr>
+              <td>공중 vs 바닥</td>
+              <td><span class="tip-wrap">팔 평균 vs 다리 평균<span class="tip-icon">?</span><span class="tip-box">팔이 높으면 공중 방사 노이즈, 다리가 높으면 바닥 전도 노이즈.</span></span></td>
+              <td class="meaning">경로 구분</td>
+              <td><span class="stat-badge none" id="stat-noise-path">—</span></td>
+            </tr>
+            <tr>
+              <td>전 방향</td>
+              <td><span class="tip-wrap">전 사지 균일 상승<span class="tip-icon">?</span><span class="tip-box">⚠ 차분값 상쇄로 정상 오판 가능 — 절대값 개별 확인 필수.</span></span></td>
+              <td class="meaning">균일 노이즈</td>
+              <td><span class="stat-badge none" id="stat-noise-uni">—</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="tile-prog"><div class="prog-fill" id="prog-noise" style="width:0%;background:#c8d4e8"></div></div>
+      <div class="tile-foot"><button class="exec-btn" id="btn-noise" onclick="openPrePanel('noise')">원격 진단 실행 ▶</button><button class="detail-btn" id="detail-noise" onclick="openDetail('noise')" disabled>📋 상세 보기</button><button class="device-btn" onclick="openDeviceScreen('noise')">📱 장비 화면</button><button class="reset-btn" id="reset-noise" onclick="resetTile('noise')">↺ 초기화</button></div>
+    </div>
+
+  </div>
+
+  <!-- 이력 (클릭 가능) -->
+  <div class="hist">
+    <div class="hist-title">최근 진단 이력 <span style="font-size:10px;color:#aaa;font-weight:400;text-transform:none">— 클릭하면 결과를 볼 수 있습니다</span></div>
+    <div id="hist-list">
+      <div class="hist-row" onclick="openHistResult('err')"><span class="hist-ts">2025-04-10 14:32</span><span class="hist-res" style="color:#b71c1c">체중 불량 확정 · 측정값 불량 확정 · 노이즈 정상</span><span class="hist-act">전체 점검</span><span class="hist-arrow">›</span></div>
+      <div class="hist-row" onclick="openHistResult('ok')"><span class="hist-ts">2025-04-09 09:14</span><span class="hist-res">전체 정상</span><span class="hist-act">전체 점검</span><span class="hist-arrow">›</span></div>
+      <div class="hist-row" onclick="openHistResult('warn')"><span class="hist-ts">2025-04-07 16:50</span><span class="hist-res" style="color:#a05c00">측정값 주의</span><span class="hist-act">측정값 단독</span><span class="hist-arrow">›</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- 모달 -->
+<div class="overlay" id="overlay" onclick="overlayClick(event)">
+  <div class="modal" id="modal">
+    <div class="modal-head">
+      <div><div class="modal-title" id="modal-title">원격 진단</div><div class="modal-meta" id="modal-meta"></div></div>
+      <div class="modal-head-right">
+        <div class="modal-auto-badge" id="auto-badge">🔄 자동 시연 중</div>
+        <button class="modal-close" onclick="closeModal()">✕</button>
+      </div>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-footer" id="modal-footer" style="display:none">
+      <div class="modal-footer-left" id="modal-footer-left"></div>
+      <div class="modal-footer-right">
+        <button class="mf-btn-close" onclick="closeModal()">닫기</button>
+        <button class="mf-btn-report" id="mf-report-btn">📋 AS 접수 · 조치 리포트 생성</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const ORDER=['weight','measure','noise'];
+let scanning=false,autoMode=false,autoTimer=null,noiseChart=null;
+
+/* ── 초기(미실행) 상태 ── */
+const INIT_STATE={
+  weight:{sig:'idle',sigTxt:'미실행',conc:'진단 전',concCls:'idle',col:'#c8d4e8',ev:[]},
+  measure:{sig:'idle',sigTxt:'미실행',conc:'진단 전',concCls:'idle',col:'#c8d4e8',ev:[]},
+  noise:{sig:'idle',sigTxt:'미실행',conc:'진단 전',concCls:'idle',col:'#c8d4e8',ev:[]},
+  comm:{sig:'idle',sigTxt:'미실행',conc:'진단 전',concCls:'idle',col:'#c8d4e8',ev:[]},
+};
+
+/* 상태 배지 ID 맵 */
+const STAT_IDS={
+  weight:['stat-weight-res','stat-weight-adc','stat-weight-coef','stat-weight-ecc'],
+  measure:['stat-measure-ano','stat-measure-cur'],
+  noise:['stat-noise-arm','stat-noise-leg','stat-noise-path','stat-noise-uni']
+};
+
+function resetTile(k){
+  const s=INIT_STATE[k];
+  // 타일 테두리
+  document.getElementById('tile-'+k).className='tile';
+  // 상태 뱃지 (상단 우측)
+  const sig=document.getElementById('sig-'+k);
+  sig.className='sig pending';
+  sig.querySelector('.sdot').className='sdot pending';
+  document.getElementById('sig-'+k+'-txt').textContent='미실행';
+  // 종합 판정 텍스트
+  const conc=document.getElementById('conc-'+k);
+  conc.className='conc pending';
+  conc.textContent='진단 전';
+  // ev 영역
+  document.getElementById('ev-'+k).innerHTML='<div style="color:#ccc;font-size:11px;padding:4px 0">진단을 실행하면 결과가 표시됩니다.</div>';
+  // 프로그레스 바
+  const p=document.getElementById('prog-'+k);
+  p.style.width='0%';p.style.background='#c8d4e8';p.classList.remove('run');
+  // 실행 버튼
+  const b=document.getElementById('btn-'+k);
+  b.disabled=false;b.textContent='원격 진단 실행 ▶';
+  // 초기화 버튼 숨기기
+  const rb=document.getElementById('reset-'+k);
+  if(rb)rb.style.display='none';
+  // 상세보기 버튼 비활성화
+  const db=document.getElementById('detail-'+k);
+  if(db){db.disabled=true;db.classList.remove('active');}
+  // 로직표 상태 배지 초기화
+  if(STAT_IDS[k]){
+    STAT_IDS[k].forEach(id=>{
+      const el=document.getElementById(id);
+      if(el){el.className='stat-badge none';el.textContent='—';}
+    });
+  }
+  updateOverall();
+}
+
+/* 전체 초기화 */
+function resetAll(){
+  ORDER.forEach(k=>resetTile(k));
+  setNarr('idle');
+  setStep(0);
+  document.getElementById('prog-txt').textContent='대기 중';
+  document.getElementById('overall').textContent='진단 전';
+  document.getElementById('overall').style.color='#aaa';
+  document.getElementById('err-cnt').textContent='0개';
+  document.getElementById('warn-cnt').textContent='0개';
+}
+
+/* ── 페이지 로드 시 전체 초기화 ── */
+window.addEventListener('DOMContentLoaded',()=>{
+  ORDER.forEach(k=>resetTile(k));
+  setNarr('idle');
+  setStep(0);
+  document.getElementById('prog-txt').textContent='대기 중';
+});
+
+/* ── 공통 유틸 ── */
+const NARR={
+  idle:'💡 [원격 진단 실행]으로 정상/비정상을 확인하고, 수치가 필요하면 [📋 상세 보기]를 클릭하세요. [자동 시연]으로 전체 흐름을 확인할 수 있습니다.',
+  start:'🔄 전체 진단을 시작합니다. 장비에 명령 전달 중…',
+  weight:'⚙️ [1/4] 체중 모듈 — 내부저항·ADC·Coef·편심 수집 중',
+  measure:'⚙️ [2/4] 측정값 모듈 — ANO/전극 Current O/X 자가진단 · 저항값 측정 중',
+  noise:'⚙️ [3/4] 노이즈 모듈 — 설치 환경 측정 · 사용 중 모니터링 로그 · 팔/다리/크로스 방향 진단 중',
+  comm:'⚙️ [4/4] 통신 상태 — 서버 응답 · 전송 성공률 점검 중',
+  done_err:'🔴 진단 완료. 이상 항목이 확인되었습니다. 즉시 조치가 필요합니다.',
+  done_warn:'⚠️ 진단 완료. 주의 항목이 있습니다. 점검을 권고합니다.',
+  done_ok:'✅ 진단 완료. 전체 정상 — 이상 없음.',
+  open_weight:'📋 체중 상세 — 4단계 교차 판정. 내부저항 이탈로 보드 불량 확정.',
+  open_measure:'📋 측정값 상세 — Case 4. 전극보드 교체 필요.',
+  open_noise:'📋 노이즈 상세 — Case A. 설치 환경 정상 · 사용 중 알람 미발생.',
+  open_comm:'📋 통신 상세 — 서버 응답 정상.',
+};
+function setNarr(k){const el=document.getElementById('narr-text');el.classList.add('fade');setTimeout(()=>{el.textContent=NARR[k]||k;el.classList.remove('fade');},200);}
+function setStep(a){for(let i=0;i<=4;i++){const el=document.getElementById('step'+i);el.className='step';if(i<a)el.classList.add('done');else if(i===a)el.classList.add('active');}}
+
+/* ── 타일 고정 시나리오 ── */
+const FIXED={
+  weight:{sig:'err',sigTxt:'이상 감지',conc:'로드셀 보드 교체 필요',concCls:'err',col:'#b71c1c',
+    ev:[{l:'근거',v:'내부 저항 #3 +16.1% 이탈 → 보드 불량 확정',vc:'err'},{l:'참고',v:'편심 좌상 −3,200g / Coef #4 −1.04%',vc:'warn'}],
+    statBadges:{
+      'stat-weight-res':{cls:'err',txt:'비정상'},
+      'stat-weight-adc':{cls:'err',txt:'비정상'},
+      'stat-weight-coef':{cls:'err',txt:'비정상'},
+      'stat-weight-ecc':{cls:'err',txt:'비정상'},
+    }},
+  measure:{sig:'err',sigTxt:'불량 확정',conc:'RL · LL 전극보드 교체 권고',concCls:'err',col:'#b71c1c',
+    ev:[{l:'근거',v:'RL O −16.9% / RL X −37.6% / LL X −21.1%',vc:'err'},{l:'판정',v:'Case 4 — 케이블/전극보드 불량 확정',vc:'err'}],
+    statBadges:{
+      'stat-measure-ano':{cls:'ok',txt:'정상'},
+      'stat-measure-cur':{cls:'err',txt:'비정상'},
+    }},
+  noise:{sig:'ok',sigTxt:'정상',conc:'노이즈 영향 없음',concCls:'ok',col:'#1a7a4a',
+    ev:[{l:'설치 환경',v:'정상 — 설치 적합',vc:'ok'},{l:'사용 중',v:'알람 미발생',vc:'ok'},{l:'방향 진단',v:'RA 0.42 · LA 0.45 · RL 0.38 · LL 0.41 mV',vc:'ok'}],
+    statBadges:{
+      'stat-noise-arm':{cls:'ok',txt:'정상'},
+      'stat-noise-leg':{cls:'ok',txt:'정상'},
+      'stat-noise-path':{cls:'ok',txt:'정상'},
+      'stat-noise-uni':{cls:'ok',txt:'정상'},
+    }},
+
+};
+function setTileState(k,s){
+  document.getElementById('tile-'+k).className='tile'+(s.sig==='err'?' t-err':s.sig==='warn'?' t-warn':'');
+  const sig=document.getElementById('sig-'+k);sig.className='sig '+s.sig;sig.querySelector('.sdot').className='sdot '+s.sig;document.getElementById('sig-'+k+'-txt').textContent=s.sigTxt;
+  const conc=document.getElementById('conc-'+k);conc.className='conc '+s.concCls;conc.textContent=s.conc;
+  document.getElementById('ev-'+k).innerHTML=s.ev.map(e=>`<div class="ev-row"><span class="ev-lbl">${e.l}</span><span class="ev-val ${e.vc}">${e.v}</span></div>`).join('');
+  const p=document.getElementById('prog-'+k);p.style.width='100%';p.style.background=s.col;p.classList.remove('run');
+  const b=document.getElementById('btn-'+k);b.disabled=false;b.textContent='원격 진단 실행 ▶';
+  const rb=document.getElementById('reset-'+k);if(rb)rb.style.display='block';
+  // 상세 보기 버튼 활성화
+  const db=document.getElementById('detail-'+k);
+  if(db){db.disabled=false;db.classList.add('active');}
+  // 로직표 상태 배지 업데이트
+  if(s.statBadges){Object.entries(s.statBadges).forEach(([id,v])=>{const el=document.getElementById(id);if(el){el.className='stat-badge '+v.cls;el.textContent=v.txt;}});}
+}
+function setTileScanning(k){
+  document.getElementById('tile-'+k).className='tile t-scan';
+  const sig=document.getElementById('sig-'+k);sig.className='sig idle';sig.querySelector('.sdot').className='sdot idle';document.getElementById('sig-'+k+'-txt').textContent='진단 중...';
+  document.getElementById('conc-'+k).className='conc idle';document.getElementById('conc-'+k).textContent='데이터 수집 중...';
+  document.getElementById('ev-'+k).innerHTML='<div class="ev-row"><span class="ev-lbl">상태</span><span class="ev-val">장비와 통신 중...</span></div>';
+  const p=document.getElementById('prog-'+k);p.style.background='#64b5f6';p.classList.add('run');
+  const b=document.getElementById('btn-'+k);b.disabled=true;b.textContent='진단 중...';
+}
+
+/* ── 사전정보 데이터 ── */
+const PRE={
+  weight:{icon:'⚖️',color:'#1a4a8a',title:'체중 (Weight) 진단',subtitle:'로드셀 · 로드셀 보드 원격 점검',tag:'4단계 교차 판정',
+    purpose:'내부저항·제로ADC·Coef 이력에 원격 편심 측정(5위치)을 추가해 <b>로드셀 불량 vs 보드 불량</b>을 자동 확정합니다.',
+    stats:[{l:'내부저항 (30회)',v:'#3 +16.1% 이탈',c:'err'},{l:'제로 ADC',v:'#4 간헐 이탈',c:'warn'},{l:'Coef',v:'#4 −1.04% 편차',c:'warn'}],
+    collect:['내부저항 30회 부팅분','제로 ADC 100회 롤링','Coef 30회','편심 5위치 신규 실행'],
+    notice:'<b>고객 안내:</b> 체중 측정이 잠시 중단됩니다. 편심 측정 시 발판 5개 위치에 순서대로 올라서 주세요.',
+    flow:[{n:'1',l:'명령 전달',s:'점검 모드'},{n:'2',l:'자가진단 수집',s:'저항·ADC·Coef'},{n:'3',l:'편심 측정',s:'5위치'},{n:'4',l:'교차 판정',s:'4단계'},{n:'5',l:'결과 확정',s:'부품 특정'}],
+    time:'약 3~5분',prev:'이상 감지 — 내부저항 #3 이탈'},
+  measure:{icon:'📡',color:'#7a1a1a',title:'측정값 (Measurement) 진단',subtitle:'아날로그보드 · 전극보드 · 케이블 점검',tag:'5-Case 조건 조합',
+    purpose:'클레임 "임피던스 측정 안됨". ANO·전극 Current O/X 자가진단과 부위별 저항값으로 <b>5가지 조건 조합</b>에서 불량 부품을 확정합니다.',
+    stats:[{l:'고객 증상',v:'임피던스 측정 안됨',c:'err'},{l:'접수일시',v:'2025-04-10 09:30',c:''},{l:'이전 정상',v:'2025-04-09',c:'ok'}],
+    collect:['ANO Current O/X 자가진단','전극보드 Current O/X 자가진단','부위별 저항값 RA·LA·RL·LL·TR','±10% P / ±10~20% 주의 / ±20% F'],
+    notice:'<b>확인 사항:</b> 케이블 연결 상태를 먼저 확인하세요. 측정 중 장비 화면에 진단 안내가 표시됩니다.',
+    flow:[{n:'1',l:'명령 전달',s:'자가진단 트리거'},{n:'2',l:'ANO 진단',s:'Current O/X'},{n:'3',l:'전극 진단',s:'저항값 수집'},{n:'4',l:'조합 판정',s:'5-Case'},{n:'5',l:'불량 확정',s:'부품 특정'}],
+    time:'약 2분',prev:'불량 확정 — Case 4 (RL/LL 이상)'},
+  noise:{icon:'📶',color:'#1a5a1a',title:'노이즈 (Noise) 진단',subtitle:'설치 환경 점검 · 사용 중 모니터링 · 원격 방향 진단',tag:'2-시나리오 대응',
+    purpose:'노이즈 문제를 <b>설치 시(시나리오 1)</b>와 <b>사용 중(시나리오 2)</b> 두 가지로 나눠 대응합니다. 팔/다리/크로스 3지표로 노이즈 방향을 특정하여 현장 방문 없이 원격 조치가 가능합니다.',
+    stats:[{l:'시나리오 1 (설치 시)',v:'전원 ON 후 환경 노이즈 측정',c:''},{l:'시나리오 2 (사용 중)',v:'기저 대비 급격 상승 시 알람',c:''},{l:'방향 진단',v:'팔(공중) · 다리(바닥) · 크로스',c:''}],
+    collect:['전원 ON 후 환경 노이즈 자동 측정 (시나리오 1)','대기 중 주기적 노이즈 모니터링 로그','팔/다리/크로스 방향별 노이즈 절대값','기저값 대비 급격 상승 여부 판별'],
+    notice:'<b>참고:</b> 인스톨레이션(설치 시)과 사용 중 알람은 별도 시나리오입니다. ⚠ 전 사지 균일 노이즈는 차분값으로 정상 오판 가능 → 사지 절대값 개별 비교 필수.',
+    flow:[{n:'1',l:'환경 측정',s:'전원 ON 시'},{n:'2',l:'모니터링',s:'주기적 로그'},{n:'3',l:'알람 감지',s:'기저 대비 상승'},{n:'4',l:'방향 진단',s:'팔/다리/크로스'},{n:'5',l:'원격 조치',s:'고객 안내'}],
+    time:'환경 측정 약 20~30초 / 방향 진단 추가 20초',prev:'미실행'},
+  comm:{icon:'🌐',color:'#1a4a1a',title:'통신 (Communication) 진단',subtitle:'서버 응답 · 전송 성공률 점검',tag:'연결 상태 확인',
+    purpose:'장비-서버 간 통신 상태를 점검합니다. 응답 시간 및 전송 성공률을 확인하여 원격 진단 명령이 정상 전달되는지 검증합니다.',
+    stats:[{l:'서버 응답',v:'정상 (118ms)',c:'ok'},{l:'전송 성공률',v:'100% (최근 30회)',c:'ok'},{l:'마지막 확인',v:'2025-04-10 14:32',c:''}],
+    collect:['서버 응답 시간 30회','전송 성공/실패 이력','네트워크 연결 상태'],
+    notice:'<b>참고:</b> 통신 진단은 장비 측정에 영향을 주지 않습니다.',
+    flow:[{n:'1',l:'연결 확인',s:'ping'},{n:'2',l:'응답 측정',s:'집계'},{n:'3',l:'이력 분석',s:'성공률'},{n:'4',l:'결과 확정',s:'상태 표시'}],
+    time:'약 1~2분',prev:'정상 — 118ms, 100%'},
+};
+
+const MODAL_META={
+  weight:'S/N: 81415184 &nbsp;·&nbsp; 점검일시: 2025-04-10 09:02 &nbsp;·&nbsp; InBody 580',
+  measure:'S/N: 81415184 &nbsp;·&nbsp; 진단일시: 2025-04-10 14:22 &nbsp;·&nbsp; 실행자: 김덕희',
+  noise:'S/N: 81415184 &nbsp;·&nbsp; 마지막 스캔: 2025-04-10 10:42 &nbsp;·&nbsp; InBody 580',
+  comm:'S/N: 81415184 &nbsp;·&nbsp; 마지막 확인: 2025-04-10 14:32',
+};
+const LOADING_MSGS={
+  weight:[
+    {txt:'장비에 진단 명령 전달 중...',sub:'점검 모드 전환',stage:0},
+    {txt:'내부 저항 30회분 수집 중...',sub:'부팅 자가진단 이력',stage:1},
+    {txt:'제로 ADC · Coef 데이터 수집 중...',sub:'기준값 대비 편차 계산',stage:1},
+    {txt:'편심 측정 실행 중 (5위치)...',sub:'측정 완료 → 교차 판정 중',stage:2},
+  ],
+  measure:[
+    {txt:'장비에 진단 명령 전달 중...',sub:'자가진단 트리거',stage:0},
+    {txt:'ANO Current O / X 자가진단 중...',sub:'아날로그보드 측정',stage:1},
+    {txt:'전극보드 Current O / X 측정 중...',sub:'부위별 저항값 수집',stage:1},
+    {txt:'조건 조합 판정 실행 중...',sub:'5-Case 매트릭스 대조',stage:2},
+  ],
+  noise:[
+    {txt:'장비에 진단 명령 전달 중...',sub:'노이즈 스캔 모드 전환',stage:0},
+    {txt:'환경 노이즈 측정 중 (팔·다리·크로스)...',sub:'시나리오 1 — 설치 환경 점검',stage:1},
+    {txt:'주기적 모니터링 로그 분석 중...',sub:'시나리오 2 — 기저 대비 상승 여부',stage:1},
+    {txt:'방향별 노이즈 절대값 비교 중...',sub:'팔(공중) / 다리(바닥) / 크로스 판정',stage:2},
+  ],
+  comm:[
+    {txt:'서버 연결 확인 중...',sub:'응답 대기',stage:0},
+    {txt:'응답 시간 · 전송 성공률 집계 중...',sub:'최근 30회 분석',stage:1},
+  ],
+};
+const STAGE_LABELS={
+  weight:['명령 전달','데이터 수집','편심 측정','판정 완료'],
+  measure:['명령 전달','ANO·전극 측정','저항값 수집','판정 완료'],
+  noise:['명령 전달','환경 측정','로그 분석','방향 판정'],
+  comm:['명령 전달','집계 분석','—','판정 완료'],
+};
+
+/* ══════════════════════════════════════
+   Phase 1: 사전정보 패널
+══════════════════════════════════════ */
+function buildPrePanel(key){
+  const d=PRE[key];
+  const stats=d.stats.map(s=>`<div class="pp-stat-row"><span class="pp-stat-lbl">${s.l}</span><span class="pp-stat-val ${s.c}">${s.v}</span></div>`).join('');
+  const clist=d.collect.map(c=>`<li>${c}</li>`).join('');
+  const flow=d.flow.map((f,i,a)=>`<div class="pp-fs"><div class="pp-fs-num">${f.n}</div><div class="pp-fs-lbl">${f.l}</div><div class="pp-fs-sub">${f.s}</div></div>${i<a.length-1?'<div class="pp-arrow">›</div>':''}`).join('');
+  return `<div class="pre-panel">
+    <div class="pp-banner" style="background:${d.color}12;border:.5px solid ${d.color}30">
+      <div class="pp-icon">${d.icon}</div>
+      <div><div class="pp-banner-title" style="color:${d.color}">${d.title}</div><div class="pp-banner-sub" style="color:${d.color}99">${d.subtitle}</div></div>
+      <div class="pp-tag" style="color:${d.color}">${d.tag}</div>
+    </div>
+    <div class="pp-grid">
+      <div class="pp-card" style="grid-column:span 1">
+        <div class="pp-card-lbl">진단 목적</div>
+        <div class="pp-card-val">${d.purpose}</div>
+        <div style="margin-top:8px;font-size:10px;color:#aaa">이전 결과: ${d.prev}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div class="pp-card" style="flex:1">
+          <div class="pp-card-lbl">현재 상태</div>
+          ${stats}
+        </div>
+        <div class="pp-card" style="flex:1">
+          <div class="pp-card-lbl">수집 데이터</div>
+          <ul class="pp-list">${clist}</ul>
+        </div>
+      </div>
+    </div>
+    <div class="pp-notice-inline">${d.notice}</div>
+    <div class="pp-flow">${flow}</div>
+    <div class="pp-actions">
+      <span class="pp-time">⏱ 예상 소요: ${d.time} &nbsp;·&nbsp; 장비 측정 일시 중단</span>
+      <button class="pp-btn-cancel" onclick="closeModal()">취소</button>
+      <button class="pp-btn-run" onclick="closeModal();runTileDiagnosis('${key}')">▶ 진단 시작</button>
+    </div>
+  </div>`;
+}
+
+/* ══════════════════════════════════════
+   Phase 2: 로딩 (진행바 + 4단계)
+══════════════════════════════════════ */
+function runDiagnosis(key){
+  if(!autoMode) setNarr('open_'+key);
+  document.getElementById('modal-title').textContent={weight:'체중 진단 진행 중',measure:'측정값 진단 진행 중',noise:'노이즈 진단 진행 중'}[key];
+  document.getElementById('modal-meta').innerHTML=MODAL_META[key];
+  document.getElementById('modal-footer').style.display='none';
+  if(noiseChart){noiseChart.destroy();noiseChart=null;}
+
+  const msgs=LOADING_MSGS[key];
+  const stageLabels=STAGE_LABELS[key];
+  const stagesHtml=stageLabels.map((l,i)=>`<div class="dl-stage" id="dlst${i}"><div class="dl-stage-dot">${i+1}</div><div class="dl-stage-lbl">${l}</div></div>`).join('');
+  const stepsHtml=msgs.map((m,i)=>`<div class="dsi" id="dsi${i}"><div class="dsi-dot"></div><span>${m.txt.replace('...','')}</span></div>`).join('');
+
+  document.getElementById('modal-body').innerHTML=`
+    <div class="diag-loading" id="diag-loading">
+      <div class="dl-title" id="dl-title">장비와 통신 중...</div>
+      <div class="dl-bar-wrap">
+        <div class="dl-bar-bg"><div class="dl-bar-fill" id="dl-bar"></div></div>
+        <div class="dl-bar-pct" id="dl-pct">0%</div>
+      </div>
+      <div class="dl-stages">${stagesHtml}</div>
+      <div class="dl-steps">${stepsHtml}</div>
+      <div class="dl-cur-sub" id="dl-sub">${msgs[0].sub}</div>
+    </div>`;
+
+  // 진행바 + 단계 애니메이션
+  let mi=0;
+  const totalSteps=msgs.length;
+  const setStage=(idx)=>{
+    stageLabels.forEach((_,i)=>{
+      const el=document.getElementById('dlst'+i);if(!el)return;
+      el.className='dl-stage'+(i<idx?' done':i===idx?' active':'');
+    });
+  };
+  setStage(msgs[0].stage);
+  document.getElementById('dsi0').className='dsi active';
+  document.getElementById('dl-title').textContent=msgs[0].txt;
+
+  const pct=(step)=>Math.round((step/(totalSteps))*90);
+  document.getElementById('dl-bar').style.width=pct(0)+'%';
+  document.getElementById('dl-pct').textContent=pct(0)+'%';
+
+  const iv=setInterval(()=>{
+    const prev=document.getElementById('dsi'+mi);if(prev)prev.className='dsi done';
+    mi++;
+    if(mi<msgs.length){
+      const cur=document.getElementById('dsi'+mi);if(cur)cur.className='dsi active';
+      const t=document.getElementById('dl-title');if(t)t.textContent=msgs[mi].txt;
+      const s=document.getElementById('dl-sub');if(s)s.textContent=msgs[mi].sub;
+      const b=document.getElementById('dl-bar');if(b)b.style.width=pct(mi)+'%';
+      const p=document.getElementById('dl-pct');if(p)p.textContent=pct(mi)+'%';
+      setStage(msgs[mi].stage);
+    }else{clearInterval(iv);}
+  },700);
+
+  setTimeout(()=>{
+    clearInterval(iv);
+    // 100%로 마무리
+    const b=document.getElementById('dl-bar');if(b)b.style.width='100%';
+    const p=document.getElementById('dl-pct');if(p)p.textContent='100%';
+    setStage(3);
+    const last=document.getElementById('dsi'+(totalSteps-1));if(last)last.className='dsi done';
+    const t=document.getElementById('dl-title');if(t)t.textContent='판정 완료 — 결과를 불러오는 중...';
+    setTimeout(()=>{
+      const ld=document.getElementById('diag-loading');if(ld)ld.classList.add('hide');
+      setTimeout(()=>showResult(key),350);
+    },600);
+  },msgs.length*700+400);
+}
+
+/* ── 타일 내 진단 (모달 없음) ── */
+function runTileDiagnosis(key){
+  if(scanning)return;
+  setNarr(key);
+  setTileScanning(key);
+  // 타일 ev 영역에 도트 애니메이션
+  const ev=document.getElementById('ev-'+key);
+  if(ev) ev.innerHTML=`<div style="display:flex;align-items:center;gap:8px;padding:4px 0;color:#64b5f6;font-size:11px">
+    <span style="display:inline-flex;gap:3px">
+      <span class="dot-blink" style="width:5px;height:5px;border-radius:50%;background:#64b5f6;animation:blink .8s ease-in-out infinite"></span>
+      <span class="dot-blink" style="width:5px;height:5px;border-radius:50%;background:#64b5f6;animation:blink .8s ease-in-out .2s infinite"></span>
+      <span class="dot-blink" style="width:5px;height:5px;border-radius:50%;background:#64b5f6;animation:blink .8s ease-in-out .4s infinite"></span>
+    </span>
+    <span id="diag-txt-${key}">데이터 수집 중...</span>
+  </div>`;
+  // 단계별 메시지 업데이트
+  const msgs=LOADING_MSGS[key];
+  let mi=0;
+  const iv=setInterval(()=>{
+    mi++;
+    if(mi<msgs.length){
+      const el=document.getElementById('diag-txt-'+key);
+      if(el)el.textContent=msgs[mi].txt;
+    }else{clearInterval(iv);}
+  },700);
+  const totalTime=msgs.length*700+400;
+  setTimeout(()=>{
+    clearInterval(iv);
+    setTileState(key,FIXED[key]);
+    setNarr(Object.keys(NARR).includes('done_'+key)?'done_'+key:(FIXED[key].sig==='err'?'done_err':'done_ok'));
+    updateOverall();
+    setStep(ORDER.indexOf(key)+2);
+  },totalTime);
+}
+
+function showResult(key){
+  const body=document.getElementById('modal-body');if(!body)return;
+  let html='';
+  if(key==='weight')html=buildWeight();
+  else if(key==='measure')html=buildMeasure();
+  else if(key==='noise')html=buildNoise();
+  else html=buildComm();
+  body.innerHTML=html;
+  body.querySelectorAll('.anim-item').forEach((el,i)=>{el.style.animationDelay=(i*60)+'ms';});
+  if(key==='noise') setTimeout(()=>initNoiseChart('50kHz'),100);
+  if(key==='comm') setTimeout(()=>initCommChart(),100);
+  // 단독 진단 시 타일 업데이트
+  if(!scanning) setTileState(key, FIXED[key]);
+  // 푸터
+  const labels={weight:'체중 — 로드셀 점검',measure:'측정값 — 전극보드 진단',noise:'노이즈 분석'};
+  document.getElementById('modal-footer-left').textContent='진단 완료: '+labels[key];
+  document.getElementById('modal-title').textContent={weight:'체중 진단 결과',measure:'측정값 진단 결과',noise:'노이즈 진단 결과'}[key];
+  const reportBtn=document.getElementById('mf-report-btn');
+  reportBtn.style.display=FIXED[key].sig==='err'?'flex':'none';
+  document.getElementById('modal-footer').style.display='flex';
+}
+
+/* ── 모달 열기 ── */
+function openPrePanel(key){
+  // 모달 없이 타일 내에서 바로 진단 시작
+  runTileDiagnosis(key);
+}
+function openDetail(key){
+  // 상세 보기 — 수치 결과 모달
+  if(noiseChart){noiseChart.destroy();noiseChart=null;}
+  document.getElementById('modal-title').textContent={weight:'체중 진단 상세',measure:'측정값 진단 상세',noise:'노이즈 진단 상세'}[key];
+  document.getElementById('modal-meta').innerHTML=MODAL_META[key];
+  document.getElementById('modal-footer').style.display='none';
+  document.getElementById('auto-badge').classList.remove('show');
+  // 결과 바로 표시
+  let html='';
+  if(key==='weight')html=buildWeight();
+  else if(key==='measure')html=buildMeasure();
+  else if(key==='noise')html=buildNoise();
+  document.getElementById('modal-body').innerHTML=html;
+  document.getElementById('modal-body').querySelectorAll('.anim-item').forEach((el,i)=>{el.style.animationDelay=(i*60)+'ms';});
+  if(key==='noise')setTimeout(()=>initNoiseChart('50kHz'),100);
+  const labels={weight:'체중 — 로드셀 점검',measure:'측정값 — 전극보드 진단',noise:'노이즈 분석'};
+  document.getElementById('modal-footer-left').textContent='진단 완료: '+labels[key];
+  document.getElementById('modal-title').textContent={weight:'체중 진단 상세',measure:'측정값 진단 상세',noise:'노이즈 진단 상세'}[key];
+  const reportBtn=document.getElementById('mf-report-btn');
+  reportBtn.style.display=FIXED[key].sig==='err'?'flex':'none';
+  document.getElementById('modal-footer').style.display='flex';
+  document.getElementById('overlay').classList.add('show');
+}
+
+/* ── 전체 진단 ── */
+let allIdx=0;
+function runAll(){
+  if(scanning)return;scanning=true;allIdx=0;setStep(1);setNarr('start');
+  document.getElementById('btn-hd').disabled=true;document.getElementById('btn-all2').disabled=true;
+  document.querySelectorAll('.exec-btn').forEach(b=>b.disabled=true);
+  document.getElementById('prog-txt').textContent='진단 시작...';
+  document.getElementById('conn-dot').classList.add('scanning');
+  setTimeout(nextAll,600);
+}
+function nextAll(){
+  if(allIdx>=ORDER.length){
+    scanning=false;
+    document.getElementById('btn-hd').disabled=false;document.getElementById('btn-all2').disabled=false;
+    document.querySelectorAll('.exec-btn').forEach(b=>{b.disabled=false;b.textContent='원격 진단 실행 ▶';});
+    document.getElementById('conn-dot').classList.remove('scanning');
+    setStep(5);updateOverall();
+    const errs=parseInt(document.getElementById('err-cnt').textContent);
+    const warns=parseInt(document.getElementById('warn-cnt').textContent);
+    setNarr(errs>0?'done_err':warns>0?'done_warn':'done_ok');
+    setTimeout(()=>{document.getElementById('prog-txt').textContent='진단 완료';if(autoMode)scheduleAutoDetail();},400);
+    return;
+  }
+  const key=ORDER[allIdx];setNarr(key);setStep(allIdx+1);
+  document.getElementById('prog-txt').textContent=(allIdx+1)+'/3 — '+{weight:'체중',measure:'측정값',noise:'노이즈'}[key]+' 진단 중...';
+  setTileScanning(key);
+  // 타일 ev 도트 애니메이션
+  const ev=document.getElementById('ev-'+key);
+  if(ev) ev.innerHTML=`<div style="display:flex;align-items:center;gap:8px;padding:4px 0;color:#64b5f6;font-size:11px"><span style="display:inline-flex;gap:3px"><span style="width:5px;height:5px;border-radius:50%;background:#64b5f6;animation:blink .8s ease-in-out infinite"></span><span style="width:5px;height:5px;border-radius:50%;background:#64b5f6;animation:blink .8s ease-in-out .2s infinite"></span><span style="width:5px;height:5px;border-radius:50%;background:#64b5f6;animation:blink .8s ease-in-out .4s infinite"></span></span><span>데이터 수집 중...</span></div>`;
+  setTimeout(()=>{setTileState(key,FIXED[key]);allIdx++;setTimeout(nextAll,400);},1800);
+}
+function toggleAuto(){
+  if(autoMode){autoMode=false;clearTimeout(autoTimer);document.getElementById('btn-auto').textContent='▶ 자동 시연';document.getElementById('btn-auto').classList.remove('on');setNarr('idle');return;}
+  autoMode=true;document.getElementById('btn-auto').textContent='■ 시연 중지';document.getElementById('btn-auto').classList.add('on');
+  runAll();
+}
+function scheduleAutoDetail(){
+  // 자동시연: 상세보기 자동 열기 없음 — 타일 결과만 표시 후 재진단 루프
+  if(!autoMode)return;
+  autoTimer=setTimeout(()=>{
+    if(autoMode){setNarr('start');setTimeout(runAll,600);}
+  },3000);
+}
+function updateOverall(){
+  let errs=0,warns=0,done=0;
+  ORDER.forEach(k=>{const cls=document.getElementById('sig-'+k).className;if(cls.includes('err'))errs++;else if(cls.includes('warn'))warns++;if(!cls.includes('pending'))done++;});
+  document.getElementById('err-cnt').textContent=errs+'개';document.getElementById('warn-cnt').textContent=warns+'개';
+  document.getElementById('err-cnt').style.color=errs>0?'#b71c1c':'#1a7a4a';document.getElementById('warn-cnt').style.color=warns>0?'#a05c00':'#444';
+  const ov=document.getElementById('overall');
+  if(done===0){ov.textContent='진단 전';ov.style.color='#aaa';}
+  else if(errs>0){ov.textContent='이상 항목 있음 — 즉시 조치 필요';ov.style.color='#b71c1c';}
+  else if(warns>0){ov.textContent='주의 항목 있음 — 점검 권고';ov.style.color='#a05c00';}
+  else{ov.textContent='전체 정상 — 이상 없음';ov.style.color='#1a7a4a';}
+  const now=new Date();
+  document.getElementById('last-ts').textContent='마지막 진단: '+now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0')+' '+String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
+}
+
+/* ══════════════════════════════════════
+   이력 클릭 결과 팝업
+══════════════════════════════════════ */
+function openHistResult(type){
+  const data={
+    err:{ts:'2025-04-10 14:32',act:'전체 점검',
+      items:[{k:'체중',v:'불량 확정',c:'err',d:'내부저항 #3 +16.1% 이탈 → 로드셀 보드 교체 필요'},{k:'측정값',v:'불량 확정',c:'err',d:'Case 4 — RL/LL 전극보드 교체 권고'},{k:'노이즈',v:'정상',c:'ok',d:'Case 1 — 전 사지 임계값(40mV) 이하'},{k:'통신',v:'정상',c:'ok',d:'응답 118ms · 성공률 100%'}]},
+    ok:{ts:'2025-04-09 09:14',act:'전체 점검',
+      items:[{k:'체중',v:'정상',c:'ok',d:'4단계 전항목 정상 범위'},{k:'측정값',v:'정상',c:'ok',d:'전 부위 ±10% 이내'},{k:'노이즈',v:'정상',c:'ok',d:'Case 1'},{k:'통신',v:'정상',c:'ok',d:'응답 110ms · 성공률 100%'}]},
+    warn:{ts:'2025-04-07 16:50',act:'측정값 단독',
+      items:[{k:'측정값',v:'주의',c:'warn',d:'RL Current X −17.2% — 경계 범위 진입, 모니터링 필요'}]},
+  };
+  const d=data[type];
+  const isErr=d.items.some(i=>i.c==='err');
+  const isWarn=!isErr&&d.items.some(i=>i.c==='warn');
+  const overallCls=isErr?'err':isWarn?'warn':'ok';
+  const overallTxt=isErr?'이상 항목 확인 — 조치 필요':isWarn?'주의 항목 있음':'전체 정상';
+  const rows=d.items.map(i=>`
+    <tr class="${i.c==='err'?'rf':i.c==='warn'?'rw':''}">
+      <td><b>${i.k}</b></td>
+      <td class="c"><span class="badge ${i.c==='err'?'fail':i.c==='warn'?'warn':'ok'}">${i.v}</span></td>
+      <td style="font-size:11px;color:#555">${i.d}</td>
+    </tr>`).join('');
+  document.getElementById('modal-title').textContent='진단 이력 조회';
+  document.getElementById('modal-meta').innerHTML=`${d.ts} &nbsp;·&nbsp; ${d.act} &nbsp;·&nbsp; S/N: 81415184`;
+  document.getElementById('auto-badge').classList.remove('show');
+  document.getElementById('modal-footer').style.display='none';
+  document.getElementById('modal-body').innerHTML=`<div class="mc">
+    <div class="m-verdict-banner ${overallCls} anim-item">
+      <div><div class="mvb-title ${overallCls}">${overallTxt}</div><div class="mvb-body">진단일시: ${d.ts} &nbsp;·&nbsp; ${d.act}</div></div>
+      <span class="badge ${overallCls==='err'?'fail':overallCls==='warn'?'warn':'ok'}">${d.act}</span>
+    </div>
+    <div class="m-sec anim-item">
+      <div class="m-sec-hd"><div class="m-sec-title">항목별 진단 결과</div></div>
+      <table class="mt"><thead><tr><th>항목</th><th class="c">판정</th><th>내용</th></tr></thead>
+      <tbody>${rows}</tbody></table>
+    </div>
+    <div style="padding:10px 14px;font-size:11px;color:#aaa;text-align:center">진단 결과는 최소 12개월 보관됩니다. 재발 여부 확인에 활용하세요.</div>
+  </div>`;
+  document.getElementById('overlay').classList.add('show');
+}
+
+/* ══════════════════════════════════════
+   결과 빌더
+══════════════════════════════════════ */
+function buildWeight(){return `<div class="mc">
+  <!-- 판정 배너 + 4개 항목 요약 한 줄 -->
+  <div class="m-sec anim-item" style="background:var(--err-bg);border-color:var(--err-bd)">
+    <div style="padding:10px 14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <div style="flex:1;min-width:200px">
+        <div style="font-size:12px;font-weight:600;color:var(--err);margin-bottom:2px">■ 1단계 확정 — 로드셀 보드 불량</div>
+        <div style="font-size:11px;color:#7a2020;line-height:1.5">내부 저항 #3 (좌하) +16.1% 이탈 → 보드 불량 확정. ②③④는 참고용. 보드 교체 후 전체 재진단 권장.</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:4px;padding:4px 10px;background:#fff;border-radius:6px;border:.5px solid var(--err-bd)">
+          <span style="font-size:10px;color:#888">① 내부저항</span>
+          <span class="badge fail" style="padding:2px 7px">불량</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:4px;padding:4px 10px;background:#fff;border-radius:6px;border:.5px solid var(--warn-bd);opacity:.7">
+          <span style="font-size:10px;color:#888">② ADC</span>
+          <span class="badge warn" style="padding:2px 7px">주의</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:4px;padding:4px 10px;background:#fff;border-radius:6px;border:.5px solid var(--warn-bd);opacity:.7">
+          <span style="font-size:10px;color:#888">③ Coef</span>
+          <span class="badge warn" style="padding:2px 7px">주의</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:4px;padding:4px 10px;background:#fff;border-radius:6px;border:.5px solid var(--err-bd);opacity:.7">
+          <span style="font-size:10px;color:#888">④ 편심</span>
+          <span class="badge fail" style="padding:2px 7px">불량</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- 2×2 바둑판 -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;grid-template-rows:auto auto;gap:10px" class="anim-item">
+    <!-- ① 내부저항 -->
+    <div class="m-sec">
+      <div class="m-sec-hd"><div><div class="m-sec-title">① 내부 저항 — 4개 (최근 30회 부팅분)</div><div class="m-sec-sub">기준: 10,240 · 1개 이탈 → 보드 불량 확정</div></div><span class="badge fail"><span class="mdot fail"></span>불량 확정</span></div>
+      <table class="mt"><thead><tr><th>항목</th><th class="r">기준</th><th class="r">현재</th><th class="r">편차</th><th class="r">판정</th></tr></thead>
+      <tbody>
+        <tr><td>저항 #1 <span style="color:#aaa;font-size:10px">(좌상)</span></td><td class="r">10,240</td><td class="r">10,318</td><td class="dev-ok">+0.76%</td><td class="r"><span class="badge ok"><span class="mdot ok"></span>정상</span></td></tr>
+        <tr><td>저항 #2 <span style="color:#aaa;font-size:10px">(우상)</span></td><td class="r">10,240</td><td class="r">10,201</td><td class="dev-ok">−0.38%</td><td class="r"><span class="badge ok"><span class="mdot ok"></span>정상</span></td></tr>
+        <tr class="rf"><td>저항 #3 <span style="color:#aaa;font-size:10px">(좌하)</span></td><td class="r">10,240</td><td class="r">11,891</td><td class="dev-fail">+16.1%</td><td class="r"><span class="badge fail"><span class="mdot fail"></span>불량</span></td></tr>
+        <tr><td>저항 #4 <span style="color:#aaa;font-size:10px">(우하)</span></td><td class="r">10,240</td><td class="r">10,255</td><td class="dev-ok">+0.15%</td><td class="r"><span class="badge ok"><span class="mdot ok"></span>정상</span></td></tr>
+      </tbody></table>
+      <div class="m-vfoot"><div><div class="m-vf-lbl">권고 조치</div><div class="m-vf-txt fail">로드셀 보드 교체 후 전체 재진단</div></div></div>
+    </div>
+    <!-- ② 제로 ADC -->
+    <div class="m-sec" style="opacity:.85">
+      <div class="m-sec-hd"><div><div class="m-sec-title">② 제로 ADC 트렌드 <span style="font-size:10px;color:#aaa;font-weight:400">(참고용)</span></div><div class="m-sec-sub">580 기준: 535,068 · 경보: 초기 캘값 대비 ±3,000 초과</div></div><span class="badge warn"><span class="mdot warn"></span>주의</span></div>
+      <table class="mt"><thead><tr><th>시각</th><th class="r">ADC #1</th><th class="r">ADC #2</th><th class="r">ADC #3</th><th class="r">ADC #4</th><th class="r">상태</th></tr></thead>
+      <tbody>
+        <tr><td style="font-family:monospace;font-size:10px">14:19:05</td><td class="r">535,071</td><td class="r">535,065</td><td class="r">535,068</td><td class="r">535,070</td><td class="r"><span class="badge ok"><span class="mdot ok"></span>정상</span></td></tr>
+        <tr class="rw"><td style="font-family:monospace;font-size:10px">14:19:41</td><td class="r">535,071</td><td class="r">535,065</td><td class="r">535,068</td><td class="r" style="color:#854f0b;font-weight:500">538,250</td><td class="r"><span class="badge warn"><span class="mdot warn"></span>이상 시작</span></td></tr>
+        <tr class="rf"><td style="font-family:monospace;font-size:10px">14:22:03</td><td class="r">535,071</td><td class="r">535,065</td><td class="r">535,068</td><td class="r" style="color:#a32d2d;font-weight:500">542,100</td><td class="r"><span class="badge fail"><span class="mdot fail"></span>에러</span></td></tr>
+      </tbody></table>
+      <div class="m-vfoot"><div><div class="m-vf-lbl">ADC #4 편차</div><div class="m-vf-txt fail">+7,032 — ±3,000 초과 (보드 불량 상태, 신뢰도 낮음)</div></div></div>
+    </div>
+    <!-- ③ Coef -->
+    <div class="m-sec" style="opacity:.85">
+      <div class="m-sec-hd"><div><div class="m-sec-title">③ Coef 상대 비교 <span style="font-size:10px;color:#aaa;font-weight:400">(참고용)</span></div><div class="m-sec-sub">정상 범위: 475~490 · 4개 간 편차 ±1% 이내</div></div><span class="badge warn"><span class="mdot warn"></span>주의</span></div>
+      <table class="mt"><thead><tr><th>로드셀</th><th class="r">Coef</th><th class="r">편차</th><th>분포</th><th class="r">판정</th></tr></thead>
+      <tbody>
+        <tr><td>#1 우상</td><td class="r">483</td><td class="dev-ok">+0.21%</td><td><span class="mbar-wrap"><span class="mbar-fill ok" style="width:21%"></span></span></td><td class="r"><span class="badge ok"><span class="mdot ok"></span>정상</span></td></tr>
+        <tr><td>#2 우하</td><td class="r">483</td><td class="dev-ok">+0.21%</td><td><span class="mbar-wrap"><span class="mbar-fill ok" style="width:21%"></span></span></td><td class="r"><span class="badge ok"><span class="mdot ok"></span>정상</span></td></tr>
+        <tr><td>#3 좌하</td><td class="r">482</td><td class="dev-ok">±0.00%</td><td><span class="mbar-wrap"><span class="mbar-fill ok" style="width:1%"></span></span></td><td class="r"><span class="badge ok"><span class="mdot ok"></span>정상</span></td></tr>
+        <tr class="rw"><td>#4 좌상</td><td class="r">477</td><td class="dev-warn">−1.04%</td><td><span class="mbar-wrap"><span class="mbar-fill warn" style="width:100%"></span></span></td><td class="r"><span class="badge warn"><span class="mdot warn"></span>이상</span></td></tr>
+      </tbody></table>
+      <div class="m-vfoot"><div><div class="m-vf-lbl">종합</div><div class="m-vf-txt fail">#4 (좌상) 편차 1% 초과 — 보드 교체 후 재측정</div></div></div>
+    </div>
+    <!-- ④ 편심 -->
+    <div class="m-sec" style="opacity:.85">
+      <div class="m-sec-hd"><div><div class="m-sec-title">④ 편심 측정 — 5개 위치 <span style="font-size:10px;color:#aaa;font-weight:400">(참고용)</span></div><div class="m-sec-sub">기준: 평균 대비 ±100g 이내 · 순서: 중앙→우상→우하→좌하→좌상</div></div><span class="badge fail"><span class="mdot fail"></span>불량</span></div>
+      <div style="display:flex;gap:10px;padding:10px 12px;align-items:flex-start">
+        <table class="mt" style="flex:1"><thead><tr><th>위치</th><th class="r">측정값</th><th class="r">편차</th><th class="r">판정</th></tr></thead>
+        <tbody>
+          <tr><td>중앙</td><td class="r">62.3 kg</td><td class="dev-ok">기준</td><td class="r"><span class="badge neutral">기준</span></td></tr>
+          <tr><td>우상</td><td class="r">62.4 kg</td><td class="dev-ok">+80g</td><td class="r"><span class="badge ok"><span class="mdot ok"></span>정상</span></td></tr>
+          <tr><td>우하</td><td class="r">62.2 kg</td><td class="dev-ok">−80g</td><td class="r"><span class="badge ok"><span class="mdot ok"></span>정상</span></td></tr>
+          <tr><td>좌하</td><td class="r">62.3 kg</td><td class="dev-ok">±0g</td><td class="r"><span class="badge ok"><span class="mdot ok"></span>정상</span></td></tr>
+          <tr class="rf"><td>좌상</td><td class="r">59.1 kg</td><td class="dev-fail">−3,200g</td><td class="r"><span class="badge fail"><span class="mdot fail"></span>이상</span></td></tr>
+        </tbody></table>
+        <div style="width:100px;flex-shrink:0">
+          <div style="font-size:9px;color:#aaa;text-align:center;margin-bottom:4px">발판 위치도</div>
+          <div class="pos-grid">
+            <div class="pos-cell fail"><div class="pos-name fail">좌상</div><div class="pos-val fail">59.1</div></div>
+            <div class="pos-cell ok"><div class="pos-name ok">우상</div><div class="pos-val ok">62.4</div></div>
+            <div class="pos-cell ref"><div class="pos-name ref">중앙</div><div class="pos-val ref">62.3 kg</div></div>
+            <div class="pos-cell ok"><div class="pos-name ok">좌하</div><div class="pos-val ok">62.3</div></div>
+            <div class="pos-cell ok"><div class="pos-name ok">우하</div><div class="pos-val ok">62.2</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>`;}
+
+function buildMeasure(){return `<div class="mc">
+  <div class="m-verdict-banner fail anim-item">
+    <div><div class="mvb-title fail">■ Case 4 — 케이블 / 전극보드 불량 확정</div><div class="mvb-body">ANO Current O·X 모두 Pass, 전극 Current X Fail. RL O −16.9% / RL X −37.6% / LL X −21.1% ±20% 초과. 전극보드 및 케이블 교체 권고.</div></div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex-shrink:0">
+      <span class="badge fail">즉시 교체</span>
+      <div style="display:flex;gap:6px">
+        <div style="font-size:10px;color:#888;background:#fff;padding:2px 8px;border-radius:5px;border:.5px solid var(--err-bd)">이상 <b style="color:var(--err)">3건</b></div>
+        <div style="font-size:10px;color:#888;background:#fff;padding:2px 8px;border-radius:5px;border:.5px solid #ddd">의심 <b style="color:var(--navy)">케이블/전극보드</b></div>
+      </div>
+    </div>
+  </div>
+  <!-- 2×2 바둑판 -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px" class="anim-item">
+    <!-- 좌상: 자가진단 O/X -->
+    <div class="m-sec">
+      <div class="m-sec-hd"><div><div class="m-sec-title">자가진단 결과 (Current O / X)</div><div class="m-sec-sub">P: Pass 정상 · F: Fail 이상</div></div><span class="badge fail"><span class="mdot fail"></span>전극 이상</span></div>
+      <table class="mt"><thead><tr><th>구성요소</th><th class="c">Current O</th><th class="c">Current X</th><th class="c">판정</th></tr></thead>
+      <tbody>
+        <tr><td>ANO (아날로그보드)</td><td class="c" style="color:#3b6d11;font-weight:600">P</td><td class="c" style="color:#3b6d11;font-weight:600">P</td><td class="c"><span class="badge ok"><span class="mdot ok"></span>정상</span></td></tr>
+        <tr class="rf"><td>전극보드 + 케이블</td><td class="c" style="color:#3b6d11;font-weight:600">P</td><td class="c" style="color:#a32d2d;font-weight:600">F</td><td class="c"><span class="badge fail"><span class="mdot fail"></span>이상</span></td></tr>
+      </tbody></table>
+    </div>
+    <!-- 우상: 조건 조합 판정표 -->
+    <div class="m-sec">
+      <div class="m-sec-hd"><div><div class="m-sec-title">조건 조합 판정표</div><div class="m-sec-sub">P: 정상 · F: 이상 · —: 앞 조건에서 이미 판정</div></div><span class="badge fail" style="white-space:nowrap">★ Case 4</span></div>
+      <table class="mt"><thead><tr><th>Case</th><th class="c">ANO O</th><th class="c">ANO X</th><th class="c">전극 O</th><th class="c">전극 X</th><th>판정</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td class="c" style="color:#a32d2d">F</td><td class="c" style="color:#aaa">—</td><td class="c" style="color:#aaa">—</td><td class="c" style="color:#aaa">—</td><td><span class="badge fail" style="font-size:10px">ANO 불량 확정</span></td></tr>
+        <tr><td>2</td><td class="c" style="color:#3b6d11">P</td><td class="c" style="color:#3b6d11">P</td><td class="c" style="color:#a32d2d">F</td><td class="c" style="color:#aaa">—</td><td><span class="badge warn" style="font-size:10px">전극 의심</span></td></tr>
+        <tr><td>3</td><td class="c" style="color:#3b6d11">P</td><td class="c" style="color:#a32d2d">F</td><td class="c" style="color:#3b6d11">P</td><td class="c" style="color:#aaa">—</td><td><span class="badge warn" style="font-size:10px">전극 의심</span></td></tr>
+        <tr class="rf"><td style="color:#a32d2d;font-weight:700">★4</td><td class="c" style="color:#3b6d11">P</td><td class="c" style="color:#3b6d11">P</td><td class="c" style="color:#3b6d11">P</td><td class="c" style="color:#a32d2d;font-weight:600">F</td><td><span class="badge fail" style="font-size:10px">케이블/전극 확정</span></td></tr>
+        <tr><td>5</td><td class="c" style="color:#3b6d11">P</td><td class="c" style="color:#3b6d11">P</td><td class="c" style="color:#3b6d11">P</td><td class="c" style="color:#3b6d11">P</td><td><span class="badge ok" style="font-size:10px">전 항목 정상</span></td></tr>
+      </tbody></table>
+    </div>
+    <!-- 하단 전체: 저항값 상세 -->
+    <div class="m-sec" style="grid-column:1/-1">
+      <div class="m-sec-hd"><div><div class="m-sec-title">저항값 상세 — 부위별</div><div class="m-sec-sub">기준값 대비 ±10% 이내 P · ±10~20% 주의 · ±20% 초과 F</div></div><span class="badge fail"><span class="mdot fail"></span>3건 불량</span></div>
+      <table class="mt"><thead><tr><th>부위</th><th class="c">Current</th><th class="c">기준값(Ω)</th><th class="c">측정값(Ω)</th><th class="c">편차</th><th class="c">판정</th></tr></thead>
+      <tbody>
+        <tr class="mgrp"><td colspan="6">ANO (아날로그보드)</td></tr>
+        <tr><td>ANO</td><td class="c">O</td><td class="mref">1,200</td><td class="c">1,215</td><td class="mdev-ok">+1.3%</td><td class="mpass">P</td></tr>
+        <tr><td>ANO</td><td class="c">X</td><td class="mref">980</td><td class="c">994</td><td class="mdev-ok">+1.4%</td><td class="mpass">P</td></tr>
+        <tr class="mgrp"><td colspan="6">RA (오른팔) &nbsp;·&nbsp; LA (왼팔)</td></tr>
+        <tr><td>RA</td><td class="c">O</td><td class="mref">580</td><td class="c">591</td><td class="mdev-ok">+1.9%</td><td class="mpass">P</td></tr>
+        <tr><td>RA</td><td class="c">X</td><td class="mref">610</td><td class="c">624</td><td class="mdev-ok">+2.3%</td><td class="mpass">P</td></tr>
+        <tr><td>LA</td><td class="c">O</td><td class="mref">575</td><td class="c">583</td><td class="mdev-ok">+1.4%</td><td class="mpass">P</td></tr>
+        <tr><td>LA</td><td class="c">X</td><td class="mref">605</td><td class="c">618</td><td class="mdev-ok">+2.1%</td><td class="mpass">P</td></tr>
+        <tr class="mgrp"><td colspan="6">RL (오른다리) &nbsp;·&nbsp; LL (왼다리)</td></tr>
+        <tr class="rf"><td>RL</td><td class="c">O</td><td class="mref">750</td><td class="c">623</td><td class="mdev-fail">−16.9%</td><td class="mfail-t">F</td></tr>
+        <tr class="rf"><td>RL</td><td class="c">X</td><td class="mref">820</td><td class="c">512</td><td class="mdev-fail">−37.6%</td><td class="mfail-t">F</td></tr>
+        <tr><td>LL</td><td class="c">O</td><td class="mref">740</td><td class="c">752</td><td class="mdev-ok">+1.6%</td><td class="mpass">P</td></tr>
+        <tr class="rf"><td>LL</td><td class="c">X</td><td class="mref">800</td><td class="c">631</td><td class="mdev-fail">−21.1%</td><td class="mfail-t">F</td></tr>
+      </tbody></table>
+    </div>
+  </div>
+</div>`;}
+
+/* ── 노이즈 차트 데이터 ── */
+/* 모니터링 로그 데이터 — 팔(공중)/다리(바닥) 평균, 100회 중 최근 10포인트 샘플 */
+const NOISE_MONITOR_DATA={
+  arm: [0.41,0.43,0.42,0.44,0.43,0.44,0.45,0.44,0.43,0.44],
+  leg: [0.38,0.39,0.38,0.40,0.39,0.40,0.41,0.40,0.39,0.40],
+};
+const CHART_LABELS=['09:10','09:20','09:30','09:40','09:50','10:00','10:10','10:20','10:30','10:42'];
+let currentFreq='50kHz';
+
+function buildNoise(){return `<div class="mc">
+  <div class="m-verdict-banner ok anim-item">
+    <div><div class="mvb-title ok">이상 없음 — Case A (정상 운영)</div><div class="mvb-body">설치 시 환경 노이즈 정상 · 사용 중 모니터링 알람 미발생 · 팔/다리/크로스 3지표 정상 범위.</div><div style="font-size:11px;font-weight:500;margin-top:5px">권장: 정상 운영 유지</div></div>
+    <span class="badge ok">정상 운영</span>
+  </div>
+
+  <div class="m-cols2 anim-item">
+    <div class="m-sec">
+      <div class="m-sec-hd"><div><div class="m-sec-title">📍 시나리오 1 — 설치 시 환경 점검</div><div class="m-sec-sub">전원 ON 후 자동 측정 → 노이즈 환경 판별</div></div><span class="badge ok"><span class="mdot ok"></span>정상</span></div>
+      <div style="padding:10px 12px;display:flex;flex-direction:column;gap:6px">
+        <div class="ev-row"><span class="ev-lbl">측정 결과</span><span class="ev-val ok">환경 노이즈 정상 — 설치 환경 적합</span></div>
+        <div class="ev-row"><span class="ev-lbl">판정</span><span class="ev-val ok">노이즈 환경 기준 이하 → 정상 설치 가능</span></div>
+        <div style="margin-top:4px;padding:7px 10px;background:#f0faf5;border-radius:6px;font-size:10px;color:#1a7a4a;border:.5px solid #c0e8d0">✅ 설치 환경 이상 없음 — 정상 운영 진입</div>
+      </div>
+    </div>
+    <div class="m-sec">
+      <div class="m-sec-hd"><div><div class="m-sec-title">🔄 시나리오 2 — 사용 중 모니터링</div><div class="m-sec-sub">기저값 대비 급격 상승 시 알람 발생</div></div><span class="badge ok"><span class="mdot ok"></span>알람 없음</span></div>
+      <div style="padding:10px 12px;display:flex;flex-direction:column;gap:6px">
+        <div class="ev-row"><span class="ev-lbl">모니터링 상태</span><span class="ev-val ok">기저 대비 이상 없음</span></div>
+        <div class="ev-row"><span class="ev-lbl">최근 로그</span><span class="ev-val">100회 누적 — 급격 상승 미감지</span></div>
+        <div style="margin-top:4px;padding:7px 10px;background:#f0faf5;border-radius:6px;font-size:10px;color:#1a7a4a;border:.5px solid #c0e8d0">✅ 알람 미발생 — 정상 운영 중</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="m-sec anim-item">
+    <div class="m-sec-hd"><div><div class="m-sec-title">🧭 원격 방향 진단 — 팔 / 다리 / 크로스 3지표</div><div class="m-sec-sub">팔 = 공중 방사 노이즈 · 다리 = 바닥 노이즈 · 크로스 차이 = 방향 특정</div></div></div>
+    <div style="padding:10px 12px">
+      <!-- 사지 절대값 4개 -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:7px;margin-bottom:8px">
+        <div class="lc"><div class="lc-lbl">RA — 오른팔 (공중)</div><div class="lc-val">0.42<span class="lc-unit"> mV</span></div><div class="lc-bar"><div class="lc-bar-fill" style="width:14%;background:#1a7a4a"></div></div><span class="badge ok">정상</span></div>
+        <div class="lc"><div class="lc-lbl">LA — 왼팔 (공중)</div><div class="lc-val">0.45<span class="lc-unit"> mV</span></div><div class="lc-bar"><div class="lc-bar-fill" style="width:15%;background:#1a7a4a"></div></div><span class="badge ok">정상</span></div>
+        <div class="lc"><div class="lc-lbl">RL — 오른다리 (바닥)</div><div class="lc-val">0.38<span class="lc-unit"> mV</span></div><div class="lc-bar"><div class="lc-bar-fill" style="width:13%;background:#1a7a4a"></div></div><span class="badge ok">정상</span></div>
+        <div class="lc"><div class="lc-lbl">LL — 왼다리 (바닥)</div><div class="lc-val">0.41<span class="lc-unit"> mV</span></div><div class="lc-bar"><div class="lc-bar-fill" style="width:14%;background:#1a7a4a"></div></div><span class="badge ok">정상</span></div>
+      </div>
+      <!-- 차분값 요약 -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;margin-bottom:8px">
+        <div style="background:#f8f9fc;border:.5px solid #e0e4f0;border-radius:7px;padding:8px 10px">
+          <div style="font-size:10px;color:#888;margin-bottom:3px">팔 좌우 차이 (RA−LA)</div>
+          <div style="font-size:14px;font-weight:500;color:#1a7a4a">0.03 <span style="font-size:10px;color:#aaa">mV</span></div>
+          <div style="font-size:10px;color:#1a7a4a;margin-top:2px">방향 불명확 — 정상</div>
+        </div>
+        <div style="background:#f8f9fc;border:.5px solid #e0e4f0;border-radius:7px;padding:8px 10px">
+          <div style="font-size:10px;color:#888;margin-bottom:3px">다리 좌우 차이 (RL−LL)</div>
+          <div style="font-size:14px;font-weight:500;color:#1a7a4a">0.03 <span style="font-size:10px;color:#aaa">mV</span></div>
+          <div style="font-size:10px;color:#1a7a4a;margin-top:2px">방향 불명확 — 정상</div>
+        </div>
+        <div style="background:#f8f9fc;border:.5px solid #e0e4f0;border-radius:7px;padding:8px 10px">
+          <div style="font-size:10px;color:#888;margin-bottom:3px">공중 vs 바닥 (팔−다리 평균)</div>
+          <div style="font-size:14px;font-weight:500;color:#2a6aaa">+0.04 <span style="font-size:10px;color:#aaa">mV</span></div>
+          <div style="font-size:10px;color:#2a6aaa;margin-top:2px">팔 소폭 높음 — 공중 방사 미약</div>
+        </div>
+      </div>
+      <div style="padding:7px 10px;background:#fff8e8;border-radius:6px;font-size:10px;color:#7a5510;border:.5px solid #f0e0c0">⚠ <b>균일 노이즈 주의:</b> 전 사지 동시 상승 시 차분값이 상쇄되어 정상 오판 가능 — 사지 절대값 개별 확인 필수</div>
+    </div>
+  </div>
+
+  <div class="m-sec anim-item">
+    <div class="m-sec-hd"><div class="m-sec-title">판정 케이스 — ★ Case A</div></div>
+    <table class="mt"><thead><tr><th>Case</th><th>시나리오 1 (설치)</th><th>시나리오 2 (사용 중)</th><th>방향 진단</th><th>종합 판정</th><th>권장 조치</th></tr></thead>
+    <tbody>
+      <tr style="background:#f0faf5"><td style="color:#1a7a4a;font-weight:700">★A</td><td style="color:#1a7a4a">정상</td><td style="color:#1a7a4a">알람 없음</td><td style="color:#aaa">—</td><td><span class="badge ok">이상 없음</span></td><td style="font-size:10px">정상 운영</td></tr>
+      <tr><td>B</td><td style="color:#b71c1c">이상</td><td style="color:#1a7a4a">알람 없음</td><td style="color:#aaa">—</td><td><span class="badge warn">설치 환경 의심</span></td><td style="font-size:10px">조명·배선 점검 (원격/현장)</td></tr>
+      <tr><td>C</td><td style="color:#1a7a4a">정상</td><td style="color:#b71c1c">알람 발생</td><td>특정 사지↑</td><td><span class="badge warn">환경 변화</span></td><td style="font-size:10px">방향 특정 → 고객 위치 이동 안내</td></tr>
+      <tr><td>C'</td><td style="color:#1a7a4a">정상</td><td style="color:#b71c1c">알람 발생</td><td>전 사지↑ 균일</td><td><span class="badge warn">균일 노이즈</span></td><td style="font-size:10px">절대값 개별 확인 → 원인 추적</td></tr>
+      <tr><td>D</td><td style="color:#b71c1c">이상</td><td style="color:#b71c1c">지속 알람</td><td style="color:#aaa">—</td><td><span class="badge fail">복합 원인</span></td><td style="font-size:10px;color:#a32d2d;font-weight:500">현장 방문 필요</td></tr>
+    </tbody></table>
+    <div style="padding:5px 12px;font-size:10px;color:#1a5a8a;background:#f0f5ff;border-top:.5px solid #c8d8f0">💡 <b>380 시리즈 우선 적용</b> — 280은 하드웨어 구조 상 추후 별도 방안 적용 예정</div>
+  </div>
+
+  <div class="noise-chart-wrap anim-item">
+    <div class="noise-chart-hd">
+      <div class="noise-chart-title">사용 중 노이즈 모니터링 로그 — 팔(공중) · 다리(바닥)</div>
+    </div>
+    <div class="noise-chart-body" style="height:160px"><canvas id="noiseCanvas"></canvas></div>
+    <div class="noise-chart-note" id="noise-chart-note">최근 100회 누적 로그 — 팔(RA·LA) / 다리(RL·LL) 평균 노이즈 (mV) · 알람 임계값 기준선 표시</div>
+  </div>
+</div>`;}
+
+function initNoiseChart(freq){
+  if(noiseChart){noiseChart.destroy();noiseChart=null;}
+  const canvas=document.getElementById('noiseCanvas');
+  if(!canvas)return;
+  const threshold=Array(CHART_LABELS.length).fill(2.0);
+  noiseChart=new Chart(canvas,{
+    type:'line',
+    data:{
+      labels:CHART_LABELS,
+      datasets:[
+        {label:'팔 (공중)',data:NOISE_MONITOR_DATA.arm,borderColor:'#1a7a4a',backgroundColor:'rgba(26,122,74,.1)',borderWidth:2,tension:.3,pointRadius:3},
+        {label:'다리 (바닥)',data:NOISE_MONITOR_DATA.leg,borderColor:'#2a6aaa',backgroundColor:'rgba(42,106,170,.1)',borderWidth:2,tension:.3,pointRadius:3},
+        {label:'알람 임계값',data:threshold,borderColor:'#e53935',backgroundColor:'transparent',borderWidth:1.5,borderDash:[5,4],pointRadius:0,tension:0},
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:'top',labels:{boxWidth:10,font:{size:10}}},tooltip:{mode:'index',intersect:false}},
+      scales:{
+        y:{beginAtZero:true,max:3,grid:{color:'#f0f0f0'},ticks:{font:{size:10},callback:(v)=>v+' mV'},title:{display:true,text:'mV',font:{size:10}}},
+        x:{grid:{display:false},ticks:{font:{size:10}}}
+      }
+    }
+  });
+}
+
+function buildComm(){return `<div class="mc">
+  <div class="m-verdict-banner ok anim-item">
+    <div><div class="mvb-title ok">서버 연결 정상</div><div class="mvb-body">응답 평균 118ms · 전송 성공률 100% (최근 30회) · 안정적 연결 유지</div></div>
+    <span class="badge ok">정상 운영</span>
+  </div>
+  <div class="m-cols3 anim-item">
+    <div class="m-kpi"><div class="m-kpi-lbl">평균 응답 시간</div><div class="m-kpi-val ok" style="font-size:22px">118 <span style="font-size:13px;font-weight:400">ms</span></div><div style="font-size:10px;color:#aaa;margin-top:2px">최근 5회 기준</div></div>
+    <div class="m-kpi"><div class="m-kpi-lbl">전송 성공률</div><div class="m-kpi-val ok" style="font-size:22px">100<span style="font-size:13px;font-weight:400">%</span></div><div style="font-size:10px;color:#aaa;margin-top:2px">최근 30회 전체 성공</div></div>
+    <div class="m-kpi"><div class="m-kpi-lbl">연결 상태</div><div style="display:flex;align-items:center;gap:6px;margin-top:6px"><div style="width:8px;height:8px;border-radius:50%;background:#1a7a4a;box-shadow:0 0 0 3px rgba(26,122,74,.2)"></div><div class="m-kpi-val ok" style="font-size:14px">온라인</div></div><div style="font-size:10px;color:#aaa;margin-top:4px">장비 응답 정상</div></div>
+  </div>
+  <div class="m-cols2 anim-item">
+    <div class="m-sec">
+      <div class="m-sec-hd"><div class="m-sec-title">연결 이력 (최근 5회)</div></div>
+      <table class="mt"><thead><tr><th>시각</th><th class="r">응답 시간</th><th class="r">결과</th><th class="r">상태</th></tr></thead>
+      <tbody>
+        <tr><td style="font-family:monospace;font-size:10px">14:32:11</td><td class="r">112ms</td><td class="r">성공</td><td class="r"><span class="badge ok">정상</span></td></tr>
+        <tr><td style="font-family:monospace;font-size:10px">14:15:43</td><td class="r">124ms</td><td class="r">성공</td><td class="r"><span class="badge ok">정상</span></td></tr>
+        <tr><td style="font-family:monospace;font-size:10px">13:58:02</td><td class="r">118ms</td><td class="r">성공</td><td class="r"><span class="badge ok">정상</span></td></tr>
+        <tr><td style="font-family:monospace;font-size:10px">13:41:29</td><td class="r">115ms</td><td class="r">성공</td><td class="r"><span class="badge ok">정상</span></td></tr>
+        <tr><td style="font-family:monospace;font-size:10px">13:24:55</td><td class="r">121ms</td><td class="r">성공</td><td class="r"><span class="badge ok">정상</span></td></tr>
+      </tbody></table>
+    </div>
+    <div class="m-sec">
+      <div class="m-sec-hd"><div class="m-sec-title">응답 시간 추이</div><div class="m-sec-sub">최근 5회 · 정상 기준: 300ms 이내</div></div>
+      <div style="padding:10px 14px 12px;position:relative;height:138px"><canvas id="commChart"></canvas></div>
+      <div style="padding:5px 13px 7px;font-size:10px;color:#888;border-top:.5px solid #f0f0f0;background:#fafaf8">
+        최소 112ms · 최대 124ms · 평균 118ms &nbsp;·&nbsp; <span style="color:#1a7a4a;font-weight:500">모두 300ms 이내 정상</span>
+      </div>
+    </div>
+  </div>
+</div>`;}
+
+let commChart=null;
+function initCommChart(){
+  if(commChart){commChart.destroy();commChart=null;}
+  const canvas=document.getElementById('commChart');
+  if(!canvas)return;
+  commChart=new Chart(canvas,{
+    type:'bar',
+    data:{
+      labels:['13:24','13:41','13:58','14:15','14:32'],
+      datasets:[{
+        label:'응답 시간 (ms)',
+        data:[121,115,118,124,112],
+        backgroundColor:'rgba(26,122,74,.25)',
+        borderColor:'#1a7a4a',
+        borderWidth:1.5,
+        borderRadius:3,
+      }]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:(c)=>c.raw+'ms'}}},
+      scales:{
+        y:{beginAtZero:false,min:100,max:150,grid:{color:'#f0f0f0'},ticks:{font:{size:10},callback:(v)=>v+'ms'}},
+        x:{grid:{display:false},ticks:{font:{size:10}}}
+      },
+      animation:{duration:600}
+    }
+  });
+}
+
+
+
+/* ── 장비 화면 썸네일 상호작용 토글 ── */
+function toggleThumb(k){
+  const body=document.getElementById('thumbbody-'+k);
+  const btn=body.previousElementSibling.querySelector('.thumb-expand-btn');
+  if(body.classList.contains('interactive')){
+    body.classList.remove('interactive');
+    body.style.height='200px';
+    btn.textContent='상호작용 ▶';
+  } else {
+    body.classList.add('interactive');
+    body.style.height='420px';
+    btn.textContent='축소 ◀';
+  }
+}
+
+/* ── 장비 화면 팝업 ── */
+const DEVICE_SCREENS_B64 = {
+  weight: 'PCFET0NUWVBFIGh0bWw+CjxodG1sIGxhbmc9ImtvIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9IlVURi04Ij4KPG1ldGEgbmFtZT0idmlld3BvcnQiIGNvbnRlbnQ9IndpZHRoPWRldmljZS13aWR0aCwgaW5pdGlhbC1zY2FsZT0xLjAiPgo8dGl0bGU+7J6l67mEIOuUlOyKpO2UjOugiOydtCDigJQg7KCQ6rKAIOuqqOuTnDwvdGl0bGU+CjxzdHlsZT4KICAqLCAqOjpiZWZvcmUsICo6OmFmdGVyIHsgYm94LXNpemluZzogYm9yZGVyLWJveDsgbWFyZ2luOiAwOyBwYWRkaW5nOiAwOyB9CiAgYm9keSB7IGZvbnQtZmFtaWx5OiAtYXBwbGUtc3lzdGVtLCBCbGlua01hY1N5c3RlbUZvbnQsICdTZWdvZSBVSScsICdOb3RvIFNhbnMgS1InLCBzYW5zLXNlcmlmOyBiYWNrZ3JvdW5kOiAjZjVmNWYzOyBkaXNwbGF5OiBmbGV4OyBmbGV4LWRpcmVjdGlvbjogY29sdW1uOyBhbGlnbi1pdGVtczogY2VudGVyOyBqdXN0aWZ5LWNvbnRlbnQ6IGNlbnRlcjsgbWluLWhlaWdodDogMTAwdmg7IHBhZGRpbmc6IDI0cHg7IH0KCiAgLmRldmljZSB7IHdpZHRoOiAzNjBweDsgYmFja2dyb3VuZDogIzExMTsgYm9yZGVyLXJhZGl1czogMTZweDsgcGFkZGluZzogMjBweDsgY29sb3I6ICNmZmY7IH0KICAuZGV2aWNlLWhlYWRlciB7IHRleHQtYWxpZ246IGNlbnRlcjsgZm9udC1zaXplOiAxMXB4OyBjb2xvcjogIzU1NTsgbWFyZ2luLWJvdHRvbTogMTZweDsgbGV0dGVyLXNwYWNpbmc6IDAuMDhlbTsgfQoKICAuc2NyZWVuIHsgYmFja2dyb3VuZDogIzFhMWExYTsgYm9yZGVyLXJhZGl1czogMTBweDsgcGFkZGluZzogMjhweCAyMHB4IDI0cHg7IG1pbi1oZWlnaHQ6IDMwMHB4OyBkaXNwbGF5OiBmbGV4OyBmbGV4LWRpcmVjdGlvbjogY29sdW1uOyBhbGlnbi1pdGVtczogY2VudGVyOyBqdXN0aWZ5LWNvbnRlbnQ6IHNwYWNlLWJldHdlZW47IGJvcmRlcjogMXB4IHNvbGlkICMyYTJhMmE7IH0KCiAgLm1vZGUtbGFiZWwgeyBmb250LXNpemU6IDExcHg7IGNvbG9yOiAjNjY2OyBsZXR0ZXItc3BhY2luZzogMC4xZW07IG1hcmdpbi1ib3R0b206IDE2cHg7IH0KCiAgLmJvYXJkLXdyYXAgeyBwb3NpdGlvbjogcmVsYXRpdmU7IHdpZHRoOiAxNjBweDsgaGVpZ2h0OiAxNjBweDsgbWFyZ2luLWJvdHRvbTogMTZweDsgfQogIC5ib2FyZCB7IHdpZHRoOiAxMDAlOyBoZWlnaHQ6IDEwMCU7IGJhY2tncm91bmQ6ICMyMjI7IGJvcmRlcjogMXB4IHNvbGlkICMzMzM7IGJvcmRlci1yYWRpdXM6IDZweDsgZGlzcGxheTogZ3JpZDsgZ3JpZC10ZW1wbGF0ZS1jb2x1bW5zOiAxZnIgMWZyOyBncmlkLXRlbXBsYXRlLXJvd3M6IDFmciAxZnI7IH0KICAuem9uZSB7IGRpc3BsYXk6IGZsZXg7IGFsaWduLWl0ZW1zOiBjZW50ZXI7IGp1c3RpZnktY29udGVudDogY2VudGVyOyBmb250LXNpemU6IDEwcHg7IGNvbG9yOiAjM2EzYTNhOyB0cmFuc2l0aW9uOiBhbGwgMC4zczsgcG9zaXRpb246IHJlbGF0aXZlOyB9CiAgLnpvbmUuYWN0aXZlIHsgYmFja2dyb3VuZDogcmdiYSgyNTUsMjU1LDI1NSwwLjEpOyBjb2xvcjogI2ZmZjsgfQogIC56b25lLmFjdGl2ZTo6YWZ0ZXIgeyBjb250ZW50OiAnJzsgcG9zaXRpb246IGFic29sdXRlOyBpbnNldDogNXB4OyBib3JkZXI6IDEuNXB4IHNvbGlkIHJnYmEoMjU1LDI1NSwyNTUsMC41NSk7IGJvcmRlci1yYWRpdXM6IDNweDsgYW5pbWF0aW9uOiBibGluayAwLjg1cyBlYXNlLWluLW91dCBpbmZpbml0ZTsgfQogIC56b25lLmRvbmUgeyBiYWNrZ3JvdW5kOiByZ2JhKDI1NSwyNTUsMjU1LDAuMDQpOyB9CgogIC5jZW50ZXItem9uZSB7IHBvc2l0aW9uOiBhYnNvbHV0ZTsgdG9wOiA1MCU7IGxlZnQ6IDUwJTsgdHJhbnNmb3JtOiB0cmFuc2xhdGUoLTUwJSwgLTUwJSk7IHdpZHRoOiA1MnB4OyBoZWlnaHQ6IDUycHg7IGJhY2tncm91bmQ6ICMyMjI7IGJvcmRlcjogMXB4IHNvbGlkICMzMzM7IGJvcmRlci1yYWRpdXM6IDRweDsgZGlzcGxheTogZmxleDsgYWxpZ24taXRlbXM6IGNlbnRlcjsganVzdGlmeS1jb250ZW50OiBjZW50ZXI7IGZvbnQtc2l6ZTogMTBweDsgY29sb3I6ICMzYTNhM2E7IHotaW5kZXg6IDI7IHRyYW5zaXRpb246IGFsbCAwLjNzOyB9CiAgLmNlbnRlci16b25lLmFjdGl2ZSB7IGJhY2tncm91bmQ6IHJnYmEoMjU1LDI1NSwyNTUsMC4xKTsgY29sb3I6ICNkZGQ7IGJvcmRlci1jb2xvcjogIzU1NTsgfQogIC5jZW50ZXItem9uZS5hY3RpdmU6OmFmdGVyIHsgY29udGVudDogJyc7IHBvc2l0aW9uOiBhYnNvbHV0ZTsgaW5zZXQ6IDVweDsgYm9yZGVyOiAxLjVweCBzb2xpZCByZ2JhKDI1NSwyNTUsMjU1LDAuNTUpOyBib3JkZXItcmFkaXVzOiAycHg7IGFuaW1hdGlvbjogYmxpbmsgMC44NXMgZWFzZS1pbi1vdXQgaW5maW5pdGU7IH0KICAuY2VudGVyLXpvbmUuZG9uZSB7IGJhY2tncm91bmQ6IHJnYmEoMjU1LDI1NSwyNTUsMC4wNCk7IH0KCiAgQGtleWZyYW1lcyBibGluayB7IDAlLCAxMDAlIHsgb3BhY2l0eTogMTsgfSA1MCUgeyBvcGFjaXR5OiAwLjE1OyB9IH0KCiAgLmluc3RydWN0aW9uIHsgZm9udC1zaXplOiAxNnB4OyBjb2xvcjogI2ZmZjsgdGV4dC1hbGlnbjogY2VudGVyOyBtYXJnaW4tYm90dG9tOiA2cHg7IG1pbi1oZWlnaHQ6IDI0cHg7IHRyYW5zaXRpb246IG9wYWNpdHkgMC4zczsgfQogIC5zdWItaW5zdHJ1Y3Rpb24geyBmb250LXNpemU6IDExcHg7IGNvbG9yOiAjNTU1OyB0ZXh0LWFsaWduOiBjZW50ZXI7IG1hcmdpbi1ib3R0b206IDIwcHg7IG1pbi1oZWlnaHQ6IDE2cHg7IH0KCiAgLnByb2dyZXNzLXdyYXAgeyBkaXNwbGF5OiBmbGV4OyBhbGlnbi1pdGVtczogY2VudGVyOyBnYXA6IDEwcHg7IH0KICAuZG90cyB7IGRpc3BsYXk6IGZsZXg7IGdhcDogN3B4OyB9CiAgLmRvdC1pdGVtIHsgd2lkdGg6IDhweDsgaGVpZ2h0OiA4cHg7IGJvcmRlci1yYWRpdXM6IDUwJTsgYmFja2dyb3VuZDogIzMzMzsgdHJhbnNpdGlvbjogYWxsIDAuM3M7IH0KICAuZG90LWl0ZW0uZG9uZSB7IGJhY2tncm91bmQ6ICM4ODg7IH0KICAuZG90LWl0ZW0uY3VycmVudCB7IGJhY2tncm91bmQ6ICNmZmY7IGJveC1zaGFkb3c6IDAgMCAwIDJweCByZ2JhKDI1NSwyNTUsMjU1LDAuMjUpOyB9CiAgLnByb2dyZXNzLW51bSB7IGZvbnQtc2l6ZTogMTFweDsgY29sb3I6ICM1NTU7IG1pbi13aWR0aDogMjhweDsgfQoKICAuc3RhdHVzLWJhciB7IG1hcmdpbi10b3A6IDE0cHg7IGhlaWdodDogMnB4OyBiYWNrZ3JvdW5kOiAjMmEyYTJhOyBib3JkZXItcmFkaXVzOiAxcHg7IG92ZXJmbG93OiBoaWRkZW47IHdpZHRoOiAxMDAlOyB9CiAgLnN0YXR1cy1maWxsIHsgaGVpZ2h0OiAxMDAlOyBiYWNrZ3JvdW5kOiAjZmZmOyBib3JkZXItcmFkaXVzOiAxcHg7IHdpZHRoOiAwJTsgdHJhbnNpdGlvbjogd2lkdGggMXMgbGluZWFyOyB9CgogIC5jb21wbGV0ZS13cmFwIHsgZmxleDogMTsgZGlzcGxheTogZmxleDsgZmxleC1kaXJlY3Rpb246IGNvbHVtbjsgYWxpZ24taXRlbXM6IGNlbnRlcjsganVzdGlmeS1jb250ZW50OiBjZW50ZXI7IGdhcDogMTRweDsgcGFkZGluZzogMTZweCAwOyB9CiAgLmNoZWNrLWNpcmNsZSB7IHdpZHRoOiA0NHB4OyBoZWlnaHQ6IDQ0cHg7IGJvcmRlci1yYWRpdXM6IDUwJTsgYm9yZGVyOiAycHggc29saWQgI2ZmZjsgZGlzcGxheTogZmxleDsgYWxpZ24taXRlbXM6IGNlbnRlcjsganVzdGlmeS1jb250ZW50OiBjZW50ZXI7IGZvbnQtc2l6ZTogMjJweDsgY29sb3I6ICNmZmY7IH0KICAuY29tcGxldGUtbXNnIHsgZm9udC1zaXplOiAxNXB4OyBjb2xvcjogI2ZmZjsgdGV4dC1hbGlnbjogY2VudGVyOyBsaW5lLWhlaWdodDogMS43NTsgfQogIC5jb21wbGV0ZS1zdWIgeyBmb250LXNpemU6IDEycHg7IGNvbG9yOiAjNTU1OyB0ZXh0LWFsaWduOiBjZW50ZXI7IH0KCiAgLmJ0bi1yb3cgeyBkaXNwbGF5OiBmbGV4OyBnYXA6IDhweDsgbWFyZ2luLXRvcDogMjBweDsganVzdGlmeS1jb250ZW50OiBjZW50ZXI7IH0KICBidXR0b24geyBwYWRkaW5nOiA4cHggMjBweDsgYm9yZGVyLXJhZGl1czogOHB4OyBib3JkZXI6IDFweCBzb2xpZCAjMzMzOyBiYWNrZ3JvdW5kOiAjMWExYTFhOyBjb2xvcjogI2FhYTsgZm9udC1zaXplOiAxM3B4OyBjdXJzb3I6IHBvaW50ZXI7IHRyYW5zaXRpb246IGFsbCAwLjE1czsgZm9udC1mYW1pbHk6IGluaGVyaXQ7IH0KICBidXR0b246aG92ZXIgeyBiYWNrZ3JvdW5kOiAjMjIyOyBjb2xvcjogI2ZmZjsgYm9yZGVyLWNvbG9yOiAjNTU1OyB9CiAgYnV0dG9uOmFjdGl2ZSB7IHRyYW5zZm9ybTogc2NhbGUoMC45Nyk7IH0KICBidXR0b24ucHJpbWFyeSB7IGJvcmRlci1jb2xvcjogIzU1NTsgY29sb3I6ICNmZmY7IH0KPC9zdHlsZT4KPC9oZWFkPgo8Ym9keT4KCjxkaXYgY2xhc3M9ImRldmljZSI+CiAgPGRpdiBjbGFzcz0iZGV2aWNlLWhlYWRlciI+REVWSUNFIERJU1BMQVkg4oCUIOygkOqygCDrqqjrk5wg7KeE7ZaJIO2ZlOuptDwvZGl2PgogIDxkaXYgY2xhc3M9InNjcmVlbiIgaWQ9InNjcmVlbiI+CiAgICA8ZGl2IGNsYXNzPSJtb2RlLWxhYmVsIj5bIOybkOqyqSDsoJDqsoAg66qo65OcIF08L2Rpdj4KICAgIDxkaXYgY2xhc3M9ImJvYXJkLXdyYXAiPgogICAgICA8ZGl2IGNsYXNzPSJib2FyZCI+CiAgICAgICAgPGRpdiBjbGFzcz0iem9uZSIgaWQ9InotdGwiPjwvZGl2PgogICAgICAgIDxkaXYgY2xhc3M9InpvbmUiIGlkPSJ6LXRyIj48L2Rpdj4KICAgICAgICA8ZGl2IGNsYXNzPSJ6b25lIiBpZD0iei1ibCI+PC9kaXY+CiAgICAgICAgPGRpdiBjbGFzcz0iem9uZSIgaWQ9InotYnIiPjwvZGl2PgogICAgICA8L2Rpdj4KICAgICAgPGRpdiBjbGFzcz0iY2VudGVyLXpvbmUiIGlkPSJ6LWMiPuykkeyVmTwvZGl2PgogICAgPC9kaXY+CiAgICA8ZGl2IGNsYXNzPSJpbnN0cnVjdGlvbiIgaWQ9Imluc3RydWN0aW9uIj7rsJztjJAg7KSR7JWZ7JeQIOyYrOudvOqwgCDso7zshLjsmpQ8L2Rpdj4KICAgIDxkaXYgY2xhc3M9InN1Yi1pbnN0cnVjdGlvbiIgaWQ9InN1Yi1pbnN0cnVjdGlvbiI+PC9kaXY+CiAgICA8ZGl2IGNsYXNzPSJwcm9ncmVzcy13cmFwIj4KICAgICAgPGRpdiBjbGFzcz0iZG90cyI+CiAgICAgICAgPGRpdiBjbGFzcz0iZG90LWl0ZW0gY3VycmVudCIgaWQ9ImQwIj48L2Rpdj4KICAgICAgICA8ZGl2IGNsYXNzPSJkb3QtaXRlbSIgaWQ9ImQxIj48L2Rpdj4KICAgICAgICA8ZGl2IGNsYXNzPSJkb3QtaXRlbSIgaWQ9ImQyIj48L2Rpdj4KICAgICAgICA8ZGl2IGNsYXNzPSJkb3QtaXRlbSIgaWQ9ImQzIj48L2Rpdj4KICAgICAgICA8ZGl2IGNsYXNzPSJkb3QtaXRlbSIgaWQ9ImQ0Ij48L2Rpdj4KICAgICAgPC9kaXY+CiAgICAgIDxkaXYgY2xhc3M9InByb2dyZXNzLW51bSIgaWQ9InByb2dyZXNzLW51bSI+MSAvIDU8L2Rpdj4KICAgIDwvZGl2PgogICAgPGRpdiBjbGFzcz0ic3RhdHVzLWJhciI+PGRpdiBjbGFzcz0ic3RhdHVzLWZpbGwiIGlkPSJzdGF0dXMtZmlsbCI+PC9kaXY+PC9kaXY+CiAgPC9kaXY+CjwvZGl2PgoKPGRpdiBjbGFzcz0iYnRuLXJvdyI+CiAgPGJ1dHRvbiBvbmNsaWNrPSJwcmV2U3RlcCgpIj7ihpAg7J207KCEPC9idXR0b24+CiAgPGJ1dHRvbiBjbGFzcz0icHJpbWFyeSIgb25jbGljaz0ibmV4dFN0ZXAoKSI+7YOR7Iq5IOqwkOyngCDihpI8L2J1dHRvbj4KICA8YnV0dG9uIG9uY2xpY2s9InJlc2V0QWxsKCkiPuyymOydjOycvOuhnDwvYnV0dG9uPgo8L2Rpdj4KCjxzY3JpcHQ+CmNvbnN0IHN0ZXBzID0gWwogIHsgaW5zdHJ1Y3Rpb246ICfrsJztjJAg7KSR7JWZ7JeQIOyYrOudvOqwgCDso7zshLjsmpQnLCAgICB6b25lOiAnYycgIH0sCiAgeyBpbnN0cnVjdGlvbjogJ+yasOy4oSDsg4Hri6jsnLzroZwg7J2064+Z7ZW0IOyjvOyEuOyalCcsICB6b25lOiAndHInIH0sCiAgeyBpbnN0cnVjdGlvbjogJ+yasOy4oSDtlZjri6jsnLzroZwg7J2064+Z7ZW0IOyjvOyEuOyalCcsICB6b25lOiAnYnInIH0sCiAgeyBpbnN0cnVjdGlvbjogJ+yijOy4oSDtlZjri6jsnLzroZwg7J2064+Z7ZW0IOyjvOyEuOyalCcsICB6b25lOiAnYmwnIH0sCiAgeyBpbnN0cnVjdGlvbjogJ+yijOy4oSDsg4Hri6jsnLzroZwg7J2064+Z7ZW0IOyjvOyEuOyalCcsICB6b25lOiAndGwnIH0sCl07Cgpjb25zdCB6b25lTWFwID0geyBjOiAnei1jJywgdHI6ICd6LXRyJywgYnI6ICd6LWJyJywgYmw6ICd6LWJsJywgdGw6ICd6LXRsJyB9OwpsZXQgY3VycmVudCA9IDA7CmxldCBzdGFiaWxpemluZyA9IGZhbHNlOwoKZnVuY3Rpb24gY2xlYXJab25lcygpIHsKICBbJ3otYycsJ3otdGwnLCd6LXRyJywnei1ibCcsJ3otYnInXS5mb3JFYWNoKGlkID0+IHsKICAgIGNvbnN0IGVsID0gZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoaWQpOwogICAgaWYgKGVsKSB7IGVsLmNsYXNzTGlzdC5yZW1vdmUoJ2FjdGl2ZScsICdkb25lJyk7IH0KICB9KTsKfQoKZnVuY3Rpb24gdXBkYXRlRGlzcGxheSgpIHsKICBjbGVhclpvbmVzKCk7CiAgaWYgKGN1cnJlbnQgPj0gc3RlcHMubGVuZ3RoKSB7IHNob3dDb21wbGV0ZSgpOyByZXR1cm47IH0KCiAgY29uc3QgcyA9IHN0ZXBzW2N1cnJlbnRdOwogIGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKHpvbmVNYXBbcy56b25lXSkuY2xhc3NMaXN0LmFkZCgnYWN0aXZlJyk7CgogIGZvciAobGV0IGkgPSAwOyBpIDwgY3VycmVudDsgaSsrKSB7CiAgICBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCh6b25lTWFwW3N0ZXBzW2ldLnpvbmVdKS5jbGFzc0xpc3QuYWRkKCdkb25lJyk7CiAgfQoKICBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgnaW5zdHJ1Y3Rpb24nKS50ZXh0Q29udGVudCA9IHMuaW5zdHJ1Y3Rpb247CiAgZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ3N1Yi1pbnN0cnVjdGlvbicpLnRleHRDb250ZW50ID0gJyc7CiAgZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ3Byb2dyZXNzLW51bScpLnRleHRDb250ZW50ID0gKGN1cnJlbnQgKyAxKSArICcgLyA1JzsKICBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgnc3RhdHVzLWZpbGwnKS5zdHlsZS53aWR0aCA9ICcwJSc7CgogIGZvciAobGV0IGkgPSAwOyBpIDwgNTsgaSsrKSB7CiAgICBjb25zdCBkID0gZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ2QnICsgaSk7CiAgICBkLmNsYXNzTmFtZSA9ICdkb3QtaXRlbSc7CiAgICBpZiAoaSA8IGN1cnJlbnQpIGQuY2xhc3NMaXN0LmFkZCgnZG9uZScpOwogICAgZWxzZSBpZiAoaSA9PT0gY3VycmVudCkgZC5jbGFzc0xpc3QuYWRkKCdjdXJyZW50Jyk7CiAgfQp9CgpmdW5jdGlvbiBuZXh0U3RlcCgpIHsKICBpZiAoc3RhYmlsaXppbmcgfHwgY3VycmVudCA+PSBzdGVwcy5sZW5ndGgpIHJldHVybjsKICBzdGFiaWxpemluZyA9IHRydWU7CgogIGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCdzdWItaW5zdHJ1Y3Rpb24nKS50ZXh0Q29udGVudCA9ICfslYjsoJXtmZQg7KSRICgz7LSIKS4uLic7CiAgZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ3N0YXR1cy1maWxsJykuc3R5bGUud2lkdGggPSAnMTAwJSc7CgogIHNldFRpbWVvdXQoKCkgPT4gewogICAgc3RhYmlsaXppbmcgPSBmYWxzZTsKICAgIGN1cnJlbnQrKzsKICAgIHVwZGF0ZURpc3BsYXkoKTsKICB9LCAxMDAwKTsKfQoKZnVuY3Rpb24gcHJldlN0ZXAoKSB7CiAgaWYgKHN0YWJpbGl6aW5nIHx8IGN1cnJlbnQgPD0gMCkgcmV0dXJuOwogIGN1cnJlbnQtLTsKICB1cGRhdGVEaXNwbGF5KCk7Cn0KCmZ1bmN0aW9uIHJlc2V0QWxsKCkgewogIGN1cnJlbnQgPSAwOwogIHN0YWJpbGl6aW5nID0gZmFsc2U7CgogIGNvbnN0IHNjcmVlbiA9IGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCdzY3JlZW4nKTsKICBzY3JlZW4uaW5uZXJIVE1MID0gYAogICAgPGRpdiBjbGFzcz0ibW9kZS1sYWJlbCI+WyDsm5Dqsqkg7KCQ6rKAIOuqqOuTnCBdPC9kaXY+CiAgICA8ZGl2IGNsYXNzPSJib2FyZC13cmFwIj4KICAgICAgPGRpdiBjbGFzcz0iYm9hcmQiPgogICAgICAgIDxkaXYgY2xhc3M9InpvbmUiIGlkPSJ6LXRsIj48L2Rpdj4KICAgICAgICA8ZGl2IGNsYXNzPSJ6b25lIiBpZD0iei10ciI+PC9kaXY+CiAgICAgICAgPGRpdiBjbGFzcz0iem9uZSIgaWQ9InotYmwiPjwvZGl2PgogICAgICAgIDxkaXYgY2xhc3M9InpvbmUiIGlkPSJ6LWJyIj48L2Rpdj4KICAgICAgPC9kaXY+CiAgICAgIDxkaXYgY2xhc3M9ImNlbnRlci16b25lIiBpZD0iei1jIj7spJHslZk8L2Rpdj4KICAgIDwvZGl2PgogICAgPGRpdiBjbGFzcz0iaW5zdHJ1Y3Rpb24iIGlkPSJpbnN0cnVjdGlvbiI+67Cc7YyQIOykkeyVmeyXkCDsmKzrnbzqsIAg7KO87IS47JqUPC9kaXY+CiAgICA8ZGl2IGNsYXNzPSJzdWItaW5zdHJ1Y3Rpb24iIGlkPSJzdWItaW5zdHJ1Y3Rpb24iPjwvZGl2PgogICAgPGRpdiBjbGFzcz0icHJvZ3Jlc3Mtd3JhcCI+CiAgICAgIDxkaXYgY2xhc3M9ImRvdHMiPgogICAgICAgIDxkaXYgY2xhc3M9ImRvdC1pdGVtIGN1cnJlbnQiIGlkPSJkMCI+PC9kaXY+CiAgICAgICAgPGRpdiBjbGFzcz0iZG90LWl0ZW0iIGlkPSJkMSI+PC9kaXY+CiAgICAgICAgPGRpdiBjbGFzcz0iZG90LWl0ZW0iIGlkPSJkMiI+PC9kaXY+CiAgICAgICAgPGRpdiBjbGFzcz0iZG90LWl0ZW0iIGlkPSJkMyI+PC9kaXY+CiAgICAgICAgPGRpdiBjbGFzcz0iZG90LWl0ZW0iIGlkPSJkNCI+PC9kaXY+CiAgICAgIDwvZGl2PgogICAgICA8ZGl2IGNsYXNzPSJwcm9ncmVzcy1udW0iIGlkPSJwcm9ncmVzcy1udW0iPjEgLyA1PC9kaXY+CiAgICA8L2Rpdj4KICAgIDxkaXYgY2xhc3M9InN0YXR1cy1iYXIiPjxkaXYgY2xhc3M9InN0YXR1cy1maWxsIiBpZD0ic3RhdHVzLWZpbGwiPjwvZGl2PjwvZGl2PgogIGA7CiAgdXBkYXRlRGlzcGxheSgpOwp9CgpmdW5jdGlvbiBzaG93Q29tcGxldGUoKSB7CiAgZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ3NjcmVlbicpLmlubmVySFRNTCA9IGAKICAgIDxkaXYgY2xhc3M9Im1vZGUtbGFiZWwiPlsg7JuQ6rKpIOygkOqygCDrqqjrk5wgXTwvZGl2PgogICAgPGRpdiBjbGFzcz0iY29tcGxldGUtd3JhcCI+CiAgICAgIDxkaXYgY2xhc3M9ImNoZWNrLWNpcmNsZSI+4pyTPC9kaXY+CiAgICAgIDxkaXYgY2xhc3M9ImNvbXBsZXRlLW1zZyI+7KCQ6rKA7J20IOyZhOujjOuQmOyXiOyKteuLiOuLpC48YnI+6rCQ7IKs7ZWp64uI64ukLjwvZGl2PgogICAgICA8ZGl2IGNsYXNzPSJjb21wbGV0ZS1zdWIiPuy4oeyglSDqsrDqs7zqsIAg7ISc67KE66GcIOyghOyGoeuQmOyXiOyKteuLiOuLpC48L2Rpdj4KICAgIDwvZGl2PgogICAgPGRpdiBjbGFzcz0icHJvZ3Jlc3Mtd3JhcCI+CiAgICAgIDxkaXYgY2xhc3M9ImRvdHMiPgogICAgICAgICR7WzAsMSwyLDMsNF0ubWFwKCgpID0+ICc8ZGl2IGNsYXNzPSJkb3QtaXRlbSBkb25lIj48L2Rpdj4nKS5qb2luKCcnKX0KICAgICAgPC9kaXY+CiAgICAgIDxkaXYgY2xhc3M9InByb2dyZXNzLW51bSIgc3R5bGU9ImNvbG9yOiM2NjYiPjUgLyA1PC9kaXY+CiAgICA8L2Rpdj4KICAgIDxkaXYgY2xhc3M9InN0YXR1cy1iYXIiPjxkaXYgY2xhc3M9InN0YXR1cy1maWxsIiBzdHlsZT0id2lkdGg6MTAwJSI+PC9kaXY+PC9kaXY+CiAgYDsKfQoKdXBkYXRlRGlzcGxheSgpOwo8L3NjcmlwdD4KPC9ib2R5Pgo8L2h0bWw+Cg==',
+  measure: 'PCFET0NUWVBFIGh0bWw+CjxodG1sIGxhbmc9ImtvIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9IlVURi04Ij4KPG1ldGEgbmFtZT0idmlld3BvcnQiIGNvbnRlbnQ9IndpZHRoPWRldmljZS13aWR0aCwgaW5pdGlhbC1zY2FsZT0xLjAiPgo8dGl0bGU+7J6l67mEIOuUlOyKpO2UjOugiOydtCDigJQg7Lih7KCV6rCSIOygkOqygCDrqqjrk5w8L3RpdGxlPgo8c3R5bGU+CiAgKiwgKjo6YmVmb3JlLCAqOjphZnRlciB7IGJveC1zaXppbmc6IGJvcmRlci1ib3g7IG1hcmdpbjogMDsgcGFkZGluZzogMDsgfQogIGJvZHkgeyBmb250LWZhbWlseTogLWFwcGxlLXN5c3RlbSwgQmxpbmtNYWNTeXN0ZW1Gb250LCAnU2Vnb2UgVUknLCAnTm90byBTYW5zIEtSJywgc2Fucy1zZXJpZjsgYmFja2dyb3VuZDogI2YwZjBlZTsgZGlzcGxheTogZmxleDsgZmxleC1kaXJlY3Rpb246IGNvbHVtbjsgYWxpZ24taXRlbXM6IGNlbnRlcjsganVzdGlmeS1jb250ZW50OiBjZW50ZXI7IG1pbi1oZWlnaHQ6IDEwMHZoOyBwYWRkaW5nOiAyNHB4OyBnYXA6IDIwcHg7IH0KCiAgLmRldmljZSB7IHdpZHRoOiAzMjBweDsgYmFja2dyb3VuZDogIzExMTsgYm9yZGVyLXJhZGl1czogMTZweDsgcGFkZGluZzogMThweDsgY29sb3I6ICNmZmY7IH0KICAuZGV2aWNlLWhlYWRlciB7IHRleHQtYWxpZ246IGNlbnRlcjsgZm9udC1zaXplOiAxMHB4OyBjb2xvcjogIzU1NTsgbWFyZ2luLWJvdHRvbTogMTRweDsgbGV0dGVyLXNwYWNpbmc6IDAuMWVtOyB9CgogIC5zY3JlZW4geyBiYWNrZ3JvdW5kOiAjMGQwZDBkOyBib3JkZXItcmFkaXVzOiAxMHB4OyBwYWRkaW5nOiAyNHB4IDE4cHggMjBweDsgbWluLWhlaWdodDogMjgwcHg7IGRpc3BsYXk6IGZsZXg7IGZsZXgtZGlyZWN0aW9uOiBjb2x1bW47IGFsaWduLWl0ZW1zOiBjZW50ZXI7IGdhcDogMDsgYm9yZGVyOiAxcHggc29saWQgIzFlMWUxZTsgfQoKICAubW9kZS1sYWJlbCB7IGZvbnQtc2l6ZTogMTBweDsgY29sb3I6ICM1NTU7IGxldHRlci1zcGFjaW5nOiAwLjFlbTsgbWFyZ2luLWJvdHRvbTogMThweDsgfQoKICAvKiDsnqDquIgg7JWE7J207L2YICovCiAgLmxvY2staWNvbiB7IGRpc3BsYXk6IGZsZXg7IGZsZXgtZGlyZWN0aW9uOiBjb2x1bW47IGFsaWduLWl0ZW1zOiBjZW50ZXI7IG1hcmdpbi1ib3R0b206IDE0cHg7IH0KICAubG9jay1zaGFja2xlIHsgd2lkdGg6IDE0cHg7IGhlaWdodDogMTBweDsgYm9yZGVyOiAxLjVweCBzb2xpZCAjZmZmOyBib3JkZXItYm90dG9tOiBub25lOyBib3JkZXItcmFkaXVzOiA3cHggN3B4IDAgMDsgfQogIC5sb2NrLWJvZHkgeyB3aWR0aDogMjJweDsgaGVpZ2h0OiAxNnB4OyBib3JkZXI6IDEuNXB4IHNvbGlkICNmZmY7IGJvcmRlci1yYWRpdXM6IDNweDsgbWFyZ2luLXRvcDogMXB4OyBkaXNwbGF5OiBmbGV4OyBhbGlnbi1pdGVtczogY2VudGVyOyBqdXN0aWZ5LWNvbnRlbnQ6IGNlbnRlcjsgfQogIC5sb2NrLWRvdCB7IHdpZHRoOiA0cHg7IGhlaWdodDogNHB4OyBib3JkZXItcmFkaXVzOiA1MCU7IGJhY2tncm91bmQ6ICNmZmY7IG9wYWNpdHk6IDAuNTsgfQoKICAubWFpbi10ZXh0IHsgZm9udC1zaXplOiAxNnB4OyBjb2xvcjogI2ZmZjsgZm9udC13ZWlnaHQ6IDUwMDsgdGV4dC1hbGlnbjogY2VudGVyOyBtYXJnaW4tYm90dG9tOiA2cHg7IH0KICAuc3ViLXRleHQgeyBmb250LXNpemU6IDExcHg7IGNvbG9yOiAjNTU1OyB0ZXh0LWFsaWduOiBjZW50ZXI7IGxpbmUtaGVpZ2h0OiAxLjc7IG1hcmdpbi1ib3R0b206IDE4cHg7IH0KCiAgLmRpdmlkZXIgeyB3aWR0aDogMzZweDsgaGVpZ2h0OiAxcHg7IGJhY2tncm91bmQ6ICMyMjI7IG1hcmdpbi1ib3R0b206IDE4cHg7IH0KCiAgLyog7KCE6re5IOyytO2BrCDqt7jrpqzrk5wgKi8KICAuZWxlY3Ryb2RlLWdyaWQgeyBkaXNwbGF5OiBncmlkOyBncmlkLXRlbXBsYXRlLWNvbHVtbnM6IHJlcGVhdCg0LCAxZnIpOyBnYXA6IDZweDsgd2lkdGg6IDEwMCU7IG1hcmdpbi1ib3R0b206IDE2cHg7IH0KICAuZWxlY3Ryb2RlIHsgZGlzcGxheTogZmxleDsgZmxleC1kaXJlY3Rpb246IGNvbHVtbjsgYWxpZ24taXRlbXM6IGNlbnRlcjsgZ2FwOiA0cHg7IH0KICAuZWxlYy1kb3QgeyB3aWR0aDogMjhweDsgaGVpZ2h0OiAyOHB4OyBib3JkZXItcmFkaXVzOiA1MCU7IGJvcmRlcjogMS41cHggc29saWQgIzJhMmEyYTsgZGlzcGxheTogZmxleDsgYWxpZ24taXRlbXM6IGNlbnRlcjsganVzdGlmeS1jb250ZW50OiBjZW50ZXI7IGZvbnQtc2l6ZTogOHB4OyBjb2xvcjogIzMzMzsgdHJhbnNpdGlvbjogYWxsIDAuNHM7IHBvc2l0aW9uOiByZWxhdGl2ZTsgfQogIC5lbGVjLWRvdC5zY2FubmluZyB7IGJvcmRlci1jb2xvcjogIzU1NTsgY29sb3I6ICM1NTU7IGFuaW1hdGlvbjogZWxlY3B1bHNlIDFzIGVhc2UtaW4tb3V0IGluZmluaXRlOyB9CiAgLmVsZWMtZG90Lm9rIHsgYm9yZGVyLWNvbG9yOiAjZmZmOyBjb2xvcjogI2ZmZjsgYmFja2dyb3VuZDogcmdiYSgyNTUsMjU1LDI1NSwwLjA2KTsgfQogIC5lbGVjLWRvdC5vazo6YWZ0ZXIgeyBjb250ZW50OiAn4pyTJzsgcG9zaXRpb246IGFic29sdXRlOyBmb250LXNpemU6IDEwcHg7IGNvbG9yOiAjZmZmOyB9CiAgLmVsZWMtZG90Lm9rIHNwYW4geyBkaXNwbGF5OiBub25lOyB9CiAgLmVsZWMtZG90LmZhaWwgeyBib3JkZXItY29sb3I6ICNjYzQ0NDQ7IGNvbG9yOiAjY2M0NDQ0OyBiYWNrZ3JvdW5kOiByZ2JhKDIwNCw2OCw2OCwwLjA4KTsgfQogIC5lbGVjLWRvdC5mYWlsOjphZnRlciB7IGNvbnRlbnQ6ICfinJUnOyBwb3NpdGlvbjogYWJzb2x1dGU7IGZvbnQtc2l6ZTogMTBweDsgY29sb3I6ICNjYzQ0NDQ7IH0KICAuZWxlYy1kb3QuZmFpbCBzcGFuIHsgZGlzcGxheTogbm9uZTsgfQogIC5lbGVjLWxibCB7IGZvbnQtc2l6ZTogOXB4OyBjb2xvcjogIzNhM2EzYTsgdHJhbnNpdGlvbjogY29sb3IgMC40czsgfQogIC5lbGVjLWxibC5hY3RpdmUgeyBjb2xvcjogIzg4ODsgfQogIEBrZXlmcmFtZXMgZWxlY3B1bHNlIHsgMCUsMTAwJSB7IGJvcmRlci1jb2xvcjogIzMzMzsgYm94LXNoYWRvdzogbm9uZTsgfSA1MCUgeyBib3JkZXItY29sb3I6ICM4ODg7IGJveC1zaGFkb3c6IDAgMCAwIDNweCByZ2JhKDEzNiwxMzYsMTM2LDAuMTIpOyB9IH0KCiAgLyog7KeE7ZaJIOuwlCAqLwogIC5wcm9nLXdyYXAgeyB3aWR0aDogMTAwJTsgbWFyZ2luLWJvdHRvbTogMTJweDsgfQogIC5wcm9nLWJhciB7IHdpZHRoOiAxMDAlOyBoZWlnaHQ6IDJweDsgYmFja2dyb3VuZDogIzFlMWUxZTsgYm9yZGVyLXJhZGl1czogMXB4OyBvdmVyZmxvdzogaGlkZGVuOyB9CiAgLnByb2ctZmlsbCB7IGhlaWdodDogMTAwJTsgYmFja2dyb3VuZDogI2ZmZjsgYm9yZGVyLXJhZGl1czogMXB4OyB0cmFuc2l0aW9uOiB3aWR0aCAwLjVzOyB3aWR0aDogMCU7IH0KCiAgLyog7IOB7YOcIO2WiSAqLwogIC5zdGF0dXMtcm93IHsgZGlzcGxheTogZmxleDsgZ2FwOiA3cHg7IGFsaWduLWl0ZW1zOiBjZW50ZXI7IH0KICAuc3RhdHVzLWRvdCB7IHdpZHRoOiA1cHg7IGhlaWdodDogNXB4OyBib3JkZXItcmFkaXVzOiA1MCU7IGJhY2tncm91bmQ6ICMzMzM7IGFuaW1hdGlvbjogc3RhdHVzYmxpbmsgMS44cyBlYXNlLWluLW91dCBpbmZpbml0ZTsgfQogIC5zdGF0dXMtdGV4dCB7IGZvbnQtc2l6ZTogMTBweDsgY29sb3I6ICM0NDQ7IGxldHRlci1zcGFjaW5nOiAwLjA2ZW07IH0KICBAa2V5ZnJhbWVzIHN0YXR1c2JsaW5rIHsgMCUsMTAwJSB7IG9wYWNpdHk6IDAuMzsgfSA1MCUgeyBvcGFjaXR5OiAxOyB9IH0KCiAgLyog7JmE66OMIO2ZlOuptCAqLwogIC5jb21wbGV0ZS13cmFwIHsgZGlzcGxheTogZmxleDsgZmxleC1kaXJlY3Rpb246IGNvbHVtbjsgYWxpZ24taXRlbXM6IGNlbnRlcjsgZ2FwOiAxMnB4OyBwYWRkaW5nOiAxMnB4IDA7IH0KICAuY2hlY2stY2lyY2xlIHsgd2lkdGg6IDQwcHg7IGhlaWdodDogNDBweDsgYm9yZGVyLXJhZGl1czogNTAlOyBib3JkZXI6IDEuNXB4IHNvbGlkICNmZmY7IGRpc3BsYXk6IGZsZXg7IGFsaWduLWl0ZW1zOiBjZW50ZXI7IGp1c3RpZnktY29udGVudDogY2VudGVyOyBmb250LXNpemU6IDE4cHg7IGNvbG9yOiAjZmZmOyB9CiAgLmNvbXBsZXRlLW1zZyB7IGZvbnQtc2l6ZTogMTVweDsgY29sb3I6ICNmZmY7IHRleHQtYWxpZ246IGNlbnRlcjsgbGluZS1oZWlnaHQ6IDEuNzsgfQogIC5jb21wbGV0ZS1zdWIgeyBmb250LXNpemU6IDExcHg7IGNvbG9yOiAjNTU1OyB0ZXh0LWFsaWduOiBjZW50ZXI7IH0KCiAgLyog67KE7Yq8ICovCiAgLmJ0bi1yb3cgeyBkaXNwbGF5OiBmbGV4OyBnYXA6IDhweDsgZmxleC13cmFwOiB3cmFwOyBqdXN0aWZ5LWNvbnRlbnQ6IGNlbnRlcjsgfQogIGJ1dHRvbiB7IHBhZGRpbmc6IDhweCAxOHB4OyBib3JkZXItcmFkaXVzOiA4cHg7IGJvcmRlcjogMXB4IHNvbGlkICNjY2M7IGJhY2tncm91bmQ6ICNmZmY7IGNvbG9yOiAjMzMzOyBmb250LXNpemU6IDEycHg7IGN1cnNvcjogcG9pbnRlcjsgdHJhbnNpdGlvbjogYWxsIDAuMTVzOyBmb250LWZhbWlseTogaW5oZXJpdDsgfQogIGJ1dHRvbjpob3ZlciB7IGJhY2tncm91bmQ6ICNmMGYwZjA7IH0KICBidXR0b24ucHJpbWFyeSB7IGJhY2tncm91bmQ6ICMxMTE7IGNvbG9yOiAjZmZmOyBib3JkZXItY29sb3I6ICM0NDQ7IH0KICBidXR0b24ucHJpbWFyeTpob3ZlciB7IGJhY2tncm91bmQ6ICMyMjI7IH0KPC9zdHlsZT4KPC9oZWFkPgo8Ym9keT4KCjxkaXYgY2xhc3M9ImRldmljZSI+CiAgPGRpdiBjbGFzcz0iZGV2aWNlLWhlYWRlciI+REVWSUNFIERJU1BMQVkg4oCUIOy4oeygleqwkiDsoJDqsoAg66qo65OcPC9kaXY+CiAgPGRpdiBjbGFzcz0ic2NyZWVuIiBpZD0ic2NyZWVuIj4KICAgIDxkaXYgY2xhc3M9Im1vZGUtbGFiZWwiPlsg7JuQ6rKpIOygkOqygCDrqqjrk5wgXTwvZGl2PgoKICAgIDxkaXYgY2xhc3M9ImxvY2staWNvbiIgaWQ9ImxvY2siPgogICAgICA8ZGl2IGNsYXNzPSJsb2NrLXNoYWNrbGUiPjwvZGl2PgogICAgICA8ZGl2IGNsYXNzPSJsb2NrLWJvZHkiPjxkaXYgY2xhc3M9ImxvY2stZG90Ij48L2Rpdj48L2Rpdj4KICAgIDwvZGl2PgoKICAgIDxkaXYgY2xhc3M9Im1haW4tdGV4dCIgaWQ9Im1haW4tdGV4dCI+7KCE6re5IOyLoO2YuCDsoJDqsoAg7KSRPC9kaXY+CiAgICA8ZGl2IGNsYXNzPSJzdWItdGV4dCIgaWQ9InN1Yi10ZXh0Ij7suKHsoJXsnbQg7J287IucIOykkeuLqOuQqeuLiOuLpDxicj7snqDsi5wg6riw64uk66CkIOyjvOyEuOyalDwvZGl2PgoKICAgIDxkaXYgY2xhc3M9ImRpdmlkZXIiPjwvZGl2PgoKICAgIDxkaXYgY2xhc3M9ImVsZWN0cm9kZS1ncmlkIiBpZD0iZWxlYy1ncmlkIj4KICAgICAgPGRpdiBjbGFzcz0iZWxlY3Ryb2RlIj4KICAgICAgICA8ZGl2IGNsYXNzPSJlbGVjLWRvdCBzY2FubmluZyIgaWQ9ImUtcmEiPjxzcGFuPlJBPC9zcGFuPjwvZGl2PgogICAgICAgIDxkaXYgY2xhc3M9ImVsZWMtbGJsIGFjdGl2ZSIgaWQ9ImwtcmEiPuyYpOuluO2MlDwvZGl2PgogICAgICA8L2Rpdj4KICAgICAgPGRpdiBjbGFzcz0iZWxlY3Ryb2RlIj4KICAgICAgICA8ZGl2IGNsYXNzPSJlbGVjLWRvdCIgaWQ9ImUtbGEiPjxzcGFuPkxBPC9zcGFuPjwvZGl2PgogICAgICAgIDxkaXYgY2xhc3M9ImVsZWMtbGJsIiBpZD0ibC1sYSI+7Jm87YyUPC9kaXY+CiAgICAgIDwvZGl2PgogICAgICA8ZGl2IGNsYXNzPSJlbGVjdHJvZGUiPgogICAgICAgIDxkaXYgY2xhc3M9ImVsZWMtZG90IiBpZD0iZS1ybCI+PHNwYW4+Ukw8L3NwYW4+PC9kaXY+CiAgICAgICAgPGRpdiBjbGFzcz0iZWxlYy1sYmwiIGlkPSJsLXJsIj7smKTrpbjrsJw8L2Rpdj4KICAgICAgPC9kaXY+CiAgICAgIDxkaXYgY2xhc3M9ImVsZWN0cm9kZSI+CiAgICAgICAgPGRpdiBjbGFzcz0iZWxlYy1kb3QiIGlkPSJlLWxsIj48c3Bhbj5MTDwvc3Bhbj48L2Rpdj4KICAgICAgICA8ZGl2IGNsYXNzPSJlbGVjLWxibCIgaWQ9ImwtbGwiPuyZvOuwnDwvZGl2PgogICAgICA8L2Rpdj4KICAgIDwvZGl2PgoKICAgIDxkaXYgY2xhc3M9InByb2ctd3JhcCI+CiAgICAgIDxkaXYgY2xhc3M9InByb2ctYmFyIj48ZGl2IGNsYXNzPSJwcm9nLWZpbGwiIGlkPSJwcm9nLWZpbGwiPjwvZGl2PjwvZGl2PgogICAgPC9kaXY+CgogICAgPGRpdiBjbGFzcz0ic3RhdHVzLXJvdyI+CiAgICAgIDxkaXYgY2xhc3M9InN0YXR1cy1kb3QiPjwvZGl2PgogICAgICA8ZGl2IGNsYXNzPSJzdGF0dXMtdGV4dCIgaWQ9InN0YXR1cy10ZXh0Ij5SQSDsi6DtmLgg7ZmV7J24IOykkS4uLjwvZGl2PgogICAgPC9kaXY+CiAgPC9kaXY+CjwvZGl2PgoKPGRpdiBjbGFzcz0iYnRuLXJvdyI+CiAgPGJ1dHRvbiBvbmNsaWNrPSJzaG93U3RlcCgwKSI+4pGgIFJBIOygkOqygDwvYnV0dG9uPgogIDxidXR0b24gb25jbGljaz0ic2hvd1N0ZXAoMSkiPuKRoSBMQSDsoJDqsoA8L2J1dHRvbj4KICA8YnV0dG9uIG9uY2xpY2s9InNob3dTdGVwKDIpIj7ikaIgUkwg7KCQ6rKAPC9idXR0b24+CiAgPGJ1dHRvbiBvbmNsaWNrPSJzaG93U3RlcCgzKSI+4pGjIExMIOygkOqygDwvYnV0dG9uPgogIDxidXR0b24gY2xhc3M9InByaW1hcnkiIG9uY2xpY2s9InNob3dEb25lKGZhbHNlKSI+4pyTIOygleyDgSDsmYTro4w8L2J1dHRvbj4KICA8YnV0dG9uIG9uY2xpY2s9InNob3dEb25lKHRydWUpIj7inJUg7J207IOBIOqwkOyngDwvYnV0dG9uPgo8L2Rpdj4KCjxzY3JpcHQ+CmNvbnN0IGVsZWNzID0gWydyYScsJ2xhJywncmwnLCdsbCddOwpjb25zdCBsYWJlbHMgPSBbJ1JBIOyLoO2YuCDtmZXsnbgg7KSRLi4uJywnTEEg7Iug7Zi4IO2ZleyduCDspJEuLi4nLCdSTCDsi6DtmLgg7ZmV7J24IOykkS4uLicsJ0xMIOyLoO2YuCDtmZXsnbgg7KSRLi4uJ107CmNvbnN0IG5hbWVzID0gWyfsmKTrpbjtjJQnLCfsmbztjJQnLCfsmKTrpbjrsJwnLCfsmbzrsJwnXTsKCmZ1bmN0aW9uIGNsZWFyRWxlYygpewogIGVsZWNzLmZvckVhY2goaWQ9PnsKICAgIGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCdlLScraWQpLmNsYXNzTmFtZT0nZWxlYy1kb3QnOwogICAgZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ2wtJytpZCkuY2xhc3NOYW1lPSdlbGVjLWxibCc7CiAgfSk7Cn0KCmZ1bmN0aW9uIHNob3dTdGVwKHN0ZXApewogIGNsZWFyRWxlYygpOwogIC8vIOydtOyghCDri6jqs4Qgb2sKICBmb3IobGV0IGk9MDtpPHN0ZXA7aSsrKXsKICAgIGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCdlLScrZWxlY3NbaV0pLmNsYXNzTmFtZT0nZWxlYy1kb3Qgb2snOwogICAgZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ2wtJytlbGVjc1tpXSkuY2xhc3NOYW1lPSdlbGVjLWxibCBhY3RpdmUnOwogIH0KICAvLyDtmITsnqwg64uo6rOEIHNjYW5uaW5nCiAgZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ2UtJytlbGVjc1tzdGVwXSkuY2xhc3NOYW1lPSdlbGVjLWRvdCBzY2FubmluZyc7CiAgZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ2wtJytlbGVjc1tzdGVwXSkuY2xhc3NOYW1lPSdlbGVjLWxibCBhY3RpdmUnOwoKICBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgnbWFpbi10ZXh0JykudGV4dENvbnRlbnQ9J+yghOq3uSDsi6DtmLgg7KCQ6rKAIOykkSc7CiAgZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ3N1Yi10ZXh0JykudGV4dENvbnRlbnQ9J+y4oeygleydtCDsnbzsi5wg7KSR64uo65Cp64uI64ukXG7snqDsi5wg6riw64uk66CkIOyjvOyEuOyalCc7CiAgZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ3N1Yi10ZXh0Jykuc3R5bGUud2hpdGVTcGFjZT0ncHJlLWxpbmUnOwogIGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCdzdGF0dXMtdGV4dCcpLnRleHRDb250ZW50PWxhYmVsc1tzdGVwXTsKICBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgncHJvZy1maWxsJykuc3R5bGUud2lkdGg9KHN0ZXAvNCoxMDApKyclJzsKCiAgLy8g7J6g6riIIOyVhOydtOy9mCDtmZzshLEKICBjb25zdCBsb2NrPWRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCdsb2NrJyk7CiAgbG9jay5xdWVyeVNlbGVjdG9yKCcubG9jay1zaGFja2xlJykuc3R5bGUuYm9yZGVyQ29sb3I9JyNmZmYnOwogIGxvY2sucXVlcnlTZWxlY3RvcignLmxvY2stYm9keScpLnN0eWxlLmJvcmRlckNvbG9yPScjZmZmJzsKICBsb2NrLnF1ZXJ5U2VsZWN0b3IoJy5sb2NrLWRvdCcpLnN0eWxlLmJhY2tncm91bmQ9JyNmZmYnOwoKICBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgnZWxlYy1ncmlkJykuc3R5bGUuZGlzcGxheT0nZ3JpZCc7CiAgZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ3Byb2ctZmlsbCcpLnN0eWxlLnRyYW5zaXRpb249J3dpZHRoIDAuNXMnOwp9CgpmdW5jdGlvbiBzaG93RG9uZShoYXNFcnJvcil7CiAgLy8g7JmE66OMIOyDge2DnAogIGNsZWFyRWxlYygpOwogIGlmKGhhc0Vycm9yKXsKICAgIC8vIFJMLCBMTCDsnbTsg4Eg7ZGc7IucCiAgICBlbGVjcy5mb3JFYWNoKChpZCxpKT0+ewogICAgICBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgnZS0nK2lkKS5jbGFzc05hbWUgPSAoaWQ9PT0ncmwnfHxpZD09PSdsbCcpID8gJ2VsZWMtZG90IGZhaWwnIDogJ2VsZWMtZG90IG9rJzsKICAgICAgZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ2wtJytpZCkuY2xhc3NOYW1lID0gJ2VsZWMtbGJsIGFjdGl2ZSc7CiAgICB9KTsKICAgIGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCdtYWluLXRleHQnKS50ZXh0Q29udGVudD0n7J207IOBIOyLoO2YuCDqsJDsp4DrkKgnOwogICAgZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ3N1Yi10ZXh0JykudGV4dENvbnRlbnQ9J+ygkOqygCDqsrDqs7zqsIAg7ISc67KE66GcXG7soITshqHrkJjsl4jsirXri4jri6QnOwogICAgZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ3N1Yi10ZXh0Jykuc3R5bGUud2hpdGVTcGFjZT0ncHJlLWxpbmUnOwogICAgZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ3N0YXR1cy10ZXh0JykudGV4dENvbnRlbnQ9J+qysOqzvCDsoITshqEg7JmE66OMJzsKICAgIGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCdwcm9nLWZpbGwnKS5zdHlsZS53aWR0aD0nMTAwJSc7CiAgICBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgnbG9jaycpLnF1ZXJ5U2VsZWN0b3IoJy5sb2NrLXNoYWNrbGUnKS5zdHlsZS5ib3JkZXJDb2xvcj0nI2NjNDQ0NCc7CiAgICBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgnbG9jaycpLnF1ZXJ5U2VsZWN0b3IoJy5sb2NrLWJvZHknKS5zdHlsZS5ib3JkZXJDb2xvcj0nI2NjNDQ0NCc7CiAgfSBlbHNlIHsKICAgIGVsZWNzLmZvckVhY2goaWQ9PnsKICAgICAgZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ2UtJytpZCkuY2xhc3NOYW1lPSdlbGVjLWRvdCBvayc7CiAgICAgIGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCdsLScraWQpLmNsYXNzTmFtZT0nZWxlYy1sYmwgYWN0aXZlJzsKICAgIH0pOwogICAgZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ21haW4tdGV4dCcpLnRleHRDb250ZW50PSfsoJDqsoDsnbQg7JmE66OM65CY7JeI7Iq164uI64ukJzsKICAgIGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCdzdWItdGV4dCcpLnRleHRDb250ZW50PSfqsJDsgqztlanri4jri6RcbuyeoOyLnCDtm4Qg7KCV7IOBIOuqqOuTnOuhnCDrs7Xqt4Dtlanri4jri6QnOwogICAgZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ3N1Yi10ZXh0Jykuc3R5bGUud2hpdGVTcGFjZT0ncHJlLWxpbmUnOwogICAgZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ3N0YXR1cy10ZXh0JykudGV4dENvbnRlbnQ9J+ygleyDgSDrqqjrk5wg67O16reAIOykkSc7CiAgICBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgncHJvZy1maWxsJykuc3R5bGUud2lkdGg9JzEwMCUnOwogICAgZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ2xvY2snKS5xdWVyeVNlbGVjdG9yKCcubG9jay1zaGFja2xlJykuc3R5bGUuYm9yZGVyQ29sb3I9JyM1NTUnOwogICAgZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ2xvY2snKS5xdWVyeVNlbGVjdG9yKCcubG9jay1ib2R5Jykuc3R5bGUuYm9yZGVyQ29sb3I9JyM1NTUnOwogIH0KfQoKLy8g7LSI6riwIOyDge2DnApzaG93U3RlcCgwKTsKPC9zY3JpcHQ+CjwvYm9keT4KPC9odG1sPgo=',
+  noise: 'CjxzdHlsZT4KKntib3gtc2l6aW5nOmJvcmRlci1ib3g7bWFyZ2luOjA7cGFkZGluZzowfQoub3V0ZXJ7YmFja2dyb3VuZDojZThlOGU4O2JvcmRlci1yYWRpdXM6MTZweDtwYWRkaW5nOjIwcHg7ZGlzcGxheTpmbGV4O2ZsZXgtZGlyZWN0aW9uOmNvbHVtbjthbGlnbi1pdGVtczpjZW50ZXI7Z2FwOjE2cHg7Zm9udC1mYW1pbHk6LWFwcGxlLXN5c3RlbSxCbGlua01hY1N5c3RlbUZvbnQsJ1NlZ29lIFVJJyxzYW5zLXNlcmlmfQouZGV2aWNlLWxhYmVse2ZvbnQtc2l6ZToxMHB4O2NvbG9yOiNhYWE7bGV0dGVyLXNwYWNpbmc6LjFlbX0KLmRldmljZXt3aWR0aDozMDBweDtiYWNrZ3JvdW5kOiMxMTE7Ym9yZGVyLXJhZGl1czoxNHB4O3BhZGRpbmc6MTZweDtkaXNwbGF5OmZsZXg7ZmxleC1kaXJlY3Rpb246Y29sdW1uO2FsaWduLWl0ZW1zOmNlbnRlcn0KLnNjcmVlbnt3aWR0aDoxMDAlO2JhY2tncm91bmQ6IzBkMGQwZDtib3JkZXItcmFkaXVzOjEwcHg7Ym9yZGVyOjFweCBzb2xpZCAjMWUxZTFlO3BhZGRpbmc6NDBweCAyNHB4IDM2cHg7ZGlzcGxheTpmbGV4O2ZsZXgtZGlyZWN0aW9uOmNvbHVtbjthbGlnbi1pdGVtczpjZW50ZXI7Z2FwOjIwcHg7bWluLWhlaWdodDoyNjBweDtqdXN0aWZ5LWNvbnRlbnQ6Y2VudGVyfQoubG9jay1pY29ue3dpZHRoOjQwcHg7aGVpZ2h0OjQwcHg7ZGlzcGxheTpmbGV4O2ZsZXgtZGlyZWN0aW9uOmNvbHVtbjthbGlnbi1pdGVtczpjZW50ZXI7Z2FwOjB9Ci5sb2NrLWJvZHl7d2lkdGg6MjhweDtoZWlnaHQ6MjBweDtiYWNrZ3JvdW5kOnRyYW5zcGFyZW50O2JvcmRlcjoycHggc29saWQgIzU1NTtib3JkZXItcmFkaXVzOjRweDttYXJnaW4tdG9wOjJweH0KLmxvY2stc2hhY2tsZXt3aWR0aDoxNnB4O2hlaWdodDoxMnB4O2JvcmRlcjoycHggc29saWQgIzU1NTtib3JkZXItYm90dG9tOm5vbmU7Ym9yZGVyLXJhZGl1czo4cHggOHB4IDAgMH0KLmxvY2staWNvbi5hY3RpdmUgLmxvY2stYm9keXtib3JkZXItY29sb3I6I2ZmZn0KLmxvY2staWNvbi5hY3RpdmUgLmxvY2stc2hhY2tsZXtib3JkZXItY29sb3I6I2ZmZn0KLm1haW4tdGV4dHtmb250LXNpemU6MTdweDtjb2xvcjojZmZmO2ZvbnQtd2VpZ2h0OjUwMDt0ZXh0LWFsaWduOmNlbnRlcjtsZXR0ZXItc3BhY2luZzouMDFlbX0KLnN1Yi10ZXh0e2ZvbnQtc2l6ZToxMnB4O2NvbG9yOiM1NTU7dGV4dC1hbGlnbjpjZW50ZXI7bGluZS1oZWlnaHQ6MS42fQouZGl2aWRlcnt3aWR0aDo0MHB4O2hlaWdodDoxcHg7YmFja2dyb3VuZDojMjIyfQoucHJvZy13cmFwe3dpZHRoOjEwMCU7ZGlzcGxheTpmbGV4O2ZsZXgtZGlyZWN0aW9uOmNvbHVtbjtnYXA6NnB4fQoucHJvZy1iYXJ7d2lkdGg6MTAwJTtoZWlnaHQ6MnB4O2JhY2tncm91bmQ6IzIyMjtib3JkZXItcmFkaXVzOjFweDtvdmVyZmxvdzpoaWRkZW59Ci5wcm9nLWZpbGx7aGVpZ2h0OjEwMCU7YmFja2dyb3VuZDojZmZmO2JvcmRlci1yYWRpdXM6MXB4O2FuaW1hdGlvbjpwcm9nIDNzIGxpbmVhciBpbmZpbml0ZX0KQGtleWZyYW1lcyBwcm9nezAle3dpZHRoOjAlfTEwMCV7d2lkdGg6MTAwJX19Ci5wcm9nLWxhYmVse2ZvbnQtc2l6ZToxMHB4O2NvbG9yOiM0NDQ7dGV4dC1hbGlnbjpjZW50ZXI7bGV0dGVyLXNwYWNpbmc6LjA2ZW19Ci5kb3Qtcm93e2Rpc3BsYXk6ZmxleDtnYXA6NXB4O2p1c3RpZnktY29udGVudDpjZW50ZXI7YWxpZ24taXRlbXM6Y2VudGVyfQouZG90e3dpZHRoOjVweDtoZWlnaHQ6NXB4O2JvcmRlci1yYWRpdXM6NTAlO2JhY2tncm91bmQ6IzMzMzthbmltYXRpb246ZG90cHVsc2UgMS40cyBlYXNlLWluLW91dCBpbmZpbml0ZX0KLmRvdDpudGgtY2hpbGQoMil7YW5pbWF0aW9uLWRlbGF5Oi4yc30KLmRvdDpudGgtY2hpbGQoMyl7YW5pbWF0aW9uLWRlbGF5Oi40c30KQGtleWZyYW1lcyBkb3RwdWxzZXswJSw4MCUsMTAwJXtiYWNrZ3JvdW5kOiMzMzN9NDAle2JhY2tncm91bmQ6Izg4OH19Ci5zdGF0dXMtcm93e2Rpc3BsYXk6ZmxleDtnYXA6OHB4O2FsaWduLWl0ZW1zOmNlbnRlcn0KLnN0YXR1cy1kb3R7d2lkdGg6NnB4O2hlaWdodDo2cHg7Ym9yZGVyLXJhZGl1czo1MCU7YmFja2dyb3VuZDojMmEyYTJhO2FuaW1hdGlvbjpzdGF0dXNibGluayAycyBlYXNlLWluLW91dCBpbmZpbml0ZX0KQGtleWZyYW1lcyBzdGF0dXNibGlua3swJSwxMDAle29wYWNpdHk6LjN9NTAle29wYWNpdHk6MX19Ci5zdGF0dXMtdGV4dHtmb250LXNpemU6MTBweDtjb2xvcjojNDQ0O2xldHRlci1zcGFjaW5nOi4wNmVtfQoKLmJ0bi1yb3d7ZGlzcGxheTpmbGV4O2dhcDo4cHg7anVzdGlmeS1jb250ZW50OmNlbnRlcjtmbGV4LXdyYXA6d3JhcH0KYnV0dG9ue2ZvbnQtc2l6ZToxMnB4O3BhZGRpbmc6N3B4IDE2cHg7Ym9yZGVyLXJhZGl1czo4cHg7Ym9yZGVyOjAuNXB4IHNvbGlkICNjY2M7YmFja2dyb3VuZDojZmZmO2NvbG9yOiMzMzM7Y3Vyc29yOnBvaW50ZXI7Zm9udC1mYW1pbHk6aW5oZXJpdH0KYnV0dG9uOmhvdmVye2JhY2tncm91bmQ6I2YwZjBmMH0KPC9zdHlsZT4KCjxkaXYgY2xhc3M9Im91dGVyIj4KICA8ZGl2IGNsYXNzPSJkZXZpY2UtbGFiZWwiPkRFVklDRSBESVNQTEFZIE1PQ0tVUDwvZGl2PgogIDxkaXYgY2xhc3M9ImRldmljZSI+CiAgICA8ZGl2IGNsYXNzPSJzY3JlZW4iIGlkPSJzY3JlZW4iPgoKICAgICAgPGRpdiBjbGFzcz0ibG9jay1pY29uIGFjdGl2ZSIgaWQ9ImxvY2siPgogICAgICAgIDxkaXYgY2xhc3M9ImxvY2stc2hhY2tsZSI+PC9kaXY+CiAgICAgICAgPGRpdiBjbGFzcz0ibG9jay1ib2R5Ij48L2Rpdj4KICAgICAgPC9kaXY+CgogICAgICA8ZGl2IHN0eWxlPSJkaXNwbGF5OmZsZXg7ZmxleC1kaXJlY3Rpb246Y29sdW1uO2FsaWduLWl0ZW1zOmNlbnRlcjtnYXA6OHB4Ij4KICAgICAgICA8ZGl2IGNsYXNzPSJtYWluLXRleHQiIGlkPSJtYWluLXRleHQiPuybkOqyqSDsoJDqsoAg7KSR7J6F64uI64ukPC9kaXY+CiAgICAgICAgPGRpdiBjbGFzcz0ic3ViLXRleHQiIGlkPSJzdWItdGV4dCI+7Lih7KCV7J20IOydvOyLnCDspJHri6jrkKnri4jri6Q8YnI+7J6g7IucIOq4sOuLpOugpCDso7zshLjsmpQ8L2Rpdj4KICAgICAgPC9kaXY+CgogICAgICA8ZGl2IGNsYXNzPSJkaXZpZGVyIj48L2Rpdj4KCiAgICAgIDxkaXYgY2xhc3M9InByb2ctd3JhcCIgaWQ9InByb2ctd3JhcCI+CiAgICAgICAgPGRpdiBjbGFzcz0icHJvZy1iYXIiPjxkaXYgY2xhc3M9InByb2ctZmlsbCIgaWQ9InByb2ctZmlsbCI+PC9kaXY+PC9kaXY+CiAgICAgICAgPGRpdiBjbGFzcz0iZG90LXJvdyI+PGRpdiBjbGFzcz0iZG90Ij48L2Rpdj48ZGl2IGNsYXNzPSJkb3QiPjwvZGl2PjxkaXYgY2xhc3M9ImRvdCI+PC9kaXY+PC9kaXY+CiAgICAgIDwvZGl2PgoKICAgICAgPGRpdiBjbGFzcz0ic3RhdHVzLXJvdyI+CiAgICAgICAgPGRpdiBjbGFzcz0ic3RhdHVzLWRvdCIgaWQ9InN0YXR1cy1kb3QiPjwvZGl2PgogICAgICAgIDxkaXYgY2xhc3M9InN0YXR1cy10ZXh0IiBpZD0ic3RhdHVzLXRleHQiPuuNsOydtO2EsCDsiJjsp5Eg7KSRPC9kaXY+CiAgICAgIDwvZGl2PgoKICAgIDwvZGl2PgogIDwvZGl2PgoKICA8ZGl2IGNsYXNzPSJidG4tcm93Ij4KICAgIDxidXR0b24gb25jbGljaz0ic2hvd1NjYW4oKSI+7KCQ6rKAIOykkTwvYnV0dG9uPgogICAgPGJ1dHRvbiBvbmNsaWNrPSJzaG93U2VuZGluZygpIj7soITshqEg7KSRPC9idXR0b24+CiAgICA8YnV0dG9uIG9uY2xpY2s9InNob3dEb25lKCkiPuyZhOujjDwvYnV0dG9uPgogIDwvZGl2Pgo8L2Rpdj4KCjxzY3JpcHQ+CmZ1bmN0aW9uIHNob3dTY2FuKCl7CiAgZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ21haW4tdGV4dCcpLnRleHRDb250ZW50PSfsm5Dqsqkg7KCQ6rKAIOykkeyeheuLiOuLpCc7CiAgZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ3N1Yi10ZXh0JykudGV4dENvbnRlbnQ9J+y4oeygleydtCDsnbzsi5wg7KSR64uo65Cp64uI64ukXG7snqDsi5wg6riw64uk66CkIOyjvOyEuOyalCc7CiAgZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ3N1Yi10ZXh0Jykuc3R5bGUud2hpdGVTcGFjZT0ncHJlLWxpbmUnOwogIGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCdzdGF0dXMtdGV4dCcpLnRleHRDb250ZW50PSfrjbDsnbTthLAg7IiY7KeRIOykkSc7CiAgZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ3Byb2ctZmlsbCcpLnN0eWxlLmFuaW1hdGlvbj0ncHJvZyAzcyBsaW5lYXIgaW5maW5pdGUnOwogIGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCdwcm9nLWZpbGwnKS5zdHlsZS5iYWNrZ3JvdW5kPScjZmZmJzsKICBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgnbG9jaycpLnF1ZXJ5U2VsZWN0b3IoJy5sb2NrLWJvZHknKS5zdHlsZS5ib3JkZXJDb2xvcj0nI2ZmZic7CiAgZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ2xvY2snKS5xdWVyeVNlbGVjdG9yKCcubG9jay1zaGFja2xlJykuc3R5bGUuYm9yZGVyQ29sb3I9JyNmZmYnOwogIGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCdwcm9nLXdyYXAnKS5zdHlsZS5kaXNwbGF5PSdmbGV4JzsKICBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgnc3RhdHVzLWRvdCcpLnN0eWxlLmJhY2tncm91bmQ9JyMyYTJhMmEnOwogIGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCdzdGF0dXMtZG90Jykuc3R5bGUuYW5pbWF0aW9uPSdzdGF0dXNibGluayAycyBlYXNlLWluLW91dCBpbmZpbml0ZSc7Cn0KZnVuY3Rpb24gc2hvd1NlbmRpbmcoKXsKICBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgnbWFpbi10ZXh0JykudGV4dENvbnRlbnQ9J+qysOqzvCDsoITshqEg7KSR7J6F64uI64ukJzsKICBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgnc3ViLXRleHQnKS50ZXh0Q29udGVudD0n7KCQ6rKAIOuNsOydtO2EsOulvCDshJzrsoTroZxcbuyghOyGoe2VmOqzoCDsnojsirXri4jri6QnOwogIGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCdzdWItdGV4dCcpLnN0eWxlLndoaXRlU3BhY2U9J3ByZS1saW5lJzsKICBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgnc3RhdHVzLXRleHQnKS50ZXh0Q29udGVudD0n7ISc67KEIOyghOyGoSDspJEnOwogIGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCdwcm9nLWZpbGwnKS5zdHlsZS5hbmltYXRpb249J3Byb2cgMS41cyBsaW5lYXIgaW5maW5pdGUnOwp9CmZ1bmN0aW9uIHNob3dEb25lKCl7CiAgZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ21haW4tdGV4dCcpLnRleHRDb250ZW50PSfsoJDqsoDsnbQg7JmE66OM65CY7JeI7Iq164uI64ukJzsKICBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgnc3ViLXRleHQnKS50ZXh0Q29udGVudD0n6rCQ7IKs7ZWp64uI64ukXG7snqDsi5wg7ZuEIOygleyDgSDrqqjrk5zroZwg67O16reA7ZWp64uI64ukJzsKICBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgnc3ViLXRleHQnKS5zdHlsZS53aGl0ZVNwYWNlPSdwcmUtbGluZSc7CiAgZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ3N0YXR1cy10ZXh0JykudGV4dENvbnRlbnQ9J+ygleyDgSDrqqjrk5wg67O16reAIOykkSc7CiAgZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ3Byb2ctZmlsbCcpLnN0eWxlLmFuaW1hdGlvbj0nbm9uZSc7CiAgZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ3Byb2ctZmlsbCcpLnN0eWxlLndpZHRoPScxMDAlJzsKICBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgncHJvZy1maWxsJykuc3R5bGUuYmFja2dyb3VuZD0nIzY2Nic7CiAgZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ2xvY2snKS5xdWVyeVNlbGVjdG9yKCcubG9jay1ib2R5Jykuc3R5bGUuYm9yZGVyQ29sb3I9JyM1NTUnOwogIGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCdsb2NrJykucXVlcnlTZWxlY3RvcignLmxvY2stc2hhY2tsZScpLnN0eWxlLmJvcmRlckNvbG9yPScjNTU1JzsKICBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgnc3RhdHVzLWRvdCcpLnN0eWxlLmFuaW1hdGlvbj0nbm9uZSc7CiAgZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ3N0YXR1cy1kb3QnKS5zdHlsZS5vcGFjaXR5PScwLjMnOwp9Cjwvc2NyaXB0Pgo='
+};
+const DEVICE_TITLES = {
+  weight: '📱 장비 화면 — 체중 점검',
+  measure: '📱 장비 화면 — 측정값 점검',
+  noise: '📱 장비 화면 — 노이즈 점검'
+};
+function openDeviceScreen(key){
+  const overlay = document.getElementById('device-overlay');
+  const frame = document.getElementById('device-modal-frame');
+  const title = document.getElementById('device-modal-title');
+  title.textContent = DEVICE_TITLES[key];
+  // base64 디코딩 → blob URL → iframe
+  const html = decodeURIComponent(escape(atob(DEVICE_SCREENS_B64[key])));
+  const blob = new Blob([html], {type: 'text/html'});
+  const url = URL.createObjectURL(blob);
+  frame.onload = () => URL.revokeObjectURL(url);
+  frame.src = url;
+  overlay.classList.add('show');
+}
+function closeDeviceScreen(e){
+  // 배경 클릭 시에만 닫기 (모달 내부 클릭은 무시)
+  if(e && e.target !== document.getElementById('device-overlay')) return;
+  document.getElementById('device-overlay').classList.remove('show');
+  setTimeout(()=>{ document.getElementById('device-modal-frame').src='about:blank'; }, 300);
+}
+function closeDeviceScreenBtn(){
+  // ✕ 버튼 전용
+  document.getElementById('device-overlay').classList.remove('show');
+  setTimeout(()=>{ document.getElementById('device-modal-frame').src='about:blank'; }, 300);
+}
+
+function closeModal(){
+  document.getElementById('overlay').classList.remove('show');
+  document.getElementById('auto-badge').classList.remove('show');
+}
+function overlayClick(e){if(e.target===document.getElementById('overlay'))closeModal();}
+</script>
+
+<!-- 장비 화면 팝업 오버레이 -->
+<div class="device-overlay" id="device-overlay" onclick="closeDeviceScreen(event)">
+  <div class="device-modal">
+    <div class="device-modal-head">
+      <div class="device-modal-title" id="device-modal-title">장비 화면</div>
+      <button class="device-modal-close" onclick="closeDeviceScreenBtn()">✕</button>
+    </div>
+    <div class="device-modal-body">
+      <iframe id="device-modal-frame" src="about:blank"></iframe>
+    </div>
+  </div>
+</div>
+</body>
+</html>
