@@ -1504,7 +1504,7 @@ position: relative;
     <div id="anlys-branch-chks" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
    <div style="width:1px;height:14px;background:#E2E8F0;margin:0 2px;flex-shrink:0;"></div>
    <label style="display:flex;align-items:center;gap:4px;cursor:pointer;background:#fff;border:1px solid #0E7490;border-radius:5px;padding:3px 8px;font-weight:600;color:#0E7490;white-space:nowrap;flex-shrink:0;" title="📈 버튼 또는 소분류 체크 시 자동 활성화 — 선택된 항목의 사용기간별 교체율을 별도 미니 차트로 표시">
-    <input type="checkbox" id="chk-detail-overlay" onchange="anlysRedrawChart()" style="accent-color:#0E7490;cursor:pointer;">
+  <input type="checkbox" id="chk-detail-overlay" onchange="if(!this.checked){window._overlayParts.clear();window._overlaySymptoms.clear();window._symptomCheckedSubs.clear();document.querySelectorAll('[data-part-overlay]').forEach(btn=>{btn.style.background='#F8FAFC';btn.style.borderColor='#E2E8F0';btn.style.color='#9CA3AF';});}anlysRedrawChart();" style="accent-color:#0E7490;cursor:pointer;">
     상세 항목
    </label>
    <div id="anlys-overlay-bar" style="display:none;align-items:center;gap:4px;margin-left:auto;flex-wrap:wrap;">
@@ -5371,10 +5371,13 @@ function anlysDrawOverlayMiniCharts() {
     const sn = sk.split('|||')[1]||sk;
     items.push({ label: sn, fn: d => (d.소분류||d.원본대분류||'')===sn });
   });
-  if((window._symptomCheckedSubs||new Set()).size > 0) {
-    const subs = [...window._symptomCheckedSubs].map(k=>k.split('|||')[1]||k);
-    items.push({ label: subs.join('+').slice(0,20), fn: d => subs.includes(d.소분류||d.원본대분류||'') });
-  }
+(window._symptomCheckedSubs||new Set()).forEach(sk => {
+    const sn = sk.split('|||')[1] || sk;
+    items.push({
+        label: sn,
+        fn: d => (d.소분류||d.원본대분류||'') === sn
+    });
+});
 
   if(!items.length) { wrap.style.display='none'; wrap.innerHTML=''; return; }
 
