@@ -1,7 +1,7 @@
 <html lang="ko"><head>
  <meta charset="UTF-8">
  <meta name="viewport" content="width=device-width, initial-scale=1.0">
- <title>CRM Dashboard V29 - InBody Care</title>
+ <title>CRM Dashboard V71 - InBody Care</title>
  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
@@ -181,11 +181,10 @@
 
  /* 차트 컨테이너 필수 속성 */
  .chart-container {
-position: relative;
+ position: relative;
  width: 100% !important;
- /* 100% 대신 숫자로 박아버려야 합니다 */
- height: 450px !important; 
- min-height: 450px !important;
+ height: 100% !important;
+ min-height: 120px;
  display: block !important;
 }
  canvas { display: block; width: 100% !important; height: 100% !important; }
@@ -902,6 +901,7 @@ position: relative;
    <div>
     <div style="font-size:15px;font-weight:800;color:#065f46;">💰 장비 판매가 입력</div>
     <div style="font-size:11px;color:#6B7280;margin-top:2px;">저장된 판매가는 장비 분석 모달에서 자동으로 불러옵니다</div>
+    <div style="font-size:11px;color:#f59e0b;margin-top:2px;">※ 입력값은 이 브라우저에만 저장됩니다. 다른 기기·시크릿 창에서는 초기화됩니다.</div>
    </div>
    <div style="display:flex;gap:8px;align-items:center;">
     <button onclick="priceModalExportExcel()" style="font-size:12px;padding:5px 12px;border-radius:6px;background:#059669;color:#fff;border:none;cursor:pointer;font-weight:700;">⬇ 엑셀 저장</button>
@@ -1552,7 +1552,6 @@ position: relative;
  <div id="anlys-drilldown" style="display:none;"><span id="anlys-drill-title"></span><div id="anlys-drill-content"></div></div>
  <div id="anlys-bar-list" style="display:none;"></div>
  <div id="anlys-right-panel" style="display:none;"></div>
- <canvas id="anlys-bubble-chart" style="display:none;"></canvas>
 
 </div>
 </div><!-- /anlysModal -->
@@ -1810,6 +1809,12 @@ document.getElementById('excelFile').addEventListener('click',function(){this.va
 document.getElementById('excelFile').addEventListener('click', function(){ this.value=''; }); // ★ 같은 파일 재업로드 허용
 document.getElementById('excelFile').addEventListener('change',function(e){
  const file=e.target.files[0];if(!file)return;
+ console.log('[CRM] 파일 선택:', file.name, file.size, 'bytes');
+ const loadingToast = document.createElement('div');
+ loadingToast.id = '_crm_loading_toast';
+ loadingToast.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#1a2332;color:#fff;padding:10px 20px;border-radius:8px;font-size:13px;font-weight:600;z-index:999999;box-shadow:0 4px 12px rgba(0,0,0,0.3);';
+ loadingToast.textContent = '⏳ ' + file.name + ' 로드 중...';
+ document.body.appendChild(loadingToast);
 
  // ★ 새 CRM 로드 시 연관 상태 초기화
  window._priceMap = {};
@@ -1826,15 +1831,44 @@ document.getElementById('excelFile').addEventListener('change',function(e){
  hdrUpdateBadge('hdr-price-status', '');
  hdrUpdateBadge('hdr-sales-status', '');
 
+ const isCsv = file.name.toLowerCase().endsWith('.csv');
  const reader=new FileReader();
  reader.onload=evt=>{
  try{
- const wb=XLSX.read(new Uint8Array(evt.target.result),{type:'array'});
+ let wb;
+ if(isCsv){
+   // CSV: 인코딩 자동감지 후 텍스트로 읽기
+   const rawBuf = evt.target.result;
+   const uint8 = new Uint8Array(rawBuf);
+   // BOM 감지 (UTF-8 BOM: EF BB BF, UTF-16 LE: FF FE)
+   let csvText;
+   if(uint8[0]===0xFF && uint8[1]===0xFE){
+     csvText = new TextDecoder('utf-16le').decode(rawBuf);
+   } else {
+     // UTF-8 또는 EUC-KR 시도
+     try { csvText = new TextDecoder('utf-8').decode(rawBuf); }
+     catch(e) { csvText = new TextDecoder('euc-kr').decode(rawBuf); }
+     // EUC-KR 깨짐 감지: UTF-8 결과에 대체문자(U+FFFD)가 많으면 EUC-KR 재시도
+     if((csvText.match(/\uFFFD/g)||[]).length > 5){
+       try { csvText = new TextDecoder('euc-kr').decode(rawBuf); } catch(e2){}
+     }
+   }
+   wb = XLSX.read(csvText, {type:'string'});
+ } else {
+   wb = XLSX.read(new Uint8Array(evt.target.result),{type:'array'});
+ }
  const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
- if(!rows.length)return alert('데이터가 없습니다.');
- processData(rows);
+ console.log('[CRM] 파싱 완료. 시트:', wb.SheetNames[0], '/ 행 수:', rows.length, '/ 첫 행 키:', rows[0] ? Object.keys(rows[0]).slice(0,5) : '없음');
+ if(!rows.length){document.getElementById('_crm_loading_toast')?.remove();return alert('데이터가 없습니다.\n\nCSV 파일의 경우 인코딩(UTF-8 또는 EUC-KR)을 확인해주세요.');}
+ try { processData(rows); } catch(pdErr) {
+   document.getElementById('_crm_loading_toast')?.remove();
+   console.error('[CRM] processData 오류:', pdErr);
+   return alert('데이터 처리 오류:\n' + pdErr.message + '\n\nF12 콘솔에서 상세 확인 가능합니다.');
+ }
  hdrUpdateBadge('hdr-crm-status', rows.length.toLocaleString()+'건');
- }catch(err){alert('엑셀 처리 에러: '+err.message);}
+ document.getElementById('_crm_loading_toast')?.remove();
+ console.log('[CRM] 로드 완료:', rows.length, '건');
+ }catch(err){document.getElementById('_crm_loading_toast')?.remove();alert('엑셀 처리 에러: '+err.message);}
  };
  reader.readAsArrayBuffer(file);
 });
@@ -2013,6 +2047,9 @@ document.getElementById('salesFile').addEventListener('change', function(e) {
  if(btn) { btn.textContent = ` 판매 ${matched}개`; btn.className = 'bg-emerald-600 text-white px-4 py-1.5 rounded-md text-sm font-black shadow-sm'; }
  hdrUpdateBadge('hdr-sales-status', `${matched}개`);
  alert(` 판매데이터 로드 완료\nCRM 매칭: ${matched}개\nAS 0건 (신규/미발생): ${skipped}개\n전체 등록: ${matched+skipped}개\n\n워런티 산출 시 연도별 불량율 자동 계산됩니다.`);
+ if (document.getElementById('ssModal') && document.getElementById('ssModal').style.display !== 'none') {
+ if (typeof ssInitEqList === 'function') ssInitEqList();
+ }
  } catch(err) {
  alert('판매데이터 처리 에러: ' + err.message);
  }
@@ -4100,8 +4137,6 @@ const BRANCH_COLORS = [
  '#6D28D9','#065F46','#92400E','#075985','#9D174D'
 ];
 
-// 유틸 
-function fmtW(v) { return v>=100000000?(v/100000000).toFixed(1)+'억':v>=10000000?(v/10000000).toFixed(1)+'천만':v>=10000?Math.round(v/10000)+'만':v>=1000?(v/1000).toFixed(1)+'천':String(v||0); }
 
 // 타 지사 파일 로드 
 function anlysLoadBranchFiles(input) {
@@ -5149,8 +5184,6 @@ function anlysGetPartsTipData(bandIdx) {
  return { band: b.label, myParts, branchParts };
 }
 
-// anlysRenderPartsCompare — 섹션 제거됨, 툴팁으로 통합
-function anlysRenderPartsCompare() { /* noop — 툴팁으로 대체됨 */ }
 
 // KPI 비교 테이블 렌더
 function anlysRenderKPICompare(mainData) {
@@ -5304,7 +5337,6 @@ function anlysRender() {
  anlysDrawChart(data);
  anlysDrawDiffChart(data);
  anlysRenderKPICompare(data);
- anlysRenderPartsCompare(data);
  anlysUpdateSide(data);
  anlysDrawOverlayMiniCharts();
 }
@@ -8669,7 +8701,7 @@ function renderUnifiedParts(eq) {
       onclick="togglePartBandChart(this, '${name.replace(/'/g,"\\'")}', ${i})"
       style="cursor:pointer;border-bottom:1px solid #F5F7FA;${rowStyle}${info.isQuality?'background:#FFF8F8;':''}">
       <td style="padding:5px 8px;text-align:center;font-weight:700;color:${col};font-size:11px;">${i+1}</td>
-      <td style="padding:5px 8px;color:#1a2332;">
+      <td style="padding:5px 8px;color:#1a2332;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${name}">
         <span>${name}</span>${qBadge}${lowDataWarn}
       </td>
       <td style="padding:5px 8px;text-align:right;font-weight:600;">${info.count}</td>
@@ -9691,6 +9723,7 @@ function runFlagAnalysis() {
 }
 
 function renderFlagBanner() {
+  if (window._flagBannerDismissed) return;
   const flags = runFlagAnalysis();
   let el = document.getElementById('flag-banner');
   if (!el) return;
@@ -9721,7 +9754,7 @@ function renderFlagBanner() {
         <button onclick="openFlagSettings()" 
           style="font-size:10px;padding:2px 7px;border:1px solid #FDE68A;border-radius:4px;
             background:#fff;color:#92400E;cursor:pointer;">⚙ 설정</button>
-        <button onclick="document.getElementById('flag-banner').style.display='none'"
+        <button onclick="window._flagBannerDismissed=true;document.getElementById('flag-banner').style.display='none'"
           style="font-size:11px;background:none;border:none;color:#9CA3AF;cursor:pointer;padding:0 2px;">✕</button>
       </div>
     </div>`;
@@ -9733,7 +9766,7 @@ function openFlagSettings() {
   if (val && !isNaN(val)) {
     localStorage.setItem('flag_revisit_threshold', val);
     renderFlagBanner();
-    showToast(`재방문율 임계값 ${val}%로 설정됨`);
+    anlysToast(`재방문율 임계값 ${val}%로 설정됨`, 'ok');
   }
 }
 
@@ -11758,10 +11791,10 @@ function openSafetyStockModal() {
 function closeSafetyStockModal() {
  document.getElementById('ssModal').style.display = 'none';
 }
-document.addEventListener('DOMContentLoaded', () => {
+(function() {
  const m = document.getElementById('ssModal');
  if (m) m.addEventListener('click', e => { if (e.target === m) closeSafetyStockModal(); });
-});
+})();
 
 // 로직 드롭다운 
 function ssToggleLogic() {
@@ -11991,10 +12024,10 @@ function ssSwitchResultTab(tab, btn) {
 function ssCalc() {
  const inputSales = ssGetInputSales();
  if (!Object.keys(inputSales).length) {
- alert('장비를 선택하고 판매수량을 입력해주세요.'); return;
+ anlysToast('장비를 선택하고 판매수량을 입력해주세요.', 'warn'); return;
  }
  const src = window.globalRawData || window._wtData || [];
- if (!src.length) { alert('CRM 데이터가 없습니다.'); return; }
+ if (!src.length) { anlysToast('CRM 데이터가 없습니다.', 'warn'); return; }
 
  const Z = parseFloat(document.getElementById('ss-z').value) || 1.65;
  const histWindow = parseInt(document.getElementById('ss-window').value) || 36;
